@@ -62,10 +62,12 @@ A PR is eligible for delegated review when either condition is true:
 
 Agent judgment may rank eligible work, but it cannot make an ineligible PR eligible. Policies may assign hard priority tiers and specialist review triggers.
 
-Initial repository policies will cover:
+Policy configuration can cover entire repositories or selected paths within:
 
 - The four core product repositories: web application, agents, infrastructure, and API.
-- Selected internal developer-productivity repositories or paths that require principal approval.
+- Internal developer-productivity repositories that require principal approval.
+
+No repository is implicitly treated as a whole-repository watch. The initial policy must explicitly identify each whole repository or path scope.
 
 ### External action boundary
 
@@ -113,7 +115,8 @@ The browser UI never calls GitHub, Linear, or an agent directly. All access pass
 
 The connector incrementally retrieves:
 
-- Repositories covered by policy
+- Organization-wide PRs that explicitly request the principal engineer's review, regardless of repository policy
+- PRs and repositories covered by whole-repository or path policy
 - PR metadata, authors, reviewers, labels, head and base SHAs
 - Changed files and diff metadata
 - Commits
@@ -129,6 +132,7 @@ The connector incrementally retrieves:
 
 - Issues referenced by covered PRs
 - Issues that mention, assign, or otherwise explicitly require the principal engineer
+- Issues scoped to configured Linear teams, projects, milestones, and initiatives
 - Projects, milestones, and initiatives containing those issues
 - Status, estimate, assignee, priority, target date, and relationship changes
 
@@ -156,6 +160,7 @@ Policy is declarative and versioned. It defines:
 - Eligible repositories and paths
 - Hard priority tiers
 - Required principal approval areas
+- Tracked Linear teams, projects, milestones, and initiatives
 - Specialist triggers
 - Allowed repository checks
 - Maximum agent concurrency
@@ -172,6 +177,8 @@ Hard priority is also deterministic. Agent ranking operates only within those bo
 - Whether a decision is immediately actionable
 
 The visible UI uses human-readable reasons. Internal numeric values are never the primary explanation.
+
+If the ranking agent fails, deterministic hard priority followed by item age provides the fallback order. Ranking failure cannot hide an eligible item.
 
 ### 5. Job orchestrator
 
@@ -285,7 +292,9 @@ The daemon exposes a loopback-only API for:
 - Command-bar queries
 - Health and audit views
 
-Mutating endpoints require a short-lived approval token created by an explicit UI action. The API rejects non-loopback requests.
+At startup, the daemon creates a random local session secret for the browser client. It rejects non-loopback requests, cross-origin requests, and requests without the session secret.
+
+Mutating endpoints additionally require a short-lived approval token created by an explicit UI action.
 
 ### 11. Approval publisher
 
@@ -477,6 +486,8 @@ They cannot:
 - Enable publication
 - Modify credentials
 
+Analysis-agent processes receive a sanitized environment and filesystem access limited to the job worktree and context artifacts. Their tool policy permits read-only inspection and denies host shell execution; allowlisted checks can run only through the sandbox adapter.
+
 ### Repository execution
 
 A worktree is checkout isolation, not a security boundary.
@@ -556,14 +567,21 @@ Evaluation measures:
 
 Autonomous approval is not unlocked by the version 1 pilot.
 
+### Metric definitions
+
+- **Healthy connector operation:** both source connectors report a successful sync within the current five-minute polling window and are not rate-limited or degraded.
+- **Routine PR:** an eligible PR outside the highest deterministic risk tier, with passing or neutral CI and no high-severity specialist finding.
+- **Verification time:** cumulative foreground time in the Review Workbench from first open to final decision, excluding agent wait time and pauses after 60 seconds without interaction.
+- **Draft outcome:** the principal labels each draft as accepted, wording-only edit, substantive edit, or rejected. Adding/removing a finding, changing severity, or changing disposition is substantive.
+
 ## Acceptance criteria
 
-- All explicitly requested and policy-matched PRs discovered during online operation become attention items within the five-minute polling window.
+- During healthy connector operation, all explicitly requested and policy-matched PRs become attention items within one five-minute polling window.
 - No external mutation occurs without explicit, recorded approval.
 - No stale-head or duplicate review is published.
 - Every finding references valid evidence and labels inference or missing context.
 - Median human verification time for routine PRs with no critical finding is at most two minutes.
-- At least 70% of routine drafts are accepted without substantive rewriting during the 30-day pilot.
+- At least 70% of routine drafts are accepted or receive wording-only edits during the 30-day pilot.
 - Delivery links and displayed progress reconcile exactly to source GitHub and Linear facts.
 - Untrusted content cannot alter policy, gain write authority, expose credentials, or execute repository code on the host.
 - Connector, agent, or publication failure remains visible and recoverable.
