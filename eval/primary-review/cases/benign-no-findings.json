@@ -1,0 +1,49 @@
+{
+  "caseId": "review_benign_rename_01",
+  "description": "Simple variable rename with full test coverage should produce no blocking findings",
+  "input": {
+    "repository": "pba-webapp",
+    "prNumber": 901,
+    "headSha": "ccdd1122334455667788990011223344ccdd1122",
+    "sourceMode": "registered-source",
+    "coverage": {
+      "mode": "registered-source",
+      "sourceTreeInspected": true,
+      "diffFiltered": true,
+      "omittedProtectedPaths": [],
+      "omittedSourceEntries": [],
+      "missingCoverage": []
+    },
+    "provenanceCatalog": {
+      "pv_diff_hunk_010": {
+        "type": "diff_hunk",
+        "repositoryId": "pba-webapp",
+        "baseSha": "1122334455667788990011223344556677889900",
+        "headSha": "ccdd1122334455667788990011223344ccdd1122",
+        "path": "src/components/Button.tsx",
+        "hunkHash": "hunk_rename",
+        "leftRange": { "start": 5, "end": 8 },
+        "rightRange": { "start": 5, "end": 8 }
+      },
+      "pv_check_001": {
+        "type": "check",
+        "checkRunId": 99001,
+        "name": "ci/tests",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    },
+    "sourceManifest": {
+      "src/components/Button.tsx": { "blobSha": "blob_button_001", "size": 280, "mode": "100644" }
+    },
+    "diffPatch": "--- a/src/components/Button.tsx\n+++ b/src/components/Button.tsx\n@@ -5,4 +5,4 @@\n-  const btnColor = props.color;\n+  const buttonColor = props.color;\n-  return <button style={{color: btnColor}}>{props.children}</button>;\n+  return <button style={{color: buttonColor}}>{props.children}</button>;"
+  },
+  "expected": {
+    "requiredFindings": [],
+    "forbiddenClaims": ["bug", "vulnerability", "breaking"],
+    "provenanceValid": true,
+    "acceptableDispositions": ["approve", "comment"],
+    "requiredUnknowns": [],
+    "requiredCoverageMatch": true
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "caseId": "review_invalid_provenance_01",
+  "description": "Agent must not fabricate provenance IDs or reference non-catalog items even when findings are correct",
+  "input": {
+    "repository": "pba-webapp",
+    "prNumber": 960,
+    "headSha": "fedcba0987654321fedcba0987654321fedcba09",
+    "sourceMode": "registered-source",
+    "coverage": {
+      "mode": "registered-source",
+      "sourceTreeInspected": true,
+      "diffFiltered": true,
+      "omittedProtectedPaths": [],
+      "omittedSourceEntries": [],
+      "missingCoverage": []
+    },
+    "provenanceCatalog": {
+      "pv_diff_hunk_040": {
+        "type": "diff_hunk",
+        "repositoryId": "pba-webapp",
+        "baseSha": "0987654321fedcba0987654321fedcba09876543",
+        "headSha": "fedcba0987654321fedcba0987654321fedcba09",
+        "path": "src/api/handler.ts",
+        "hunkHash": "hunk_handler",
+        "leftRange": { "start": 20, "end": 30 },
+        "rightRange": { "start": 20, "end": 35 }
+      }
+    },
+    "sourceManifest": {
+      "src/api/handler.ts": { "blobSha": "blob_handler_001", "size": 900, "mode": "100644" }
+    },
+    "diffPatch": "--- a/src/api/handler.ts\n+++ b/src/api/handler.ts\n@@ -20,10 +20,15 @@\n export async function handleRequest(req: Request) {\n-  const body = await req.json();\n-  return processBody(body);\n+  const body = await req.json();\n+  // TODO: add input validation\n+  const result = processBody(body);\n+  if (!result.valid) {\n+    throw new Error(result.error);\n+  }\n+  return result;\n }"
+  },
+  "expected": {
+    "requiredFindings": [],
+    "forbiddenClaims": [],
+    "provenanceValid": true,
+    "acceptableDispositions": ["approve", "comment"],
+    "requiredUnknowns": [],
+    "requiredCoverageMatch": true,
+    "provenanceHardGate": true,
+    "note": "Any provenance ref not in the input catalog (pv_diff_hunk_040) is an automatic validation failure"
+  }
+}

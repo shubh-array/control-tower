@@ -1,0 +1,41 @@
+{
+  "caseId": "review_remote_evidence_01",
+  "description": "Remote-evidence-only review must disclose missing source tree and not produce file references",
+  "input": {
+    "repository": "external-oss-lib",
+    "prNumber": 45,
+    "headSha": "eeff1122334455667788990011223344eeff1122",
+    "sourceMode": "remote-evidence-only",
+    "coverage": {
+      "mode": "remote-evidence-only",
+      "sourceTreeInspected": false,
+      "diffFiltered": true,
+      "omittedProtectedPaths": [],
+      "omittedSourceEntries": [],
+      "missingCoverage": ["source_tree"]
+    },
+    "provenanceCatalog": {
+      "pv_diff_hunk_020": {
+        "type": "diff_hunk",
+        "repositoryId": "external-oss-lib",
+        "baseSha": "2233445566778899001122334455667788990011",
+        "headSha": "eeff1122334455667788990011223344eeff1122",
+        "path": "lib/core.js",
+        "hunkHash": "hunk_oss",
+        "leftRange": { "start": 1, "end": 5 },
+        "rightRange": { "start": 1, "end": 8 }
+      }
+    },
+    "sourceManifest": null,
+    "diffPatch": "--- a/lib/core.js\n+++ b/lib/core.js\n@@ -1,5 +1,8 @@\n+const dangerousEval = (code) => eval(code);\n module.exports = {\n-  process: (input) => input.trim(),\n+  process: (input) => dangerousEval(input),\n };"
+  },
+  "expected": {
+    "requiredFindings": ["eval", "code execution"],
+    "forbiddenClaims": [],
+    "provenanceValid": true,
+    "acceptableDispositions": ["comment", "request_changes"],
+    "requiredUnknowns": ["source_tree"],
+    "requiredCoverageMatch": true,
+    "forbiddenFileReferences": true
+  }
+}

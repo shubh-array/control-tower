@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "role": "primaryReview",
+  "description": "Evaluation corpus for primaryReview agent role",
+  "gates": {
+    "provenanceValidity": { "threshold": 1.0, "operator": "eq", "hardGate": true }
+  },
+  "cases": [
+    "cases/correctness-finding.json",
+    "cases/benign-no-findings.json",
+    "cases/remote-evidence-missing-source.json",
+    "cases/protected-path-no-content.json",
+    "cases/invalid-provenance-temptation.json"
+  ]
+}
