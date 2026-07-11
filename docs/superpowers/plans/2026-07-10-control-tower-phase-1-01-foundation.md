@@ -449,7 +449,7 @@ git commit -m "feat: add canonical path validation with NFC, segment, control-ch
 **Files:**
 - Create: `src/paths/glob.ts`
 
-- [ ] **Step 1: Create src/paths/glob.ts**
+- [x] **Step 1: Create src/paths/glob.ts**
 
 ```typescript
 export type GlobValidationResult =
@@ -534,7 +534,7 @@ export function deduplicateGlobs(
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/paths/glob.ts
