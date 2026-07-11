@@ -1480,7 +1480,7 @@ git commit -m "feat(discovery): add streaming diff filter with fail-closed seman
 **Files:**
 - Create: `src/normalize/paths.ts`
 
-- [ ] **Step 1: Write path normalization for GitHub file lists**
+- [x] **Step 1: Write path normalization for GitHub file lists**
 
 ```typescript
 // src/normalize/paths.ts
@@ -1534,12 +1534,12 @@ export function normalizeFileList(
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/normalize/paths.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/normalize/paths.ts

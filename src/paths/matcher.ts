@@ -49,7 +49,7 @@ export class CanonicalPathMatcher {
 
     for (const { pattern, source } of inputs) {
       const result = validateGlob(pattern);
-      if (!result.valid) {
+      if (result.valid === false) {
         throw new Error(`Invalid glob "${pattern}": ${result.reason}`);
       }
       if (seen.has(result.pattern)) {
