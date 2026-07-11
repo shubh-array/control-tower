@@ -1,6 +1,11 @@
 import type Database from "better-sqlite3";
 import { normalizeLogin } from "../config/author-login.js";
 import type { DiscoveredPr, GhCheckRun } from "../github/types.js";
+import type { PolicyDecision } from "../policy/evaluate.js";
+import { canonicalJsonSerialize } from "../util/canonical-json.js";
+import { sha256OfCanonicalJson } from "../util/hash.js";
+
+const MAX_LABELS = 50;
 
 type ResourceClass = "light" | "medium" | "heavy";
 
@@ -63,9 +68,9 @@ export function upsertPr(db: Database.Database, pr: DiscoveredPr): number {
           repository_id, pr_number, title, body, url, state, draft,
           author_login, head_sha, base_sha, head_ref, base_ref,
           additions, deletions, github_created, github_updated,
-          explicit_request, explicit_request_at, fetched_at
+          explicit_request, explicit_request_at, labels_json, fetched_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
         ON CONFLICT(repository_id, pr_number) DO UPDATE SET
           title = excluded.title,
           body = excluded.body,
@@ -83,6 +88,7 @@ export function upsertPr(db: Database.Database, pr: DiscoveredPr): number {
           github_updated = excluded.github_updated,
           explicit_request = MAX(prs.explicit_request, excluded.explicit_request),
           explicit_request_at = COALESCE(prs.explicit_request_at, excluded.explicit_request_at),
+          labels_json = excluded.labels_json,
           fetched_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
         RETURNING id
       `,
@@ -106,6 +112,7 @@ export function upsertPr(db: Database.Database, pr: DiscoveredPr): number {
       pr.updatedAt,
       pr.explicitRequest ? 1 : 0,
       pr.explicitRequestTimestamp ?? null,
+      JSON.stringify(pr.labels.slice(0, MAX_LABELS)),
     ) as { id: number };
 
   return row.id;
@@ -248,6 +255,81 @@ export function upsertDiscoveredPr(
   });
 
   return transaction();
+}
+
+export function upsertAttentionItem(
+  db: Database.Database,
+  _prId: number,
+  pr: DiscoveredPr,
+  decision: PolicyDecision,
+  repositoryKey: string,
+  sourceMode: "registered-source" | "remote-evidence-only",
+): void {
+  const policyJson = canonicalJsonSerialize(decision);
+  const policyHash = sha256OfCanonicalJson(decision);
+  const attentionId = `${repositoryKey}#${pr.prNumber}`;
+
+  db.prepare(
+    `
+      INSERT INTO attention_items (
+        id, repository_id, repository_key, pr_number, state,
+        priority_tier, priority_sort_ordinal,
+        eligibility_reasons, exclusion_reasons,
+        analysis_mode, auto_analyze, source_mode,
+        policy_json, policy_hash, updated_at
+      )
+      VALUES (
+        ?, ?, ?, ?, 'monitoring',
+        ?, ?,
+        ?, ?,
+        ?, ?, ?,
+        ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      )
+      ON CONFLICT(repository_key, pr_number) DO UPDATE SET
+        repository_id = excluded.repository_id,
+        priority_tier = excluded.priority_tier,
+        priority_sort_ordinal = excluded.priority_sort_ordinal,
+        eligibility_reasons = excluded.eligibility_reasons,
+        exclusion_reasons = excluded.exclusion_reasons,
+        analysis_mode = excluded.analysis_mode,
+        auto_analyze = excluded.auto_analyze,
+        source_mode = excluded.source_mode,
+        policy_json = excluded.policy_json,
+        policy_hash = excluded.policy_hash,
+        updated_at = excluded.updated_at
+    `,
+  ).run(
+    attentionId,
+    pr.repositoryId,
+    repositoryKey,
+    pr.prNumber,
+    decision.priorityStatus,
+    decision.prioritySortOrdinal,
+    JSON.stringify(decision.eligibilityReasons),
+    JSON.stringify(decision.exclusionReasons),
+    decision.analysisMode,
+    decision.analysisMode === "auto" ? 1 : 0,
+    sourceMode,
+    policyJson,
+    policyHash,
+  );
+}
+
+export function createPersistDecision(
+  db: Database.Database,
+  resolveRepositoryKey: (pr: DiscoveredPr) => string,
+  resolveSourceMode: (pr: DiscoveredPr) => "registered-source" | "remote-evidence-only",
+): (prId: number, pr: DiscoveredPr, decision: PolicyDecision) => void {
+  return (prId, pr, decision) => {
+    upsertAttentionItem(
+      db,
+      prId,
+      pr,
+      decision,
+      resolveRepositoryKey(pr),
+      resolveSourceMode(pr),
+    );
+  };
 }
 
 function splitGithubRepo(github: string): { owner: string; name: string } {

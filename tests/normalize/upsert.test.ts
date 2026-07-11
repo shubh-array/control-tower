@@ -4,7 +4,7 @@ import { runMigrations } from "../../src/store/migrate.js";
 import { upsertPr, upsertRepository } from "../../src/normalize/upsert.js";
 import type { DiscoveredPr } from "../../src/github/types.js";
 
-function minimalPr(repositoryId: string): DiscoveredPr {
+function minimalPr(repositoryId: string, overrides: Partial<DiscoveredPr> = {}): DiscoveredPr {
   return {
     repositoryId,
     githubOwnerRepo: "Org/repo",
@@ -28,6 +28,7 @@ function minimalPr(repositoryId: string): DiscoveredPr {
     reviews: [],
     comments: [],
     explicitRequest: false,
+    ...overrides,
   };
 }
 
@@ -53,5 +54,29 @@ describe("upsert FK safety", () => {
     runMigrations(db);
 
     expect(() => upsertPr(db, minimalPr("missing-repo"))).toThrow();
+  });
+
+  it("persists labels_json capped at 50", () => {
+    const db = openDatabase(":memory:");
+    runMigrations(db);
+
+    upsertRepository(db, {
+      id: "test-repo",
+      github: "Org/repo",
+      host: "github.com",
+      defaultBranch: "main",
+      resourceClass: "medium",
+    });
+
+    const labels = Array.from({ length: 60 }, (_, i) => `label-${i}`);
+    upsertPr(db, minimalPr("test-repo", { labels }));
+
+    const row = db
+      .prepare("SELECT labels_json FROM prs WHERE repository_id = ? AND pr_number = 1")
+      .get("test-repo") as { labels_json: string };
+
+    expect(JSON.parse(row.labels_json)).toHaveLength(50);
+    expect(JSON.parse(row.labels_json)[0]).toBe("label-0");
+    expect(JSON.parse(row.labels_json)[49]).toBe("label-49");
   });
 });

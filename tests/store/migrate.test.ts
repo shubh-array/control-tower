@@ -18,7 +18,7 @@ describe("migration runner", () => {
   it("applies initial migration to empty database", () => {
     runMigrations(db);
     const version = getCurrentVersion(db);
-    expect(version).toBe(1);
+    expect(version).toBe(2);
   });
 
   it("creates expected tables", () => {
@@ -74,26 +74,42 @@ describe("migration runner", () => {
   it("is idempotent", () => {
     runMigrations(db);
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(1);
+    expect(getCurrentVersion(db)).toBe(2);
+  });
+
+  it("adds projection columns in migration 002", () => {
+    runMigrations(db);
+    const attentionCols = (
+      db.prepare("PRAGMA table_info(attention_items)").all() as Array<{ name: string }>
+    ).map((c) => c.name);
+    expect(attentionCols).toContain("policy_json");
+    expect(attentionCols).toContain("policy_hash");
+
+    const prCols = (
+      db.prepare("PRAGMA table_info(prs)").all() as Array<{ name: string }>
+    ).map((c) => c.name);
+    expect(prCols).toContain("labels_json");
   });
 
   it("records migration in schema_migrations", () => {
     runMigrations(db);
     const rows = db
-      .prepare("SELECT version, name FROM schema_migrations")
+      .prepare("SELECT version, name FROM schema_migrations ORDER BY version")
       .all() as Array<{ version: number; name: string }>;
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
     expect(rows[0]!.version).toBe(1);
     expect(rows[0]!.name).toBe("001_initial");
+    expect(rows[1]!.version).toBe(2);
+    expect(rows[1]!.name).toBe("002_projection_columns");
   });
 });
 
 describe("openDatabase", () => {
-  it("opens database, runs migrations, and reports version 1", () => {
+  it("opens database, runs migrations, and reports version 2", () => {
     const db = openDatabase(":memory:");
     try {
       runMigrations(db);
-      expect(getCurrentVersion(db)).toBe(1);
+      expect(getCurrentVersion(db)).toBe(2);
     } finally {
       db.close();
     }
