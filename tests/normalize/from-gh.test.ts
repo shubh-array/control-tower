@@ -27,7 +27,8 @@ describe("toDiscoveredPr", () => {
     expect(pr.prNumber).toBe(101);
     expect(pr.authorLogin).toBe("alice");
     expect(pr.explicitRequest).toBe(true);
-    expect(pr.reviewRequests[0]?.login).toBe("shubh-array");
+    expect(pr.headSha).toBe("");
+    expect(pr.reviewRequests).toEqual([]);
   });
 
   it("maps GhPrListItem with checks from statusCheckRollup", () => {

@@ -7,15 +7,16 @@ export interface GhSearchPrItem {
   state: string;
   isDraft: boolean;
   author: { login: string };
-  repository: { nameWithOwner: string };
-  headRefOid: string;
-  baseRefOid: string;
+  repository: { nameWithOwner: string; name?: string };
   labels: Array<{ name: string }>;
-  additions: number;
-  deletions: number;
   createdAt: string;
   updatedAt: string;
-  reviewRequests: Array<{ login?: string; slug?: string; __typename?: string }>;
+  /** Not returned by `gh search prs --json`; filled via enrich/view. */
+  headRefOid?: string;
+  baseRefOid?: string;
+  additions?: number;
+  deletions?: number;
+  reviewRequests?: Array<{ login?: string; slug?: string; __typename?: string }>;
 }
 
 export interface GhPrListItem {

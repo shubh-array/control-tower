@@ -15,6 +15,7 @@ import {
   checkModelRoleRequirements,
   checkSchemaValidity,
   checkDockerAvailable,
+  parseAgentModelsOutput,
   runDoctor,
 } from "../../src/cli/doctor.js";
 
@@ -168,6 +169,28 @@ describe("checkModelAvailability", () => {
   });
 });
 
+describe("parseAgentModelsOutput", () => {
+  it("parses JSON models array wrapper", () => {
+    expect(
+      parseAgentModelsOutput(JSON.stringify({ models: ["composer-2.5", "auto"] })),
+    ).toEqual(["composer-2.5", "auto"]);
+  });
+
+  it("parses human-readable agent models listing", () => {
+    const raw = `Available models
+
+auto - Auto (default)
+composer-2.5 - Composer 2.5
+composer-2.5-fast - Composer 2.5 Fast
+`;
+    expect(parseAgentModelsOutput(raw)).toEqual([
+      "auto",
+      "composer-2.5",
+      "composer-2.5-fast",
+    ]);
+  });
+});
+
 describe("checkModelRoleRequirements", () => {
   it("passes when primaryReview present and attention omitted with advisor disabled", () => {
     const r = checkModelRoleRequirements(
@@ -302,6 +325,12 @@ describe("runDoctor (integration with fake deps)", () => {
       "git --version": "git version 2.50.1",
       "gh --version": "gh version 2.91.0 (2025-01-01)",
       "agent status --format json": JSON.stringify({ isAuthenticated: true }),
+      "agent models": [
+        "Available models",
+        "",
+        "composer-2.5-fast - Composer 2.5 Fast",
+        "composer-2.5 - Composer 2.5",
+      ].join("\n"),
       "agent models --format json": JSON.stringify({ models: ["composer-2.5-fast", "composer-2.5"] }),
       "gh auth status --hostname github.example.com": "",
       "gh api --hostname github.example.com user --jq .login": "shubh-array",
@@ -437,6 +466,7 @@ describe("runDoctor (integration with fake deps)", () => {
 
   it("missing model for role fails", async () => {
     const deps = makeFakeDeps({
+      "agent models": "Available models\n\ngpt-5.4-high-1m - GPT\n",
       "agent models --format json": JSON.stringify({ models: ["gpt-5.4-high-1m"] }),
     });
     const results = await runDoctor(baseConfig, deps);

@@ -99,6 +99,41 @@ export function compareGithubLogin(
   };
 }
 
+/**
+ * Parse `agent models` CLI output.
+ * Prefer JSON (`{ models: string[] }` or string[]) when present; otherwise
+ * parse human-readable lines like `composer-2.5 - Composer 2.5`.
+ */
+export function parseAgentModelsOutput(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string");
+    }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray((parsed as { models?: unknown }).models)
+    ) {
+      return ((parsed as { models: unknown[] }).models).filter(
+        (item): item is string => typeof item === "string",
+      );
+    }
+  } catch {
+    // fall through to text parse
+  }
+
+  const models: string[] = [];
+  for (const line of trimmed.split("\n")) {
+    const match = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s+-\s+/.exec(line.trim());
+    if (match?.[1]) models.push(match[1]);
+  }
+  return models;
+}
+
 export function checkModelAvailability(
   availableModels: string[],
   roleModels: Record<string, string>,
@@ -282,9 +317,17 @@ export async function runDoctor(
 
   let modelAvailability: CheckResult | null = null;
   try {
-    const modelsOut = deps.execCommand(config.cursorBinary, ["models", "--format", "json"]);
-    const parsed = JSON.parse(modelsOut);
-    const available: string[] = parsed.models ?? [];
+    let modelsOut: string;
+    try {
+      // Prefer text listing — current agent CLIs reject `models --format json`.
+      modelsOut = deps.execCommand(config.cursorBinary, ["models"]);
+    } catch {
+      modelsOut = deps.execCommand(config.cursorBinary, ["models", "--format", "json"]);
+    }
+    const available = parseAgentModelsOutput(modelsOut);
+    if (available.length === 0) {
+      throw new Error("empty models list");
+    }
     const roleModelMap: Record<string, string> = {};
     if (config.modelRoles.primaryReview) roleModelMap.primaryReview = config.modelRoles.primaryReview.modelId;
     if (config.modelRoles.attention) roleModelMap.attention = config.modelRoles.attention.modelId;

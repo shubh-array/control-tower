@@ -3,17 +3,12 @@
     "number": 101,
     "title": "Add auth middleware",
     "url": "https://github.com/Powered-By-Array/pba-webapp/pull/101",
-    "state": "OPEN",
+    "state": "open",
     "isDraft": false,
     "author": { "login": "alice" },
-    "repository": { "nameWithOwner": "Powered-By-Array/pba-webapp" },
-    "headRefOid": "abc123def456abc123def456abc123def456abc1",
-    "baseRefOid": "000111222333444555666777888999aaabbbcccd",
+    "repository": { "name": "pba-webapp", "nameWithOwner": "Powered-By-Array/pba-webapp" },
     "labels": [{ "name": "needs-review" }],
-    "additions": 150,
-    "deletions": 30,
     "createdAt": "2026-07-01T10:00:00Z",
-    "updatedAt": "2026-07-09T14:30:00Z",
-    "reviewRequests": [{ "login": "shubh-array", "__typename": "User" }]
+    "updatedAt": "2026-07-09T14:30:00Z"
   }
 ]

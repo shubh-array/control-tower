@@ -22,9 +22,24 @@ describe("GitHubAdapter fixture parsing", () => {
     expect(firstResult).toBeDefined();
     expect(firstResult!.number).toBe(101);
     expect(firstResult!.author.login).toBe("alice");
-    const firstReviewRequest = firstResult!.reviewRequests[0];
-    expect(firstReviewRequest).toBeDefined();
-    expect(firstReviewRequest!.login).toBe("shubh-array");
+    expect(firstResult!.repository.nameWithOwner).toBe("Powered-By-Array/pba-webapp");
+    expect(firstResult!.headRefOid).toBeUndefined();
+  });
+
+  it("requests only gh-search-supported JSON fields", async () => {
+    const mockExec = vi.fn().mockResolvedValue([]);
+    const adapter = new GitHubAdapter("github.com", mockExec);
+
+    await adapter.searchReviewRequested("shubh-array", ["Powered-By-Array"]);
+
+    const args = mockExec.mock.calls[0]![0] as string[];
+    const jsonIdx = args.indexOf("--json");
+    expect(jsonIdx).toBeGreaterThan(-1);
+    const fields = args[jsonIdx + 1]!;
+    expect(fields).not.toContain("headRefOid");
+    expect(fields).not.toContain("reviewRequests");
+    expect(fields).toContain("repository");
+    expect(fields).toContain("number");
   });
 
   it("passes exact login to --review-requested, never @me", async () => {

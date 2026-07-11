@@ -15,6 +15,7 @@ type ExecGhJsonFn = <T>(args: string[], options: GhExecOptions) => Promise<T>;
 type CanonicalizeFn = (rawPath: string) => string | null;
 type IsProtectedFn = (canonicalPath: string) => boolean;
 
+/** Fields supported by `gh search prs --json` (subset of `gh pr list/view`). */
 const SEARCH_PR_FIELDS = [
   "number",
   "title",
@@ -23,14 +24,9 @@ const SEARCH_PR_FIELDS = [
   "isDraft",
   "author",
   "repository",
-  "headRefOid",
-  "baseRefOid",
   "labels",
-  "additions",
-  "deletions",
   "createdAt",
   "updatedAt",
-  "reviewRequests",
 ].join(",");
 
 const LIST_PR_FIELDS = [

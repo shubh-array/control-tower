@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { Command } from "commander";
-import { runDoctor, type DoctorConfig } from "./doctor.js";
+import { runDoctor, type DoctorConfig, parseAgentModelsOutput } from "./doctor.js";
 import { runInit } from "./init.js";
 import { probePortAvailable } from "./port.js";
 import { startCommand, stopCommand, statusCommand } from "./daemon-control.js";
@@ -110,9 +110,13 @@ function createDefaultDoctorDeps(cursorBinary: string) {
     checkDiskSpace: () => 20 * 1024 * 1024 * 1024,
     checkPortAvailable: (port: number) => probePortAvailable(port),
     smokeModel: (modelId: string) => {
-      const modelsOut = execCommand(cursorBinary, ["models", "--format", "json"]);
-      const parsed = JSON.parse(modelsOut);
-      const available: string[] = parsed.models ?? [];
+      let modelsOut: string;
+      try {
+        modelsOut = execCommand(cursorBinary, ["models"]);
+      } catch {
+        modelsOut = execCommand(cursorBinary, ["models", "--format", "json"]);
+      }
+      const available = parseAgentModelsOutput(modelsOut);
       const ok = available.includes(modelId);
       return {
         ok,
