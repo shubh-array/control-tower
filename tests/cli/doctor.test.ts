@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it, expect } from "vitest";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   type DoctorDeps,
   type DoctorConfig,
@@ -239,7 +240,7 @@ describe("checkSchemaValidity", () => {
     const r = checkSchemaValidity("harness-manifest", {
       id: "pr-review",
       prompt: join(process.cwd(), "config/harnesses/pr-review/prompt.md"),
-      skills: ["config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md"],
+      skills: [join(process.cwd(), "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],
     });
     expect(r.ok).toBe(true);
   });
@@ -248,9 +249,19 @@ describe("checkSchemaValidity", () => {
     const r = checkSchemaValidity("harness-manifest", {
       id: "pr-review",
       prompt: join(tmpdir(), "definitely-missing-control-tower-prompt.md"),
-      skills: ["config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md"],
+      skills: [join(process.cwd(), "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],
     });
     expect(r.ok).toBe(false);
+  });
+
+  it("fails harness manifests when a skill file is missing", () => {
+    const r = checkSchemaValidity("harness-manifest", {
+      id: "pr-review",
+      prompt: join(process.cwd(), "config/harnesses/pr-review/prompt.md"),
+      skills: [join(tmpdir(), "definitely-missing-control-tower-skill.md")],
+    });
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain("Skill not found");
   });
 
   it("confirms CanonicalPathMatcher compiles all globs without error", () => {
@@ -456,5 +467,46 @@ describe("runDoctor (integration with fake deps)", () => {
     const repoResult = results.find((r) => r.name === "Repo assistant");
     expect(repoResult?.ok).toBe(false);
     expect(repoResult?.message).toContain("Path not found");
+  });
+
+  it("runs glob compilation when domainGlobs are populated", async () => {
+    const deps = makeFakeDeps();
+    const results = await runDoctor(
+      { ...baseConfig, domainGlobs: ["src/**/*.ts", "docs/*.md"] },
+      deps,
+    );
+    const globResult = results.find((r) => r.name === "Glob compilation");
+    expect(globResult?.ok).toBe(true);
+  });
+
+  describe("persona check", () => {
+    let tempDir: string;
+
+    afterEach(() => {
+      if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it("passes when persona.md exists and is non-empty", async () => {
+      tempDir = mkdtempSync(join(tmpdir(), "ct-persona-"));
+      const personaPath = join(tempDir, "persona.md");
+      writeFileSync(personaPath, "# Review Persona\n");
+
+      const deps = makeFakeDeps();
+      const results = await runDoctor({ ...baseConfig, personaPath }, deps);
+      const personaResult = results.find((r) => r.name === "Persona");
+      expect(personaResult?.ok).toBe(true);
+    });
+
+    it("fails when persona.md is empty", async () => {
+      tempDir = mkdtempSync(join(tmpdir(), "ct-persona-"));
+      const personaPath = join(tempDir, "persona.md");
+      writeFileSync(personaPath, "");
+
+      const deps = makeFakeDeps();
+      const results = await runDoctor({ ...baseConfig, personaPath }, deps);
+      const personaResult = results.find((r) => r.name === "Persona");
+      expect(personaResult?.ok).toBe(false);
+      expect(personaResult?.message).toContain("empty");
+    });
   });
 });

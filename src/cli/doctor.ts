@@ -1,4 +1,4 @@
-import { existsSync, accessSync, constants } from "node:fs";
+import { existsSync, accessSync, constants, statSync } from "node:fs";
 import { join } from "node:path";
 import { buildGhEnv } from "../security/child-env.js";
 import { profileSchema, policySchema } from "../config/schemas.js";
@@ -170,6 +170,13 @@ export function checkSchemaValidity(
       if (!existsSync(manifest.prompt)) {
         return { ok: false, name: "Harness manifest", severity: "fail", message: `Prompt not found: ${manifest.prompt}` };
       }
+      if (manifest.skills) {
+        for (const skillPath of manifest.skills) {
+          if (!existsSync(skillPath)) {
+            return { ok: false, name: "Harness manifest", severity: "fail", message: `Skill not found: ${skillPath}` };
+          }
+        }
+      }
       return { ok: true, name: "Harness manifest", severity: "pass", message: `Harness "${manifest.id}" materializable` };
     }
     case "glob-compilation": {
@@ -213,6 +220,7 @@ export interface DoctorConfig {
   attentionAdvisorEnabled: boolean;
   profilePath: string | null;
   policyPath: string | null;
+  personaPath?: string | null;
   harnessManifests: Array<{ id: string; prompt: string; skills?: string[] }>;
   domainGlobs: string[];
 }
@@ -382,6 +390,18 @@ export async function runDoctor(
       results.push(checkSchemaValidity("profile", profileData));
     } catch {
       results.push({ ok: false, name: "Profile schema", message: "Cannot read/parse profile", severity: "fail" });
+    }
+  }
+  if (config.personaPath) {
+    try {
+      const { size } = statSync(config.personaPath);
+      if (size > 0) {
+        results.push({ ok: true, name: "Persona", severity: "pass", message: "persona.md present and non-empty" });
+      } else {
+        results.push({ ok: false, name: "Persona", severity: "fail", message: "persona.md is empty" });
+      }
+    } catch {
+      results.push({ ok: false, name: "Persona", severity: "fail", message: `Persona not found: ${config.personaPath}` });
     }
   }
   if (config.policyPath) {

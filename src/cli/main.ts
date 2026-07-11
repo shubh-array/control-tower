@@ -53,15 +53,28 @@ function buildDoctorConfig(localConfigPath: string): DoctorConfig {
   }
 
   const policyPath = join(localConfig.profileDirectory, "policy.json");
+  const personaPath = join(localConfig.profileDirectory, "persona.md");
   let attentionAdvisorEnabled = false;
-  try {
-    const policy = loadPolicyConfig(policyPath);
-    attentionAdvisorEnabled = policy.attentionAdvisor?.enabled ?? false;
-  } catch {
-    // Policy may not exist yet.
-  }
-
   const domainGlobs: string[] = [];
+  if (existsSync(policyPath)) {
+    try {
+      const policy = loadPolicyConfig(policyPath);
+      attentionAdvisorEnabled = policy.attentionAdvisor?.enabled ?? false;
+      const globSet = new Set<string>();
+      for (const repoPolicy of Object.values(policy.repositories)) {
+        for (const path of repoPolicy.eligiblePaths) globSet.add(path);
+        for (const rule of repoPolicy.domainRules) {
+          for (const path of rule.paths) globSet.add(path);
+        }
+        for (const rule of repoPolicy.priorityRules) {
+          for (const path of rule.paths) globSet.add(path);
+        }
+      }
+      domainGlobs.push(...globSet);
+    } catch {
+      // Policy may exist but be invalid; schema check will catch it.
+    }
+  }
 
   return {
     githubHost: orgConfig.github.host,
@@ -76,6 +89,7 @@ function buildDoctorConfig(localConfigPath: string): DoctorConfig {
     attentionAdvisorEnabled,
     profilePath: join(localConfig.profileDirectory, "profile.json"),
     policyPath: existsSync(policyPath) ? policyPath : null,
+    personaPath: existsSync(personaPath) ? personaPath : null,
     harnessManifests: buildHarnessManifests(),
     domainGlobs,
   };
