@@ -657,7 +657,7 @@ git commit -m "feat(discovery): add per-poll operator identity verification"
 **Files:**
 - Create: `src/github/rate-limit.ts`
 
-- [ ] **Step 1: Write the rate limit tracker**
+- [x] **Step 1: Write the rate limit tracker**
 
 ```typescript
 // src/github/rate-limit.ts
@@ -717,12 +717,12 @@ export class RateLimitTracker {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/github/rate-limit.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/github/rate-limit.ts
