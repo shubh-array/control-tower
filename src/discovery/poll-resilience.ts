@@ -36,6 +36,7 @@ export interface ResilientPollDeps {
     orgs: string[],
   ) => Promise<GhSearchPrItem[]>;
   listRepoPrs: (ownerRepo: string) => Promise<GhPrListItem[]>;
+  enrichPr?: (ownerRepo: string, prNumber: number) => Promise<unknown | null>;
   upsertRepository: (repo: {
     id: string;
     github: string;
@@ -188,7 +189,7 @@ export class ResilientPoller {
       },
       searchReviewRequested: this.deps.searchReviewRequested,
       listRepoPrs: this.deps.listRepoPrs,
-      enrichPr: async () => null,
+      enrichPr: this.deps.enrichPr ?? (async () => null),
       normalizePr: (raw, repositoryId, explicitRequest) =>
         toDiscoveredPr(
           raw as GhSearchPrItem | GhPrListItem,

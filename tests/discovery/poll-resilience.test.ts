@@ -231,6 +231,18 @@ describe("ResilientPoller — operator identity mismatch", () => {
   });
 });
 
+describe("ResilientPoller — enrichPr", () => {
+  it("invokes enrichPr when provided on deps", async () => {
+    const enrichPr = vi.fn().mockResolvedValue(null);
+    const deps = makeDeps({ enrichPr });
+    const poller = new ResilientPoller(deps);
+
+    await poller.poll();
+
+    expect(enrichPr).toHaveBeenCalledWith("Powered-By-Array/pba-webapp", 101);
+  });
+});
+
 describe("ResilientPoller — success path", () => {
   it("marks coverageComplete and updates freshness on successful poll", async () => {
     const deps = makeDeps();
