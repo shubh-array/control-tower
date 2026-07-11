@@ -2107,7 +2107,7 @@ git commit -m "feat(discovery): add eligibility evaluator with truth-table tests
 - Create: `src/policy/priority.ts`
 - Create: `tests/policy/priority.test.ts`
 
-- [ ] **Step 1: Write the priority test**
+- [x] **Step 1: Write the priority test**
 
 ```typescript
 // tests/policy/priority.test.ts
@@ -2247,12 +2247,12 @@ describe('evaluatePriority', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/policy/priority.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the priority implementation**
+- [x] **Step 3: Write the priority implementation**
 
 ```typescript
 // src/policy/priority.ts
@@ -2356,12 +2356,12 @@ export function evaluatePriority(input: PriorityInput): PriorityResult {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/policy/priority.test.ts`
 Expected: all 8 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/policy/priority.ts tests/policy/priority.test.ts
