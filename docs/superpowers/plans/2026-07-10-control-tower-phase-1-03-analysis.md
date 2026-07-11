@@ -6553,7 +6553,7 @@ git commit -m "test(integration): end-to-end analysis pipeline: poll→policy→
 > - Attention advisor failure → set `advisor_status` to `unavailable`; preserve All Tracked and deterministic order; do **not** change `analysis_mode` or cancel auto jobs.
 > - Agent timeout/crash/malformed output → seal the immutable run as `failed`, call `cleanupSourcePair`, and create a new attempt only via `requestRetry`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/orchestrator/failure-recovery.test.ts
@@ -6905,12 +6905,12 @@ describe('failAgentRun', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/orchestrator/failure-recovery.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement failure recovery**
+- [x] **Step 3: Implement failure recovery**
 
 ```typescript
 // src/orchestrator/failure-recovery.ts
@@ -7045,12 +7045,12 @@ export async function failAgentRun(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/orchestrator/failure-recovery.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/failure-recovery.ts tests/orchestrator/failure-recovery.test.ts
@@ -7065,7 +7065,7 @@ git commit -m "feat(orchestrator): §12 source, advisor, and agent failure recov
 - Create: `tests/orchestrator/failure-recovery.test.ts`
 - Modify: `src/orchestrator/pipeline.ts` (add `failureReason`, `advisorStatus` to `PipelineResult`; add optional `runAdvisor` to `PipelineDeps`; wrap each pipeline stage in try/catch)
 
-- [ ] **Step 1: Write failing tests for each failure path**
+- [x] **Step 1: Write failing tests for each failure path**
 
 ```typescript
 // tests/orchestrator/failure-recovery.test.ts
@@ -7347,12 +7347,12 @@ describe('Agent timeout/malformed recovery', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/orchestrator/failure-recovery.test.ts`
 Expected: FAIL — `failureReason` and `advisorStatus` not on `PipelineResult`, `runAdvisor` not on `PipelineDeps`
 
-- [ ] **Step 3: Update `src/orchestrator/pipeline.ts` with failure recovery**
+- [x] **Step 3: Update `src/orchestrator/pipeline.ts` with failure recovery**
 
 Add to `PipelineResult`:
 
@@ -7450,17 +7450,17 @@ export async function executePipeline(
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `npx vitest run tests/orchestrator/failure-recovery.test.ts`
 Expected: all 9 tests PASS
 
-- [ ] **Step 5: Run existing pipeline tests — expect PASS (no regression)**
+- [x] **Step 5: Run existing pipeline tests — expect PASS (no regression)**
 
 Run: `npx vitest run tests/orchestrator/pipeline.test.ts tests/integration/analysis-pipeline.test.ts`
 Expected: PASS (new optional fields on `PipelineResult` don't break existing assertions)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/orchestrator/pipeline.ts tests/orchestrator/failure-recovery.test.ts

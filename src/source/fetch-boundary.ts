@@ -31,7 +31,7 @@ export function buildVerifyEnvironment(config: FetchBoundaryConfig): Record<stri
   return buildGitLocalEnv(hostFromConfig(config));
 }
 
-export function buildFetchArgs(config: FetchBoundaryConfig, mirrorPath: string): string[] {
+export function buildFetchArgs(config: FetchBoundaryConfig, _mirrorPath: string): string[] {
   return [
     'fetch',
     '--no-tags',
@@ -45,6 +45,6 @@ export function buildMirrorPath(dataDirectory: string, owner: string, repo: stri
   return `${dataDirectory}/mirrors/${owner}/${repo}.git`;
 }
 
-export function buildVerifyArgs(expectedSha: string, ctRef: string): string[] {
+export function buildVerifyArgs(_expectedSha: string, ctRef: string): string[] {
   return ['rev-parse', '--verify', ctRef];
 }

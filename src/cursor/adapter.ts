@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { buildCursorArgv, buildCursorEnvironment, type CursorArgvInput } from './argv.js';
+import { buildCursorArgv, buildCursorEnvironment } from './argv.js';
 import { parseNdjsonLine, validateInitEvent, extractResultFromTerminal, type InitEvent, type TerminalEvent, type NdjsonEvent } from './ndjson.js';
 
 export const STREAM_TRUNCATE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -10,7 +10,7 @@ const ROLE_TIMEOUTS: Record<string, number> = {
 };
 
 export function getTimeoutForRole(role: string, overrideMs?: number): number {
-  return overrideMs ?? ROLE_TIMEOUTS[role] ?? ROLE_TIMEOUTS.primaryReview;
+  return overrideMs ?? ROLE_TIMEOUTS[role] ?? ROLE_TIMEOUTS['primaryReview']!;
 }
 
 export interface AdapterRunInput {
@@ -50,7 +50,12 @@ export async function runCursorAgent(input: AdapterRunInput): Promise<AdapterRun
   const env = buildCursorEnvironment(input.homePath);
   const timeoutMs = getTimeoutForRole(input.role, input.timeoutMs);
 
-  const child = spawn(argv[0], argv.slice(1), {
+  const binary = argv[0];
+  if (!binary) {
+    throw new Error('cursor argv must include binary path');
+  }
+
+  const child = spawn(binary, argv.slice(1), {
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
     cwd: input.runDirectory,

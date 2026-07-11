@@ -23,8 +23,8 @@ describe('computeAdvisorOrder', () => {
       makeItem({ prNumber: 2, hasCurrentAdvice: true, relevance: 'medium', risk: 'low' }),
     ];
     const sorted = computeAdvisorOrder(items);
-    expect(sorted[0].prNumber).toBe(2);
-    expect(sorted[1].prNumber).toBe(1);
+    expect(sorted[0]!.prNumber).toBe(2);
+    expect(sorted[1]!.prNumber).toBe(1);
   });
 
   it('sorts advised items by relevance ordinal then risk ordinal', () => {
@@ -54,7 +54,7 @@ describe('computeAdvisorOrder', () => {
         prioritySortOrdinal: 2, normalizedRepositoryIdentity: 'github:github.com/org/a-repo' }),
     ];
     const sorted = computeAdvisorOrder(items);
-    expect(sorted[0].prNumber).toBe(3); // a-repo before z-repo
+    expect(sorted[0]!.prNumber).toBe(3); // a-repo before z-repo
   });
 
   it('non-advised items preserve deterministic relative order among themselves', () => {

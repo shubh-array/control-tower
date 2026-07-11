@@ -1,10 +1,9 @@
 // tests/orchestrator/pipeline.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   executePipeline,
   type PipelineDeps,
   type PipelineJob,
-  type PipelineResult,
 } from '../../src/orchestrator/pipeline.js';
 
 function makeFakeDeps(options: { shouldFail?: string } = {}): PipelineDeps {
@@ -40,7 +39,7 @@ function makeFakeDeps(options: { shouldFail?: string } = {}): PipelineDeps {
       return { runId: `run-${jobId}`, version: 1 };
     },
 
-    prepareContext(jobId: string, runId: string) {
+    prepareContext(_jobId: string, runId: string) {
       return {
         runDir: `/tmp/runs/${runId}`,
         manifest: { layers: 9 },
@@ -48,14 +47,14 @@ function makeFakeDeps(options: { shouldFail?: string } = {}): PipelineDeps {
       };
     },
 
-    prepareSource(jobId: string, runId: string) {
+    prepareSource(_jobId: string, runId: string) {
       return {
         sourceViewRoot: `/tmp/source/${runId}`,
         adminWorktree: `/tmp/admin/${runId}`,
       };
     },
 
-    runAgent(runId: string, runDir: string) {
+    runAgent(_runId: string, _runDir: string) {
       return {
         rawOutput: '{"schemaVersion":1}',
         exitCode: 0,
@@ -63,25 +62,25 @@ function makeFakeDeps(options: { shouldFail?: string } = {}): PipelineDeps {
       };
     },
 
-    validateOutput(rawOutput: string, context: Record<string, unknown>) {
+    validateOutput(_rawOutput: string, _context: Record<string, unknown>) {
       return { valid: true, errors: [], validatedProvenance: [] };
     },
 
-    sealRun(runId: string, runDir: string) {
+    sealRun(_runId: string, _runDir: string) {
       return { sealed: true };
     },
 
-    updatePointers(jobId: string, runId: string) {
+    updatePointers(_jobId: string, runId: string) {
       return { latestRunId: runId, acceptedRunId: runId };
     },
 
-    cleanupSource(runId: string) {},
+    cleanupSource(_runId: string) {},
 
-    getJobState(jobId: string) {
+    getJobState(_jobId: string) {
       return { state: currentJobState, version: jobVersion };
     },
 
-    getRunState(runId: string) {
+    getRunState(_runId: string) {
       return { state: currentRunState, version: runVersion };
     },
   };
@@ -148,7 +147,9 @@ describe('executePipeline', () => {
     const deps = makeFakeDeps({ shouldFail: 'preparing_context' });
     const job = makeJob();
 
-    await expect(executePipeline(deps, job)).rejects.toThrow('simulated failure');
+    const result = await executePipeline(deps, job);
+    expect(result.success).toBe(false);
+    expect(result.failureReason).toBe('allocation_failed');
   });
 
   it('cleans up source after run completes', async () => {

@@ -57,16 +57,16 @@ describe('buildHarnessManifest', () => {
     const manifest = buildHarnessManifest(makeReviewInput());
     const layer1 = manifest.entries.filter(e => e.layerOrdinal === 1);
     expect(layer1).toHaveLength(2);
-    expect(layer1[0].logicalPath).toContain('safety');
-    expect(layer1[1].logicalPath).toContain('output');
-    expect(layer1[0].entryOrdinal).toBeLessThan(layer1[1].entryOrdinal);
+    expect(layer1[0]!.logicalPath).toContain('safety');
+    expect(layer1[1]!.logicalPath).toContain('output');
+    expect(layer1[0]!.entryOrdinal).toBeLessThan(layer1[1]!.entryOrdinal);
   });
 
   it('layer 2 contains only policy.snapshot.json', () => {
     const manifest = buildHarnessManifest(makeReviewInput());
     const layer2 = manifest.entries.filter(e => e.layerOrdinal === 2);
     expect(layer2).toHaveLength(1);
-    expect(layer2[0].logicalPath).toBe('policy.snapshot.json');
+    expect(layer2[0]!.logicalPath).toBe('policy.snapshot.json');
   });
 
   it('CRITICAL: layers 4, 5, and 7 are empty for attention role', () => {
@@ -88,7 +88,7 @@ describe('buildHarnessManifest', () => {
   it('primaryReview layer 9 ends with provenance catalog', () => {
     const manifest = buildHarnessManifest(makeReviewInput());
     const layer9 = manifest.entries.filter(e => e.layerOrdinal === 9);
-    const last = layer9[layer9.length - 1];
+    const last = layer9[layer9.length - 1]!;
     expect(last.logicalPath).toBe('provenance-catalog.json');
   });
 

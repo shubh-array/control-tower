@@ -12,6 +12,10 @@ export interface PipelineJob {
 export interface PipelineResult {
   success: boolean;
   finalState: string;
+  /** Set on failure: 'fetch_failed' | 'materialize_failed' | 'agent_failed' | 'allocation_failed' */
+  failureReason?: string;
+  /** Set when runAdvisor dep is present */
+  advisorStatus?: 'available' | 'unavailable';
   runId: string;
   sealed: boolean;
   latestRunId: string;
@@ -46,8 +50,26 @@ export interface PipelineDeps {
   cleanupSource(runId: string): void;
   getJobState(jobId: string): { state: string; version: number };
   getRunState(runId: string): { state: string; version: number };
+  runAdvisor?: (runId: string) => { advice: unknown };
   transitions: Array<{ jobId: string; from: string; to: string }>;
   runTransitions: Array<{ runId: string; from: string; to: string }>;
+}
+
+function failResult(
+  runId: string,
+  failureReason: string,
+  advisorStatus?: 'available' | 'unavailable',
+): PipelineResult {
+  return {
+    success: false,
+    finalState: 'failed',
+    failureReason,
+    advisorStatus,
+    runId,
+    sealed: false,
+    latestRunId: runId,
+    acceptedRunId: '',
+  };
 }
 
 export async function executePipeline(
@@ -55,39 +77,75 @@ export async function executePipeline(
   job: PipelineJob,
 ): Promise<PipelineResult> {
   const { runId } = deps.allocateRun(job.id);
+  let advisorStatus: 'available' | 'unavailable' | undefined;
 
-  deps.transitionJob(job.id, 'queued', 'preparing_context');
-  deps.transitionRun(runId, 'allocated', 'running');
+  try {
+    deps.transitionJob(job.id, 'queued', 'preparing_context');
+    deps.transitionRun(runId, 'allocated', 'running');
+  } catch {
+    deps.transitionJob(job.id, 'queued', 'failed');
+    return failResult(runId, 'allocation_failed');
+  }
 
-  const context = deps.prepareContext(job.id, runId);
+  let context;
+  try {
+    context = deps.prepareContext(job.id, runId);
+  } catch {
+    deps.transitionJob(job.id, 'preparing_context', 'failed');
+    try { deps.sealRun(runId, ''); } catch { /* best-effort seal */ }
+    try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
+    return failResult(runId, 'materialize_failed');
+  }
 
   if (job.sourceMode === 'registered-source') {
-    deps.transitionJob(job.id, 'preparing_context', 'preparing_source');
-    deps.prepareSource(job.id, runId);
-    deps.transitionJob(job.id, 'preparing_source', 'running_agent');
+    try {
+      deps.transitionJob(job.id, 'preparing_context', 'preparing_source');
+      deps.prepareSource(job.id, runId);
+      deps.transitionJob(job.id, 'preparing_source', 'running_agent');
+    } catch {
+      try {
+        deps.transitionJob(job.id, 'preparing_source', 'failed');
+      } catch {
+        deps.transitionJob(job.id, 'preparing_context', 'failed');
+      }
+      try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
+      try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
+      return failResult(runId, 'fetch_failed');
+    }
   } else {
     deps.transitionJob(job.id, 'preparing_context', 'running_agent');
   }
 
-  const agentResult = deps.runAgent(runId, context.runDir);
+  if (deps.runAdvisor) {
+    try {
+      deps.runAdvisor(runId);
+      advisorStatus = 'available';
+    } catch {
+      advisorStatus = 'unavailable';
+    }
+  }
+
+  let agentResult;
+  try {
+    agentResult = deps.runAgent(runId, context.runDir);
+  } catch {
+    deps.transitionRun(runId, 'running', 'failed');
+    deps.transitionJob(job.id, 'running_agent', 'failed');
+    try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
+    try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
+    return failResult(runId, 'agent_failed', advisorStatus);
+  }
 
   deps.transitionJob(job.id, 'running_agent', 'validating_output');
   deps.transitionRun(runId, 'running', 'validating');
 
   const validation = deps.validateOutput(agentResult.rawOutput, context.coverage);
-
   if (!validation.valid) {
     deps.transitionRun(runId, 'validating', 'failed');
     deps.transitionJob(job.id, 'validating_output', 'failed');
-    deps.cleanupSource(runId);
-    return {
-      success: false,
-      finalState: 'failed',
-      runId,
-      sealed: false,
-      latestRunId: runId,
-      acceptedRunId: '',
-    };
+    try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
+    try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
+    return failResult(runId, 'agent_failed', advisorStatus);
   }
 
   deps.transitionRun(runId, 'validating', 'succeeded');
@@ -102,6 +160,7 @@ export async function executePipeline(
   return {
     success: true,
     finalState: 'draft_ready',
+    advisorStatus,
     runId,
     sealed,
     latestRunId: pointers.latestRunId,

@@ -3,7 +3,6 @@ import {
   parseNdjsonLine,
   validateInitEvent,
   extractResultFromTerminal,
-  type NdjsonEvent,
   type InitEvent,
   type TerminalEvent,
 } from '../../src/cursor/ndjson.js';

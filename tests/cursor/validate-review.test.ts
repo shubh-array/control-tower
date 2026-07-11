@@ -20,7 +20,7 @@ function makeCatalog(): Map<string, ProvenanceRecord> {
 }
 
 function makeValidOutput(catalog: Map<string, ProvenanceRecord>): ReviewOutput {
-  const provId = [...catalog.keys()][0];
+  const provId = [...catalog.keys()][0]!;
   return {
     schemaVersion: 1,
     coverage: {
@@ -99,7 +99,7 @@ describe('validateReviewOutput', () => {
 
   it('rejects unknown provenance ref', () => {
     const output = makeValidOutput(makeCatalog());
-    output.observations[0].provenanceRefs = ['pv_invented'];
+    output.observations[0]!.provenanceRefs = ['pv_invented'];
     const result = validateReviewOutput(
       output,
       { coverage: REGISTERED_COVERAGE, catalog: new Map(), sourceManifest: new Map(), sourceMode: 'registered-source' },
@@ -133,8 +133,8 @@ describe('validateReviewOutput', () => {
   it('rejects observation with no provenance or file reference', () => {
     const catalog = makeCatalog();
     const output = makeValidOutput(catalog);
-    output.observations[0].provenanceRefs = [];
-    output.observations[0].fileReferences = [];
+    output.observations[0]!.provenanceRefs = [];
+    output.observations[0]!.fileReferences = [];
     const result = validateReviewOutput(
       output,
       { coverage: REGISTERED_COVERAGE, catalog, sourceManifest: new Map(), sourceMode: 'registered-source' },
@@ -145,7 +145,7 @@ describe('validateReviewOutput', () => {
   it('rejects finding with no valid observation index', () => {
     const catalog = makeCatalog();
     const output = makeValidOutput(catalog);
-    output.findings[0].observationIndexes = [99];
+    output.findings[0]!.observationIndexes = [99];
     const result = validateReviewOutput(
       output,
       { coverage: REGISTERED_COVERAGE, catalog, sourceManifest: new Map(), sourceMode: 'registered-source' },

@@ -1,8 +1,7 @@
 // tests/orchestrator/facade.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   createOrchestratorFacade,
-  type OrchestratorFacade,
   type FacadeDeps,
 } from '../../src/orchestrator/facade.js';
 import type { AllTrackedItem } from '../../src/policy/evaluate.js';
@@ -100,7 +99,7 @@ function makeFacadeDeps(options: {
     enqueueRetry: (jobId: string) => {
       return `retry-${jobId}`;
     },
-    scheduleAdvice: (repositoryKey: string, prNumber: number) => {},
+    scheduleAdvice: (_repositoryKey: string, _prNumber: number) => {},
     getHealthStatus: () => ({
       activeJobs: jobs.size,
       queuedJobs: 0,
@@ -150,7 +149,7 @@ describe('OrchestratorFacade', () => {
       expect(jobId).toBeDefined();
       expect(typeof jobId).toBe('string');
       expect(deps.enqueuedJobs).toHaveLength(1);
-      expect(deps.enqueuedJobs[0].prNumber).toBe(42);
+      expect(deps.enqueuedJobs[0]!.prNumber).toBe(42);
     });
 
     it('passes sourceMode to enqueue', () => {

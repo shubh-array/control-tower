@@ -1,10 +1,9 @@
 // tests/orchestrator/enqueue.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   enqueueFromPolicyDecision,
   type EnqueueDeps,
   type EnqueueInput,
-  type EnqueueResult,
 } from '../../src/orchestrator/enqueue.js';
 import type { PolicyDecision } from '../../src/policy/evaluate.js';
 
@@ -41,7 +40,7 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
   }
   let nextId = 100;
   return {
-    findActiveJobByIdentity(identityHash: string) {
+    findActiveJobByIdentity(_identityHash: string) {
       for (const [, job] of jobs) {
         if (!['published', 'cancelled', 'superseded', 'failed'].includes(job.state as string)) {
           return job as { id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number };
@@ -54,7 +53,7 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
       jobs.set(id, { ...row, id });
       return id;
     },
-    supersede(jobId: string, version: number) {
+    supersede(jobId: string, _version: number) {
       const j = jobs.get(jobId);
       if (j) j.state = 'superseded';
     },

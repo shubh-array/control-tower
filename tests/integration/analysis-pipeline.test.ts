@@ -1,11 +1,10 @@
 // tests/integration/analysis-pipeline.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { PolicyDecision } from '../../src/policy/evaluate.js';
-import type { AllTrackedItem } from '../../src/policy/evaluate.js';
 import { enqueueFromPolicyDecision, type EnqueueDeps, type EnqueueInput } from '../../src/orchestrator/enqueue.js';
 import { executePipeline, type PipelineDeps, type PipelineJob } from '../../src/orchestrator/pipeline.js';
 import { createOrchestratorFacade, type FacadeDeps } from '../../src/orchestrator/facade.js';
-import { startRuntime, stopRuntime, type RuntimeConfig, type RuntimeDeps, type RuntimeHandle } from '../../src/daemon/runtime.js';
+import { startRuntime, stopRuntime, type RuntimeConfig, type RuntimeDeps } from '../../src/daemon/runtime.js';
 
 function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
   return {
@@ -66,19 +65,19 @@ function makePipelineDeps(): PipelineDeps {
       runVersion++;
       return { success: true, newVersion: runVersion };
     },
-    allocateRun(jobId) { return { runId: `run-${jobId}`, version: 1 }; },
-    prepareContext(jobId, runId) {
+    allocateRun(_jobId) { return { runId: `run-${_jobId}`, version: 1 }; },
+    prepareContext(_jobId, runId) {
       return { runDir: `/tmp/runs/${runId}`, manifest: { layers: 9 }, coverage: { sourceMode: 'registered-source', inspected: true } };
     },
-    prepareSource(jobId, runId) {
+    prepareSource(_jobId, runId) {
       return { sourceViewRoot: `/tmp/source/${runId}`, adminWorktree: `/tmp/admin/${runId}` };
     },
-    runAgent(runId, runDir) {
+    runAgent(_runId, _runDir) {
       return { rawOutput: '{"schemaVersion":1,"coverage":{},"summary":{"intent":"test","implementation":"test"},"observations":[],"checks":[],"findings":[],"unknowns":[],"recommendedDisposition":"approve","draftSummary":{"body":"LGTM","observationIndexes":[],"provenanceRefs":[]}}', exitCode: 0, modelId: 'claude-sonnet-4-20250514' };
     },
     validateOutput() { return { valid: true, errors: [], validatedProvenance: [] }; },
     sealRun() { return { sealed: true }; },
-    updatePointers(jobId, runId) { return { latestRunId: runId, acceptedRunId: runId }; },
+    updatePointers(_jobId, runId) { return { latestRunId: runId, acceptedRunId: runId }; },
     cleanupSource() {},
     getJobState() { return { state: 'queued', version: jobVersion }; },
     getRunState() { return { state: 'allocated', version: runVersion }; },

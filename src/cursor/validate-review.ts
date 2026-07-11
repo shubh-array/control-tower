@@ -83,6 +83,7 @@ export function validateReviewOutput(
 
   for (let i = 0; i < output.observations.length; i++) {
     const obs = output.observations[i];
+    if (!obs) continue;
     if (!VALID_OBS_TYPE.has(obs.type)) {
       errors.push(`observation[${i}]: invalid type '${obs.type}'`);
     }
@@ -116,6 +117,7 @@ export function validateReviewOutput(
 
   for (let i = 0; i < output.findings.length; i++) {
     const finding = output.findings[i];
+    if (!finding) continue;
     if (!VALID_SEVERITY.has(finding.severity)) {
       errors.push(`finding[${i}]: invalid severity '${finding.severity}'`);
     }

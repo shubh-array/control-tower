@@ -1,6 +1,6 @@
 // tests/orchestrator/work-graph.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { WorkGraph, type AllTrackedItem } from '../../src/orchestrator/work-graph.js';
+import { describe, it, expect } from 'vitest';
+import { WorkGraph } from '../../src/orchestrator/work-graph.js';
 import type { Database } from '../../src/store/db.js';
 import type { PolicyDecision } from '../../src/policy/evaluate.js';
 
@@ -93,7 +93,7 @@ describe('WorkGraph', () => {
       const attRow = makeAttentionRow({ policy_json: JSON.stringify(stubPolicy()) });
       const db = createMockDb([row], [attRow]);
       const graph = new WorkGraph(db);
-      const [item] = graph.getAllTracked();
+      const item = graph.getAllTracked()[0]!;
 
       expect(item.headSha).toBe('c'.repeat(40));
       expect(item.reviewRequested).toBe(false);
