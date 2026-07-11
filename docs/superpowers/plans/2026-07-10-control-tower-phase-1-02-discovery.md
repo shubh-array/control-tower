@@ -2606,7 +2606,7 @@ git commit -m "feat(discovery): add deterministic domain selection with max-3 bo
 - Create: `src/policy/auto-analyze.ts`
 - Create: `tests/policy/auto-analyze.test.ts`
 
-- [ ] **Step 1: Write the auto-analysis test**
+- [x] **Step 1: Write the auto-analysis test**
 
 ```typescript
 // tests/policy/auto-analyze.test.ts
@@ -2756,12 +2756,12 @@ describe('evaluateAutoAnalysis', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/policy/auto-analyze.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the auto-analysis implementation**
+- [x] **Step 3: Write the auto-analysis implementation**
 
 ```typescript
 // src/policy/auto-analyze.ts
@@ -2819,12 +2819,12 @@ export function evaluateAutoAnalysis(input: AutoAnalyzeInput): AutoAnalyzeResult
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/policy/auto-analyze.test.ts`
 Expected: all 8 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/policy/auto-analyze.ts tests/policy/auto-analyze.test.ts
