@@ -549,7 +549,7 @@ git commit -m "feat: add glob pattern validation with segment parsing"
 - Create: `src/paths/matcher.ts`
 - Create: `src/paths/compile.ts`
 
-- [ ] **Step 1: Create src/paths/matcher.ts**
+- [x] **Step 1: Create src/paths/matcher.ts**
 
 ```typescript
 import { validateCanonicalPath } from "./canonical-path.js";
@@ -725,14 +725,14 @@ function matchWildcardSegment(text: string, pattern: string): boolean {
 }
 ```
 
-- [ ] **Step 2: Create src/paths/compile.ts (re-export convenience)**
+- [x] **Step 2: Create src/paths/compile.ts (re-export convenience)**
 
 ```typescript
 export { CanonicalPathMatcher } from "./matcher.js";
 export type { PatternSource, MatcherArtifact } from "./matcher.js";
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/paths/matcher.ts src/paths/compile.ts
