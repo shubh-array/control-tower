@@ -1,0 +1,500 @@
+import { resolve, join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import type Database from "better-sqlite3";
+import { openDatabase } from "../store/db.js";
+import { runMigrations } from "../store/migrate.js";
+import {
+  loadLocalConfig,
+  loadOrganizationConfig,
+  loadProfileConfig,
+  loadPolicyConfig,
+} from "../config/load.js";
+import { normalizeLogin } from "../config/author-login.js";
+import type { LocalConfig, OrganizationConfig, PolicyConfig, ProfileConfig } from "../config/types.js";
+import { evaluatePolicy } from "../policy/evaluate.js";
+import { computePolicyDecisionHash } from "../orchestrator/job-identity.js";
+import { computeJobIdentity } from "../orchestrator/job-identity.js";
+import { enqueueFromPolicyDecision } from "../orchestrator/enqueue.js";
+import { createOrchestratorFacade, type FacadeDeps } from "../orchestrator/facade.js";
+import { WorkGraph } from "../orchestrator/work-graph.js";
+import { recoverOrphanedStates } from "../orchestrator/recovery.js";
+import { selectNextJobs } from "../orchestrator/scheduler.js";
+import { ResilientPoller } from "../discovery/poll-resilience.js";
+import { CheckpointStore } from "../discovery/checkpoints.js";
+import { GitHubAdapter } from "../github/adapter.js";
+import { execGhJson, execGhText } from "../github/gh-process.js";
+import { verifyOperatorIdentity } from "../github/operator-identity.js";
+import { RateLimitTracker } from "../github/rate-limit.js";
+import {
+  createPersistDecision,
+  upsertDiscoveredPr,
+  upsertRepository,
+} from "../normalize/upsert.js";
+import type { DiscoveredPr } from "../github/types.js";
+import { GuardInputStore } from "../publisher/guard-store.js";
+import { PublisherService } from "../publisher/publisher-service.js";
+import type { RuntimeDeps, RuntimeConfig } from "./runtime.js";
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+
+const MATCHER_VERSION = 1;
+const startTime = Date.now();
+
+export interface BootstrapContext {
+  db: Database.Database;
+  guardStore: GuardInputStore;
+  publisher: PublisherService;
+  publicationMode: "shadow" | "gated";
+  configuredOperator: string;
+  authenticatedLogin: string;
+  clientDistPath: string;
+}
+
+export interface BootstrapInput {
+  appRoot: string;
+  localConfigPath: string;
+}
+
+function resolveRepositoryKey(
+  org: OrganizationConfig,
+  pr: DiscoveredPr,
+): string {
+  const catalog = org.repositories.find((r) => r.id === pr.repositoryId);
+  if (catalog) return catalog.id;
+  return `github:${org.github.host}/${pr.githubOwnerRepo}`;
+}
+
+function resolveSourceMode(
+  local: LocalConfig,
+  pr: DiscoveredPr,
+): "registered-source" | "remote-evidence-only" {
+  const path = local.repositoryPaths[pr.repositoryId];
+  return path && existsSync(path) ? "registered-source" : "remote-evidence-only";
+}
+
+function buildEnqueueDeps(db: Database.Database) {
+  return {
+    findActiveJobByIdentity(identityHash: string) {
+      return (
+        (db
+          .prepare(
+            `SELECT id, head_sha, policy_hash, source_mode, state, version
+             FROM jobs WHERE identity_hash = ? AND state NOT IN ('superseded', 'cancelled', 'published')`,
+          )
+          .get(identityHash) as {
+          id: string;
+          head_sha: string;
+          policy_hash: string;
+          source_mode: string;
+          state: string;
+          version: number;
+        } | undefined) ?? null
+      );
+    },
+    insertJob(row: Record<string, unknown>): string {
+      const id = randomUUID();
+      db.prepare(
+        `INSERT INTO jobs (
+          id, identity_hash, repository_id, repository_key, pr_number,
+          head_sha, source_mode, policy_hash, state, version,
+          priority_sort_ordinal, explicit_request_sort, queue_timestamp, queued_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', 1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+      ).run(
+        id,
+        row.identityHash,
+        row.repositoryId ?? null,
+        row.repositoryKey,
+        row.prNumber,
+        row.headSha,
+        row.sourceMode,
+        row.policyHash,
+        row.prioritySortOrdinal ?? 3,
+        row.explicitRequest ? 0 : 1,
+        row.explicitRequest ? new Date().toISOString() : null,
+      );
+      return id;
+    },
+    supersede(jobId: string, version: number): void {
+      db.prepare(
+        `UPDATE jobs SET state = 'superseded', version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ? AND version = ?`,
+      ).run(jobId, version);
+    },
+    computeIdentityHash(input: Record<string, unknown>) {
+      return computeJobIdentity({
+        role: "primaryReview",
+        repositoryKey: input.repositoryKey as string,
+        prNumber: input.prNumber as number,
+        headSha: input.headSha as string,
+        sourceMode: input.sourceMode as "registered-source" | "remote-evidence-only",
+        policyDecisionHash: input.policyDecisionHash as string,
+      });
+    },
+    computePolicyHash(decision: Parameters<typeof computePolicyDecisionHash>[0]["decision"]) {
+      return computePolicyDecisionHash({
+        matcherVersion: MATCHER_VERSION,
+        decision,
+        reviewRelevantPolicySubset: {},
+      });
+    },
+  };
+}
+
+function buildFacadeDeps(
+  db: Database.Database,
+  workGraph: WorkGraph,
+  enqueueDeps: ReturnType<typeof buildEnqueueDeps>,
+  policy: PolicyConfig,
+  profile: ProfileConfig,
+  org: OrganizationConfig,
+  _local: LocalConfig,
+): FacadeDeps {
+  const enqueuedJobs: Array<{ repositoryKey: string; prNumber: number }> = [];
+
+  return {
+    getAllTracked: () => workGraph.getAllTracked(),
+    getFocusQueue: () => workGraph.getFocusQueue(),
+    getJob: (id: string) => {
+      const row = db
+        .prepare(
+          `SELECT id, state, repository_key, pr_number FROM jobs WHERE id = ?`,
+        )
+        .get(id) as
+        | { id: string; state: string; repository_key: string; pr_number: number }
+        | undefined;
+      if (!row) return null;
+      return {
+        id: row.id,
+        state: row.state,
+        repositoryKey: row.repository_key,
+        prNumber: row.pr_number,
+      };
+    },
+    getDraft: () => null,
+    getAuditTrail: (jobId: string) => {
+      const rows = db
+        .prepare(
+          `SELECT event, created_at as timestamp FROM audit_events
+           WHERE entity_id = ? ORDER BY created_at`,
+        )
+        .all(jobId) as Array<{ event: string; timestamp: string }>;
+      return rows.map((r) => ({
+        jobId,
+        event: r.event,
+        timestamp: r.timestamp,
+      }));
+    },
+    enqueueAnalysis: (input) => {
+      enqueuedJobs.push({
+        repositoryKey: input.repositoryKey,
+        prNumber: input.prNumber,
+      });
+      const prRow = db
+        .prepare(
+          `SELECT p.head_sha, p.repository_id
+           FROM prs p
+           JOIN attention_items ai ON ai.repository_key = ? AND ai.pr_number = ?
+           WHERE p.repository_id = ai.repository_id AND p.pr_number = ai.pr_number`,
+        )
+        .get(input.repositoryKey, input.prNumber) as
+        | { head_sha: string; repository_id: string }
+        | undefined;
+
+      const headSha = prRow?.head_sha ?? "0".repeat(40);
+      const sourceMode =
+        (input.sourceMode as "registered-source" | "remote-evidence-only" | undefined) ??
+        "registered-source";
+      const repoPolicy = policy.repositories[input.repositoryKey] ?? null;
+      const stubPr: DiscoveredPr = {
+        repositoryId: prRow?.repository_id ?? input.repositoryKey,
+        githubOwnerRepo: input.repositoryKey,
+        prNumber: input.prNumber,
+        title: "",
+        url: "",
+        state: "OPEN",
+        isDraft: false,
+        authorLogin: profile.githubLogin,
+        headSha,
+        baseSha: headSha,
+        labels: [],
+        additions: 0,
+        deletions: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        changedFiles: [],
+        unsafeFiles: [],
+        reviewRequests: [],
+        checks: [],
+        reviews: [],
+        comments: [],
+        explicitRequest: true,
+        explicitRequestTimestamp: new Date().toISOString(),
+      };
+
+      const decision = evaluatePolicy({
+        pr: stubPr,
+        activeRepositoryIds: profile.activeRepositoryIds,
+        repositoryPolicy: repoPolicy,
+        autoAnalyzeConfig: policy.autoAnalyze,
+        operatorLogin: profile.githubLogin,
+      });
+
+      const result = enqueueFromPolicyDecision(enqueueDeps, {
+        repositoryKey: input.repositoryKey,
+        prNumber: input.prNumber,
+        headSha,
+        sourceMode,
+        policy: { ...decision, analysisMode: "on_demand" },
+        normalizedRepositoryIdentity: input.repositoryKey,
+        explicitRequest: true,
+      });
+
+      return result.jobId ?? randomUUID();
+    },
+    enqueueRetry: (jobId: string) => `retry-${jobId}`,
+    scheduleAdvice: () => {},
+    getHealthStatus: () => {
+      const activeJobs =
+        (
+          db
+            .prepare(
+              `SELECT COUNT(*) as cnt FROM jobs WHERE state IN (
+                'preparing_context','preparing_source','running_agent','validating_output','publishing'
+              )`,
+            )
+            .get() as { cnt: number }
+        ).cnt ?? 0;
+      const queuedJobs =
+        (
+          db.prepare(`SELECT COUNT(*) as cnt FROM jobs WHERE state = 'queued'`).get() as {
+            cnt: number;
+          }
+        ).cnt ?? 0;
+      const failedJobsLast24h =
+        (
+          db
+            .prepare(
+              `SELECT COUNT(*) as cnt FROM jobs WHERE state = 'failed'
+               AND updated_at > datetime('now', '-24 hours')`,
+            )
+            .get() as { cnt: number }
+        ).cnt ?? 0;
+      const checkpoint = new CheckpointStore(db);
+      return {
+        activeJobs,
+        queuedJobs,
+        failedJobsLast24h,
+        uptime: Math.floor((Date.now() - startTime) / 1000),
+        lastPollTimestamp: checkpoint.getLastPollTime(org.github.host),
+      };
+    },
+    enqueuedJobs,
+  };
+}
+
+export function createBootstrap(input: BootstrapInput): {
+  config: RuntimeConfig;
+  deps: RuntimeDeps;
+  context: BootstrapContext;
+} {
+  const local = loadLocalConfig(input.localConfigPath);
+  const org = loadOrganizationConfig(join(input.appRoot, "config/organization.json"));
+  const profile = loadProfileConfig(join(local.profileDirectory, "profile.json"));
+  const policyPath = join(local.profileDirectory, "policy.json");
+  const policy = existsSync(policyPath)
+    ? loadPolicyConfig(policyPath)
+    : ({ repositories: {}, autoAnalyze: { explicitReviewRequests: true, priorityTiers: ["p0", "p1"] }, attentionAdvisor: { enabled: false, maxCandidatesPerInvocation: 5, timeoutSeconds: 90 } } as PolicyConfig);
+
+  const dbPath = join(local.dataDirectory, "control-tower.sqlite");
+  const db = openDatabase(dbPath);
+  const operatorLogin = normalizeLogin(profile.githubLogin);
+  const host = org.github.host;
+  const ghAdapter = new GitHubAdapter(host, (args, opts) => execGhJson(args, opts));
+  const rateLimits = new RateLimitTracker();
+  const checkpoints = new CheckpointStore(db);
+  const enqueueDeps = buildEnqueueDeps(db);
+  const workGraph = new WorkGraph(db);
+  const facadeDeps = buildFacadeDeps(db, workGraph, enqueueDeps, policy, profile, org, local);
+  const guardStore = new GuardInputStore();
+  let authenticatedLogin = operatorLogin;
+
+  const publisher = new PublisherService({
+    ghAdapter: async () => ({ ok: false, error: "Publisher not configured" }),
+    authenticatedLogin: operatorLogin,
+    configuredOperator: operatorLogin,
+  });
+
+  const persistDecision = createPersistDecision(
+    db,
+    (pr) => resolveRepositoryKey(org, pr),
+    (pr) => resolveSourceMode(local, pr),
+  );
+
+  const pollConfig = {
+    host,
+    organizations: org.github.organizations,
+    operatorLogin,
+    activeRepositoryIds: profile.activeRepositoryIds,
+    repositories: org.repositories.map((r) => ({ id: r.id, github: r.github })),
+    baseBackoffMs: 5_000,
+    maxBackoffMs: 300_000,
+  };
+
+  const clientDistPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../client/dist",
+  );
+
+  const context: BootstrapContext = {
+    db,
+    guardStore,
+    publisher,
+    publicationMode: local.publication.mode,
+    configuredOperator: operatorLogin,
+    authenticatedLogin,
+    clientDistPath,
+  };
+
+  const config: RuntimeConfig = {
+    port: local.daemon?.port ?? 9120,
+    schedulerIntervalMs: 5_000,
+    attentionIntervalMs: 60_000,
+    dataDirectory: local.dataDirectory,
+  };
+
+  const deps: RuntimeDeps = {
+    migrate() {
+      runMigrations(db);
+    },
+    recoverOrphanedStates() {
+      return recoverOrphanedStates(db);
+    },
+    startDiscoveryPoller() {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let stopped = false;
+
+      const schedule = (delayMs: number) => {
+        if (stopped) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(async () => {
+          if (stopped) return;
+          await poller.poll();
+          schedule(org.github.pollIntervalSeconds * 1000);
+        }, delayMs);
+      };
+
+      const poller = new ResilientPoller({
+        verifyIdentity: async () => {
+          const health = await verifyOperatorIdentity(
+            host,
+            operatorLogin,
+            (args, opts) => execGhText(args, opts),
+          );
+          if (health.authenticatedLogin) {
+            authenticatedLogin = health.authenticatedLogin;
+            context.authenticatedLogin = health.authenticatedLogin;
+          }
+          return health;
+        },
+        searchReviewRequested: (login, orgs) =>
+          ghAdapter.searchReviewRequested(login, orgs),
+        listRepoPrs: (ownerRepo) => ghAdapter.listRepoPrs(ownerRepo),
+        enrichPr: (ownerRepo, prNumber) => ghAdapter.viewPr(ownerRepo, prNumber),
+        upsertRepository: (repo) => {
+          const catalog = org.repositories.find((r) => r.id === repo.id);
+          upsertRepository(db, {
+            id: repo.id,
+            github: repo.github,
+            host: repo.host,
+            defaultBranch: catalog?.defaultBranch ?? "main",
+            resourceClass: catalog?.resourceClass ?? "medium",
+          });
+        },
+        upsertPr: (raw, repositoryId, explicitRequest) => {
+          if (
+            typeof raw === "object" &&
+            raw !== null &&
+            "prNumber" in raw &&
+            "headSha" in raw
+          ) {
+            return upsertDiscoveredPr(db, raw as DiscoveredPr);
+          }
+          return upsertDiscoveredPr(db, {
+            ...(raw as object),
+            repositoryId,
+            explicitRequest,
+          } as DiscoveredPr);
+        },
+        evaluateAndEnqueue: (_prId, raw, explicitRequest) => {
+          const pr = raw as DiscoveredPr;
+          const repositoryKey = resolveRepositoryKey(org, pr);
+          const sourceMode = resolveSourceMode(local, pr);
+          const repoPolicy = policy.repositories[repositoryKey] ?? null;
+          const decision = evaluatePolicy({
+            pr,
+            activeRepositoryIds: profile.activeRepositoryIds,
+            repositoryPolicy: repoPolicy,
+            autoAnalyzeConfig: policy.autoAnalyze,
+            operatorLogin,
+          });
+          enqueueFromPolicyDecision(enqueueDeps, {
+            repositoryKey,
+            prNumber: pr.prNumber,
+            headSha: pr.headSha,
+            sourceMode,
+            policy: decision,
+            normalizedRepositoryIdentity: repositoryKey,
+            explicitRequest,
+          });
+        },
+        evaluatePolicy: (pr) => {
+          const repositoryKey = resolveRepositoryKey(org, pr);
+          const repoPolicy = policy.repositories[repositoryKey] ?? null;
+          return evaluatePolicy({
+            pr,
+            activeRepositoryIds: profile.activeRepositoryIds,
+            repositoryPolicy: repoPolicy,
+            autoAnalyzeConfig: policy.autoAnalyze,
+            operatorLogin,
+          });
+        },
+        persistDecision,
+        countKnownPrs: () =>
+          (db.prepare(`SELECT COUNT(*) as cnt FROM prs`).get() as { cnt: number }).cnt,
+        getFreshnessAt: (h) => checkpoints.getLastPollTime(h),
+        setFreshnessAt: (h, at) => {
+          checkpoints.set(`poll:${h}:lastCompleted`, h, at, { freshnessAt: at });
+        },
+        rateLimits,
+        scheduleNextPoll: (delayMs) => schedule(delayMs),
+        config: pollConfig,
+        random: Math.random,
+        execGhJson: (args, opts) => execGhJson(args, opts),
+      });
+
+      schedule(0);
+
+      return {
+        stop() {
+          stopped = true;
+          if (timer) clearTimeout(timer);
+        },
+      };
+    },
+    runSchedulerTick() {
+      return selectNextJobs(db, {
+        maxConcurrentAgents: local.cursor.maxConcurrentAgents,
+        debounceMs: 2_000,
+      });
+    },
+    runAttentionBatch() {
+      // Attention advisor batch — no-op when disabled.
+    },
+    createFacade() {
+      return createOrchestratorFacade(facadeDeps);
+    },
+    publishContext: context,
+  };
+
+  return { config, deps, context };
+}

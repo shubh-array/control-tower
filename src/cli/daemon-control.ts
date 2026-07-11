@@ -1,13 +1,28 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
-import { createDaemon, startDaemon } from "../daemon/server.js";
+import { join, resolve } from "node:path";
+import { homedir } from "node:os";
 import { openDatabase } from "../store/db.js";
 import { runMigrations } from "../store/migrate.js";
+import { startRuntime, stopRuntime } from "../daemon/runtime.js";
+import { createBootstrap } from "../daemon/bootstrap.js";
 
 const DEFAULT_PORT = 9120;
 
+let activeHandle: Awaited<ReturnType<typeof startRuntime>> | null = null;
+
 function pidFilePath(dataDir: string): string {
   return join(dataDir, "daemon.pid");
+}
+
+function resolveAppRoot(): string {
+  return resolve(join(import.meta.dirname, "../.."));
+}
+
+function resolveLocalConfigPath(): string {
+  return (
+    process.env.CONTROL_TOWER_CONFIG ??
+    join(homedir(), ".control-tower", "config.json")
+  );
 }
 
 export async function startCommand(dataDir: string, port?: number): Promise<string> {
@@ -25,14 +40,21 @@ export async function startCommand(dataDir: string, port?: number): Promise<stri
   const dbPath = join(dataDir, "control-tower.sqlite");
   const db = openDatabase(dbPath);
   runMigrations(db);
+  db.close();
 
-  const daemonPort = port ?? DEFAULT_PORT;
-  const server = createDaemon({ port: daemonPort });
-  const { url } = await startDaemon(server, { port: daemonPort });
+  const localConfigPath = resolveLocalConfigPath();
+  const { config, deps } = createBootstrap({
+    appRoot: resolveAppRoot(),
+    localConfigPath,
+  });
 
+  const daemonPort = port ?? config.port ?? DEFAULT_PORT;
+  config.port = daemonPort;
+
+  activeHandle = await startRuntime(config, deps);
   writeFileSync(pidFile, String(process.pid));
 
-  return `Control Tower started at ${url} (pid ${process.pid})`;
+  return `Control Tower started at ${activeHandle.url} (pid ${process.pid})`;
 }
 
 export async function stopCommand(dataDir: string): Promise<string> {
@@ -42,11 +64,18 @@ export async function stopCommand(dataDir: string): Promise<string> {
   }
 
   const pid = parseInt(readFileSync(pidFile, "utf-8").trim(), 10);
-  try {
-    process.kill(pid, "SIGTERM");
-  } catch {
-    // Already stopped.
+
+  if (activeHandle) {
+    await stopRuntime(activeHandle);
+    activeHandle = null;
+  } else {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // Already stopped.
+    }
   }
+
   unlinkSync(pidFile);
   return `Daemon stopped (pid ${pid})`;
 }
