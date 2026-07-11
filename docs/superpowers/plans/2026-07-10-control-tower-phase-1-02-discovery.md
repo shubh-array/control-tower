@@ -517,7 +517,7 @@ git commit -m "feat(discovery): add gh subprocess runner with sanitized env"
 - Create: `src/github/operator-identity.ts`
 - Create: `tests/github/operator-identity.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/github/operator-identity.test.ts
@@ -588,12 +588,12 @@ describe('verifyOperatorIdentity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/github/operator-identity.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```typescript
 // src/github/operator-identity.ts
@@ -638,12 +638,12 @@ export async function verifyOperatorIdentity(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/github/operator-identity.test.ts`
 Expected: all 5 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/github/operator-identity.ts tests/github/operator-identity.test.ts
