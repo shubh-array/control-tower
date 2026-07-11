@@ -1,10 +1,10 @@
-import type { SignalRecorder } from './record';
+import type { SignalRecorder } from './record.js';
 import type {
   TimingSignal,
   FailureSignal,
   DispositionSignal,
   AttentionOutcomeSignal,
-} from './signals';
+} from './signals.js';
 
 export interface RunMeta {
   jobId: string;

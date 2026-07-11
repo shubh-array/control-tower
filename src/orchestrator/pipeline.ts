@@ -47,7 +47,7 @@ export interface PipelineDeps {
     errors: string[];
     validatedProvenance: unknown[];
   };
-  sealRun(runId: string, runDir: string): { sealed: boolean };
+  sealRun(runId: string, runDir: string): Promise<{ sealed: boolean }> | { sealed: boolean };
   updatePointers(jobId: string, runId: string): { latestRunId: string; acceptedRunId: string };
   cleanupSource(runId: string): void;
   getJobState(jobId: string): { state: string; version: number };
@@ -94,7 +94,7 @@ export async function executePipeline(
     context = deps.prepareContext(job.id, runId);
   } catch {
     deps.transitionJob(job.id, 'preparing_context', 'failed');
-    try { deps.sealRun(runId, ''); } catch { /* best-effort seal */ }
+    try { await deps.sealRun(runId, ''); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
     return failResult(runId, 'materialize_failed');
   }
@@ -111,7 +111,7 @@ export async function executePipeline(
       } catch {
         deps.transitionJob(job.id, 'preparing_context', 'failed');
       }
-      try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
+      try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
       try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
       return failResult(runId, failureReason);
     }
@@ -134,7 +134,7 @@ export async function executePipeline(
   } catch {
     deps.transitionRun(runId, 'running', 'failed');
     deps.transitionJob(job.id, 'running_agent', 'failed');
-    try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
+    try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
     return failResult(runId, 'agent_failed', advisorStatus);
   }
@@ -146,14 +146,14 @@ export async function executePipeline(
   if (!validation.valid) {
     deps.transitionRun(runId, 'validating', 'failed');
     deps.transitionJob(job.id, 'validating_output', 'failed');
-    try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
+    try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
     return failResult(runId, 'agent_failed', advisorStatus);
   }
 
   deps.transitionRun(runId, 'validating', 'succeeded');
 
-  const { sealed } = deps.sealRun(runId, context.runDir);
+  const { sealed } = await deps.sealRun(runId, context.runDir);
   const pointers = deps.updatePointers(job.id, runId);
 
   deps.transitionJob(job.id, 'validating_output', 'draft_ready');

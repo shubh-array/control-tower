@@ -1,6 +1,7 @@
 // tests/proposals/replay.test.ts
 import { describe, it, expect } from 'vitest';
-import { runHistoricalReplay, type ReplayConfig } from '../../src/proposals/replay';
+import { runHistoricalReplay, type ReplayConfig } from '../../src/proposals/replay.js';
+import type { EvaluationOutput } from '../../src/proposals/replay.js';
 
 describe('runHistoricalReplay', () => {
   it('replays corpus cases against proposed content and returns metrics', async () => {
@@ -13,7 +14,7 @@ describe('runHistoricalReplay', () => {
         { caseId: 'attn_low_risk_02', input: { candidates: [{ repo: 'docs', pr: 5, headSha: 'bbb' }] }, expected: { forbiddenEscalation: ['docs#5'] } },
       ],
       modelSpec: 'claude-sonnet-4-20250514',
-      evaluator: (output, expected) => {
+      evaluator: (_output: unknown, _expected: unknown): EvaluationOutput => {
         return { passed: true, metricValues: { recall: 1.0, falseEscalation: 0.0 } };
       },
     };
@@ -21,7 +22,7 @@ describe('runHistoricalReplay', () => {
     expect(result.proposalId).toBe('prop_001');
     expect(result.role).toBe('attention');
     expect(result.caseResults).toHaveLength(2);
-    expect(result.caseResults.every(c => c.passed)).toBe(true);
+    expect(result.caseResults.every((c) => c.passed)).toBe(true);
   });
 
   it('records failures when evaluator returns passed=false', async () => {
@@ -33,12 +34,12 @@ describe('runHistoricalReplay', () => {
         { caseId: 'review_provenance_01', input: { pr: { repo: 'webapp', number: 42 } }, expected: { provenanceValid: true } },
       ],
       modelSpec: 'claude-sonnet-4-20250514',
-      evaluator: (_output, _expected) => {
+      evaluator: (_output: unknown, _expected: unknown): EvaluationOutput => {
         return { passed: false, metricValues: { provenanceValidity: 0.5 } };
       },
     };
     const result = await runHistoricalReplay(config);
-    expect(result.caseResults[0].passed).toBe(false);
+    expect(result.caseResults[0]!.passed).toBe(false);
   });
 
   it('stores exact input hashes and manifest hashes', async () => {

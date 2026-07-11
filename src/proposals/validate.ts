@@ -5,7 +5,7 @@ import {
   MAX_PER_FILE_SIZE_BYTES,
   type ProfileChangeProposal,
   type ProposalValidationResult,
-} from './types';
+} from './types.js';
 
 interface CurrentFileInfo {
   content: string;

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { SignalRecorder } from '../../src/learning/record';
+import { SignalRecorder } from '../../src/learning/record.js';
 import {
   createSignalHooks,
   type SignalHookDeps,
-} from '../../src/learning/signal-hooks';
+} from '../../src/learning/signal-hooks.js';
 
 describe('SignalHooks', () => {
   let db: Database.Database;
@@ -51,7 +51,7 @@ describe('SignalHooks', () => {
     });
     const signals = recorder.queryByJobId('job_001');
     expect(signals).toHaveLength(1);
-    expect(signals[0].type).toBe('timing');
+    expect(signals[0]!.type).toBe('timing');
   });
 
   it('records a failure signal on pipeline seal with failure', () => {
@@ -63,7 +63,7 @@ describe('SignalHooks', () => {
     });
     const signals = recorder.queryByJobId('job_001');
     expect(signals).toHaveLength(1);
-    expect(signals[0].type).toBe('failure');
+    expect(signals[0]!.type).toBe('failure');
   });
 
   it('records a disposition signal on facade disposition', () => {
@@ -71,7 +71,7 @@ describe('SignalHooks', () => {
     hooks.onDisposition('comment');
     const signals = recorder.queryByJobId('job_001');
     expect(signals).toHaveLength(1);
-    expect(signals[0].type).toBe('disposition');
+    expect(signals[0]!.type).toBe('disposition');
   });
 
   it('records an attention outcome signal on attention result', () => {
@@ -92,7 +92,7 @@ describe('SignalHooks', () => {
     hooks.onAttentionOutcome('escalated');
     const signals = recorder.queryByJobId('job_002');
     expect(signals).toHaveLength(1);
-    expect(signals[0].type).toBe('attention_outcome');
+    expect(signals[0]!.type).toBe('attention_outcome');
   });
 
   it('running a fake pipeline records timing + disposition signals', () => {
@@ -108,6 +108,6 @@ describe('SignalHooks', () => {
     hooks.onDisposition('approve');
     const signals = recorder.queryByJobId('job_001');
     expect(signals).toHaveLength(2);
-    expect(signals.map(s => s.type)).toEqual(['timing', 'disposition']);
+    expect(signals.map((s) => s.type)).toEqual(['timing', 'disposition']);
   });
 });

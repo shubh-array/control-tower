@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   generateBaselineManifest,
   PHASE_1_MANIFEST_SCHEMA_VERSION,
-} from '../../src/handoff/baseline-manifest';
+} from '../../src/handoff/baseline-manifest.js';
 
 describe('Phase 1 Baseline Manifest', () => {
   it('generates a sealed manifest with contract and implementation hashes', () => {

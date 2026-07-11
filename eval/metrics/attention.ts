@@ -54,7 +54,7 @@ export function computeJaccardTop3Stability(repeatedRuns: string[][]): number {
   let pairs = 0;
   for (let i = 0; i < repeatedRuns.length; i++) {
     for (let j = i + 1; j < repeatedRuns.length; j++) {
-      totalJaccard += computeJaccardTop3(repeatedRuns[i], repeatedRuns[j]);
+      totalJaccard += computeJaccardTop3(repeatedRuns[i]!, repeatedRuns[j]!);
       pairs++;
     }
   }

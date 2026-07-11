@@ -196,18 +196,22 @@ export function buildPipelineDeps(
         };
       }
     },
-    sealRun(runId, runDir) {
+    async sealRun(runId, runDir) {
       if (!runDir) return { sealed: false };
       const jobRow = db
         .prepare(`SELECT job_id FROM runs WHERE id = ?`)
         .get(runId) as { job_id: string } | undefined;
-      void sealRunDir(runDir, {
-        runId,
-        jobId: jobRow?.job_id ?? "",
-        outcome: "succeeded",
-        sealedAt: new Date().toISOString(),
-      }).catch(() => {});
-      return { sealed: true };
+      try {
+        await sealRunDir(runDir, {
+          runId,
+          jobId: jobRow?.job_id ?? "",
+          outcome: "succeeded",
+          sealedAt: new Date().toISOString(),
+        });
+        return { sealed: true };
+      } catch {
+        return { sealed: false };
+      }
     },
     updatePointers(jobId, runId) {
       db.prepare(

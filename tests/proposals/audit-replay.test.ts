@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { sha256Hex } from '../../src/util/hash.js';
-import { adoptProposal } from '../../src/proposals/adopt';
-import { generatePreview } from '../../src/proposals/preview';
+import { adoptProposal } from '../../src/proposals/adopt.js';
+import { generatePreview, type PreviewLine } from '../../src/proposals/preview.js';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -57,8 +57,8 @@ describe('Audit Replay Reproducibility', () => {
     expect(preview.baseHash).toBe(audit.baseContentHash);
     expect(preview.proposedHash).toBe(audit.proposedContentHash);
     expect(preview.proposalId).toBe(audit.proposalId);
-    expect(preview.lines.some(l => l.type === 'added')).toBe(true);
-    expect(preview.lines.some(l => l.type === 'removed')).toBe(true);
+    expect(preview.lines.some((l: PreviewLine) => l.type === 'added')).toBe(true);
+    expect(preview.lines.some((l: PreviewLine) => l.type === 'removed')).toBe(true);
   });
 
   it('replaying adoption from audit record produces identical file content', () => {
@@ -121,7 +121,7 @@ describe('Audit Replay Reproducibility', () => {
     const second = adoptProposal({
       ...opts,
       targets: [{
-        ...opts.targets[0],
+        path: 'config.json',
         baseContentHash: sha256Hex(proposed),
         proposedContent: '{"v":3}',
         contentHash: sha256Hex('{"v":3}'),

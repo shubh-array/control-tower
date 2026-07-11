@@ -5,7 +5,7 @@ import {
   PRIMARY_REVIEW_GATES,
   evaluateGate,
   evaluateAllGates,
-} from '../../eval/gates';
+} from '../../eval/gates.js';
 
 describe('evaluateGate', () => {
   it('passes gte when value meets threshold', () => {
@@ -37,7 +37,7 @@ describe('evaluateAllGates', () => {
     );
     expect(allPassed).toBe(true);
     expect(results).toHaveLength(4);
-    expect(results.every(r => r.passed)).toBe(true);
+    expect(results.every((r) => r.passed)).toBe(true);
   });
 
   it('returns allPassed=false when any gate fails', () => {

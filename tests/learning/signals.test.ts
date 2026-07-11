@@ -7,9 +7,8 @@ import {
   FailureSignal,
   SupersessionSignal,
   parseSignal,
-  SignalSchema,
-} from '../../src/learning/signals';
-import { SignalRecorder } from '../../src/learning/record';
+} from '../../src/learning/signals.js';
+import { SignalRecorder } from '../../src/learning/record.js';
 import Database from 'better-sqlite3';
 
 describe('Learning Signal Schema', () => {
@@ -205,8 +204,11 @@ describe('SignalRecorder', () => {
     recorder.record(signal);
     const stored = recorder.queryByJobId('job_001');
     expect(stored).toHaveLength(1);
-    expect(stored[0].type).toBe('attention_outcome');
-    expect(stored[0].outcome).toBe('escalated');
+    const first = stored[0]!;
+    expect(first.type).toBe('attention_outcome');
+    if (first.type === 'attention_outcome') {
+      expect(first.outcome).toBe('escalated');
+    }
   });
 
   it('appends multiple signals for the same run', () => {
@@ -271,6 +273,6 @@ describe('SignalRecorder', () => {
     recorder.record({ ...base, jobId: 'job_005', runId: 'run_005', type: 'draft_outcome', modelRole: 'primaryReview', outcome: 'accepted', agentDraftHash: 'd', finalDraftHash: 'd', editDiff: null });
     const attentionSignals = recorder.queryByRole('attention');
     expect(attentionSignals).toHaveLength(1);
-    expect(attentionSignals[0].modelRole).toBe('attention');
+    expect(attentionSignals[0]!.modelRole).toBe('attention');
   });
 });

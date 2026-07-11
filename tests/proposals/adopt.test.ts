@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { adoptProposal } from '../../src/proposals/adopt';
+import { adoptProposal } from '../../src/proposals/adopt.js';
 import { sha256Hex } from '../../src/util/hash.js';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

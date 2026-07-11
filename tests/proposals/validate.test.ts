@@ -5,9 +5,8 @@ import {
   MAX_PROPOSAL_SIZE_BYTES,
   MAX_PER_FILE_SIZE_BYTES,
   type ProfileChangeProposal,
-  type ProposalTarget,
   isAllowedTarget,
-} from '../../src/proposals/types';
+} from '../../src/proposals/types.js';
 
 describe('Proposal Types', () => {
   it('allowlist contains exactly the permitted targets', () => {
@@ -68,7 +67,7 @@ describe('Proposal Types', () => {
   });
 });
 
-import { validateProposal } from '../../src/proposals/validate';
+import { validateProposal } from '../../src/proposals/validate.js';
 
 describe('validateProposal', () => {
   const validProposal: ProfileChangeProposal = {
@@ -102,9 +101,9 @@ describe('validateProposal', () => {
   it('rejects proposal with disallowed target path', () => {
     const badProposal = {
       ...validProposal,
-      targets: [{ ...validProposal.targets[0], path: 'src/safety/guards.ts' }],
+      targets: [{ ...validProposal.targets[0]!, path: 'src/safety/guards.ts' }],
       targetBaseContentHashes: { 'src/safety/guards.ts': 'x' },
-    };
+    } as ProfileChangeProposal;
     const currentFiles = { 'src/safety/guards.ts': { content: '', hash: 'x' } };
     const result = validateProposal(badProposal, currentFiles);
     expect(result.valid).toBe(false);
@@ -122,11 +121,11 @@ describe('validateProposal', () => {
     const tooMany = {
       ...validProposal,
       targets: Array.from({ length: 5 }, (_, i) => ({
-        ...validProposal.targets[0],
+        ...validProposal.targets[0]!,
         path: `policy.json`,
         baseContentHash: `h${i}`,
       })),
-    };
+    } as ProfileChangeProposal;
     const currentFiles = { 'policy.json': { content: '', hash: 'h0' } };
     const result = validateProposal(tooMany, currentFiles);
     expect(result.valid).toBe(false);
@@ -137,8 +136,8 @@ describe('validateProposal', () => {
     const bigContent = 'x'.repeat(256 * 1024 + 1);
     const bigProposal = {
       ...validProposal,
-      targets: [{ ...validProposal.targets[0], proposedContent: bigContent }],
-    };
+      targets: [{ ...validProposal.targets[0]!, proposedContent: bigContent }],
+    } as ProfileChangeProposal;
     const currentFiles = { 'policy.json': { content: '', hash: 'base_policy' } };
     const result = validateProposal(bigProposal, currentFiles);
     expect(result.valid).toBe(false);

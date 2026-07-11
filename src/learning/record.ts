@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { parseSignal, type LearningSignal } from './signals';
+import { parseSignal, type LearningSignal } from './signals.js';
 
 export class SignalRecorder {
   constructor(private db: Database.Database) {}

@@ -6,9 +6,9 @@ import {
   loadCase,
   runAttentionEval,
   runPrimaryReviewEval,
-} from '../../eval/runner';
-import type { AttentionRunOutput } from '../../eval/metrics/attention';
-import type { ReviewRunOutput } from '../../eval/metrics/primary-review';
+} from '../../eval/runner.js';
+import type { AttentionRunOutput } from '../../eval/metrics/attention.js';
+import type { ReviewRunOutput } from '../../eval/metrics/primary-review.js';
 
 const attentionCorpusPath = join(import.meta.dirname, '../../eval/attention/corpus.json');
 const reviewCorpusPath = join(import.meta.dirname, '../../eval/primary-review/corpus.json');
@@ -29,7 +29,7 @@ describe('loadCorpus', () => {
 
 describe('runAttentionEval', () => {
   it('evaluates all attention cases with passing executor', async () => {
-    const result = await runAttentionEval(attentionCorpusPath, async (input) => {
+    const result = await runAttentionEval(attentionCorpusPath, async (input: unknown) => {
       const candidates = (input as { candidates: Array<{ repositoryKey: string; prNumber: number }> }).candidates;
       return {
         items: candidates.map(c => ({
@@ -68,7 +68,7 @@ describe('loadCase', () => {
   it('loads individual case files', () => {
     const corpus = loadCorpus(attentionCorpusPath);
     const basePath = join(attentionCorpusPath, '..');
-    const caseData = loadCase(basePath, corpus.cases[0]) as { caseId: string };
+    const caseData = loadCase(basePath, corpus.cases[0]!) as { caseId: string };
     expect(caseData.caseId).toBe('attn_must_escalate_security_vuln_01');
   });
 });

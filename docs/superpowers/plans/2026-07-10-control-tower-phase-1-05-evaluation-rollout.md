@@ -57,7 +57,7 @@
 - Create: `src/learning/signals.ts`
 - Test: `tests/learning/signals.test.ts`
 
-- [ ] **Step 1: Write the failing test for signal schema validation**
+- [x] **Step 1: Write the failing test for signal schema validation**
 
 ```typescript
 // tests/learning/signals.test.ts
@@ -234,12 +234,12 @@ describe('Learning Signal Schema', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/learning/signals.test.ts`
 Expected: FAIL — module `../../src/learning/signals` not found
 
-- [ ] **Step 3: Implement the signal types and schema**
+- [x] **Step 3: Implement the signal types and schema**
 
 ```typescript
 // src/learning/signals.ts
@@ -332,12 +332,12 @@ export function parseSignal(data: unknown): z.SafeParseReturnType<unknown, Learn
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/learning/signals.test.ts`
 Expected: All 8 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/learning/signals.ts tests/learning/signals.test.ts
@@ -352,7 +352,7 @@ git commit -m "feat(learning): add structured learning signal types and schema v
 - Create: `src/learning/record.ts`
 - Modify: `tests/learning/signals.test.ts` (add recording tests)
 
-- [ ] **Step 1: Write the failing test for signal recording**
+- [x] **Step 1: Write the failing test for signal recording**
 
 ```typescript
 // tests/learning/signals.test.ts — append to file
@@ -463,12 +463,12 @@ describe('SignalRecorder', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/learning/signals.test.ts`
 Expected: FAIL — module `../../src/learning/record` not found
 
-- [ ] **Step 3: Implement the signal recorder**
+- [x] **Step 3: Implement the signal recorder**
 
 ```typescript
 // src/learning/record.ts
@@ -562,12 +562,12 @@ export class SignalRecorder {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/learning/signals.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/learning/record.ts tests/learning/signals.test.ts
@@ -584,7 +584,7 @@ git commit -m "feat(learning): implement append-only signal recorder with SQLite
 
 This task ensures `SignalRecorder` is invoked automatically during pipeline seal (capturing timing, usage, and failure signals), facade disposition decisions, and workbench attention outcomes — not only when explicitly called from tests.
 
-- [ ] **Step 1: Write failing tests for signal hooks**
+- [x] **Step 1: Write failing tests for signal hooks**
 
 ```typescript
 // tests/learning/signal-hooks.test.ts
@@ -703,12 +703,12 @@ describe('SignalHooks', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (module not found)**
+- [x] **Step 2: Run tests — expect FAIL (module not found)**
 
 Run: `pnpm vitest run tests/learning/signal-hooks.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement signal hooks**
+- [x] **Step 3: Implement signal hooks**
 
 ```typescript
 // src/learning/signal-hooks.ts
@@ -797,12 +797,12 @@ export function createSignalHooks(deps: SignalHookDeps): SignalHooks {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `pnpm vitest run tests/learning/signal-hooks.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/learning/signal-hooks.ts tests/learning/signal-hooks.test.ts
@@ -817,7 +817,7 @@ git commit -m "feat(learning): wire SignalRecorder into pipeline seal, dispositi
 - Create: `src/proposals/types.ts`
 - Test: `tests/proposals/validate.test.ts`
 
-- [ ] **Step 1: Write the failing test for proposal types**
+- [x] **Step 1: Write the failing test for proposal types**
 
 ```typescript
 // tests/proposals/validate.test.ts
@@ -892,12 +892,12 @@ describe('Proposal Types', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/proposals/validate.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement the proposal types**
+- [x] **Step 3: Implement the proposal types**
 
 ```typescript
 // src/proposals/types.ts
@@ -972,12 +972,12 @@ export interface ReplayCaseResult {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/proposals/validate.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/proposals/types.ts tests/proposals/validate.test.ts
@@ -992,7 +992,7 @@ git commit -m "feat(proposals): define proposal types, target allowlist, and siz
 - Create: `src/proposals/validate.ts`
 - Modify: `tests/proposals/validate.test.ts`
 
-- [ ] **Step 1: Write the failing test for proposal validation**
+- [x] **Step 1: Write the failing test for proposal validation**
 
 ```typescript
 // tests/proposals/validate.test.ts — append
@@ -1076,12 +1076,12 @@ describe('validateProposal', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/proposals/validate.test.ts`
 Expected: FAIL — `validateProposal` not found
 
-- [ ] **Step 3: Implement proposal validation**
+- [x] **Step 3: Implement proposal validation**
 
 ```typescript
 // src/proposals/validate.ts
@@ -1142,12 +1142,12 @@ export function validateProposal(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/proposals/validate.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/proposals/validate.ts tests/proposals/validate.test.ts
@@ -1162,7 +1162,7 @@ git commit -m "feat(proposals): implement proposal validation with target allowl
 - Create: `src/proposals/adopt.ts`
 - Test: `tests/proposals/adopt.test.ts`
 
-- [ ] **Step 1: Write the failing test for adoption**
+- [x] **Step 1: Write the failing test for adoption**
 
 ```typescript
 // tests/proposals/adopt.test.ts
@@ -1275,12 +1275,12 @@ describe('adoptProposal', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/proposals/adopt.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement atomic adoption**
+- [x] **Step 3: Implement atomic adoption**
 
 ```typescript
 // src/proposals/adopt.ts
@@ -1354,12 +1354,12 @@ export function resetAdoptionState(): void {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/proposals/adopt.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/proposals/adopt.ts tests/proposals/adopt.test.ts
@@ -1374,7 +1374,7 @@ git commit -m "feat(proposals): implement single-use atomic adoption with base-h
 - Create: `src/proposals/replay.ts`
 - Test: `tests/proposals/replay.test.ts`
 
-- [ ] **Step 1: Write the failing test for replay**
+- [x] **Step 1: Write the failing test for replay**
 
 ```typescript
 // tests/proposals/replay.test.ts
@@ -1438,12 +1438,12 @@ describe('runHistoricalReplay', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/proposals/replay.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement the replay runner**
+- [x] **Step 3: Implement the replay runner**
 
 ```typescript
 // src/proposals/replay.ts
@@ -1514,12 +1514,12 @@ export async function runHistoricalReplay(config: ReplayConfig): Promise<ReplayR
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/proposals/replay.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/proposals/replay.ts tests/proposals/replay.test.ts
@@ -1535,7 +1535,7 @@ git commit -m "feat(proposals): implement historical replay runner with evaluato
 - Create: `eval/metrics/attention.ts`
 - Create: `eval/metrics/primary-review.ts`
 
-- [ ] **Step 1: Write the gate constants and metric computation**
+- [x] **Step 1: Write the gate constants and metric computation**
 
 ```typescript
 // eval/gates.ts
@@ -1588,7 +1588,7 @@ export function evaluateAllGates(
 }
 ```
 
-- [ ] **Step 2: Write attention metrics computation**
+- [x] **Step 2: Write attention metrics computation**
 
 ```typescript
 // eval/metrics/attention.ts
@@ -1656,7 +1656,7 @@ export function computeJaccardTop3Stability(repeatedRuns: string[][]): number {
 }
 ```
 
-- [ ] **Step 3: Write primary review metrics computation**
+- [x] **Step 3: Write primary review metrics computation**
 
 ```typescript
 // eval/metrics/primary-review.ts
@@ -1729,12 +1729,12 @@ export function computeFalsePositiveRate(
 }
 ```
 
-- [ ] **Step 4: Run all gate/metric tests**
+- [x] **Step 4: Run all gate/metric tests**
 
 Run: `pnpm vitest run eval/`
 Expected: All tests PASS (or no test file yet — proceed to next step to verify integration in Task 8)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add eval/gates.ts eval/metrics/attention.ts eval/metrics/primary-review.ts
@@ -1753,7 +1753,7 @@ git commit -m "feat(eval): add gate constants, attention metrics, and primary-re
 - Create: `eval/attention/cases/conflicting-priorities.json`
 - Create: `eval/attention/cases/prompt-injection-title.json`
 
-- [ ] **Step 1: Write the corpus definition**
+- [x] **Step 1: Write the corpus definition**
 
 ```json
 // eval/attention/corpus.json
@@ -1777,7 +1777,7 @@ git commit -m "feat(eval): add gate constants, attention metrics, and primary-re
 }
 ```
 
-- [ ] **Step 2: Write the must-escalate security vulnerability case**
+- [x] **Step 2: Write the must-escalate security vulnerability case**
 
 ```json
 // eval/attention/cases/must-escalate-security-vuln.json
@@ -1837,7 +1837,7 @@ git commit -m "feat(eval): add gate constants, attention metrics, and primary-re
 }
 ```
 
-- [ ] **Step 3: Write the must-escalate data migration case**
+- [x] **Step 3: Write the must-escalate data migration case**
 
 ```json
 // eval/attention/cases/must-escalate-data-migration.json
@@ -1897,7 +1897,7 @@ git commit -m "feat(eval): add gate constants, attention metrics, and primary-re
 }
 ```
 
-- [ ] **Step 4: Write remaining cases (low-risk, conflicting, prompt-injection)**
+- [x] **Step 4: Write remaining cases (low-risk, conflicting, prompt-injection)**
 
 ```json
 // eval/attention/cases/low-risk-docs-update.json
@@ -2027,7 +2027,7 @@ git commit -m "feat(eval): add gate constants, attention metrics, and primary-re
 }
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add eval/attention/
@@ -2046,7 +2046,7 @@ git commit -m "feat(eval): add attention evaluation corpus with 5 representative
 - Create: `eval/primary-review/cases/protected-path-no-content.json`
 - Create: `eval/primary-review/cases/invalid-provenance-temptation.json`
 
-- [ ] **Step 1: Write the corpus definition**
+- [x] **Step 1: Write the corpus definition**
 
 ```json
 // eval/primary-review/corpus.json
@@ -2067,7 +2067,7 @@ git commit -m "feat(eval): add attention evaluation corpus with 5 representative
 }
 ```
 
-- [ ] **Step 2: Write the correctness finding case**
+- [x] **Step 2: Write the correctness finding case**
 
 ```json
 // eval/primary-review/cases/correctness-finding.json
@@ -2115,7 +2115,7 @@ git commit -m "feat(eval): add attention evaluation corpus with 5 representative
 }
 ```
 
-- [ ] **Step 3: Write the benign no-findings case**
+- [x] **Step 3: Write the benign no-findings case**
 
 ```json
 // eval/primary-review/cases/benign-no-findings.json
@@ -2170,7 +2170,7 @@ git commit -m "feat(eval): add attention evaluation corpus with 5 representative
 }
 ```
 
-- [ ] **Step 4: Write remaining cases (remote-evidence, protected-path, invalid-provenance)**
+- [x] **Step 4: Write remaining cases (remote-evidence, protected-path, invalid-provenance)**
 
 ```json
 // eval/primary-review/cases/remote-evidence-missing-source.json
@@ -2312,7 +2312,7 @@ git commit -m "feat(eval): add attention evaluation corpus with 5 representative
 }
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add eval/primary-review/
@@ -2326,7 +2326,7 @@ git commit -m "feat(eval): add primaryReview evaluation corpus with 5 cases incl
 **Files:**
 - Create: `eval/runner.ts`
 
-- [ ] **Step 1: Write the evaluation runner**
+- [x] **Step 1: Write the evaluation runner**
 
 ```typescript
 // eval/runner.ts
@@ -2481,7 +2481,7 @@ export async function runPrimaryReviewEval(
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add eval/runner.ts
@@ -2497,7 +2497,7 @@ git commit -m "feat(eval): implement evaluation runner for attention and primary
 
 This test exercises the full pipeline through `OrchestratorFacade` (Plan 03) with fake adapters injected via `startRuntime` deps. It must reach `draft_ready` state and produce a retrievable draft via `facade.getDraft()`.
 
-- [ ] **Step 1: Write the end-to-end test through OrchestratorFacade**
+- [x] **Step 1: Write the end-to-end test through OrchestratorFacade**
 
 ```typescript
 // tests/e2e/fake-adapters.test.ts
@@ -2786,12 +2786,12 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it passes**
+- [x] **Step 2: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/e2e/fake-adapters.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/e2e/fake-adapters.test.ts
@@ -2806,7 +2806,7 @@ git commit -m "feat(e2e): facade-driven fake adapter suite reaching draft_ready 
 - Create: `src/handoff/baseline-manifest.ts`
 - Test: `tests/handoff/baseline-manifest.test.ts`
 
-- [ ] **Step 1: Write the failing test for baseline manifest**
+- [x] **Step 1: Write the failing test for baseline manifest**
 
 ```typescript
 // tests/handoff/baseline-manifest.test.ts
@@ -2934,12 +2934,12 @@ describe('Phase 1 Baseline Manifest', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run tests/handoff/baseline-manifest.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement the baseline manifest**
+- [x] **Step 3: Implement the baseline manifest**
 
 ```typescript
 // src/handoff/baseline-manifest.ts
@@ -3031,12 +3031,12 @@ export function generateBaselineManifest(inputs: BaselineManifestInputs): Baseli
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/handoff/baseline-manifest.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/handoff/baseline-manifest.ts tests/handoff/baseline-manifest.test.ts
@@ -3052,7 +3052,7 @@ git commit -m "feat(handoff): implement sealed Phase 1 baseline manifest for Pha
 
 This test verifies that replaying an audit record of a proposal adoption reproduces the same proposal version, content hashes, preview output, and adoption identity — ensuring auditability and deterministic replay.
 
-- [ ] **Step 1: Write the audit replay reproducibility test**
+- [x] **Step 1: Write the audit replay reproducibility test**
 
 ```typescript
 // tests/proposals/audit-replay.test.ts
@@ -3205,12 +3205,12 @@ describe('Audit Replay Reproducibility', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it passes**
+- [x] **Step 2: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/proposals/audit-replay.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/proposals/audit-replay.test.ts
@@ -3224,7 +3224,7 @@ git commit -m "feat(proposals): add audit replay reproducibility test for propos
 **Files:**
 - Create: `tests/scale/coverage-scale.test.ts`
 
-- [ ] **Step 1: Write the scale fixture test**
+- [x] **Step 1: Write the scale fixture test**
 
 ```typescript
 // tests/scale/coverage-scale.test.ts
@@ -3340,12 +3340,12 @@ describe('Scale Fixture: 20 repos, 200 PRs, 20 jobs/day', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it passes**
+- [x] **Step 2: Run the test to verify it passes**
 
 Run: `pnpm vitest run tests/scale/coverage-scale.test.ts`
 Expected: All tests PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/scale/coverage-scale.test.ts
@@ -3360,7 +3360,7 @@ git commit -m "test(scale): add scale fixture for 20 repos, 200 PRs, 20 jobs/day
 - Create: `src/api/routes/signals.ts`
 - Create: `src/api/routes/proposals.ts`
 
-- [ ] **Step 1: Implement signal query routes**
+- [x] **Step 1: Implement signal query routes**
 
 ```typescript
 // src/api/routes/signals.ts
@@ -3387,7 +3387,7 @@ export function registerSignalRoutes(app: FastifyInstance, recorder: SignalRecor
 }
 ```
 
-- [ ] **Step 2: Implement proposal lifecycle routes**
+- [x] **Step 2: Implement proposal lifecycle routes**
 
 ```typescript
 // src/api/routes/proposals.ts
@@ -3462,7 +3462,7 @@ export function registerProposalRoutes(
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/api/routes/signals.ts src/api/routes/proposals.ts
@@ -3476,7 +3476,7 @@ git commit -m "feat(api): add signal query and proposal lifecycle API routes"
 **Files:**
 - Create: `client/src/routes/ProposeChange.tsx`
 
-- [ ] **Step 1: Implement the ProposeChange route**
+- [x] **Step 1: Implement the ProposeChange route**
 
 ```tsx
 // client/src/routes/ProposeChange.tsx
@@ -3643,7 +3643,7 @@ export function ProposeChange() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add client/src/routes/ProposeChange.tsx
@@ -3658,7 +3658,7 @@ git commit -m "feat(client): add ProposeChange UI for governed profile-change pr
 - Create: `src/proposals/preview.ts`
 - Create: `src/proposals/run.ts`
 
-- [ ] **Step 1: Implement proposal preview generation**
+- [x] **Step 1: Implement proposal preview generation**
 
 ```typescript
 // src/proposals/preview.ts
@@ -3715,7 +3715,7 @@ export function generatePreview(
 }
 ```
 
-- [ ] **Step 2: Implement proposal run orchestration**
+- [x] **Step 2: Implement proposal run orchestration**
 
 ```typescript
 // src/proposals/run.ts
@@ -3801,7 +3801,7 @@ export async function runProposalPipeline(config: ProposalRunConfig): Promise<Pr
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/proposals/preview.ts src/proposals/run.ts
@@ -3815,7 +3815,7 @@ git commit -m "feat(proposals): add preview generation and proposal run orchestr
 **Files:**
 - Create: `docs/superpowers/rollout/phase-1-gate-checklist.md`
 
-- [ ] **Step 1: Write the rollout gate checklist**
+- [x] **Step 1: Write the rollout gate checklist**
 
 ```markdown
 # Phase 1 Rollout Gate Checklist
@@ -3883,7 +3883,7 @@ git commit -m "feat(proposals): add preview generation and proposal run orchestr
 - [ ] ≥70% drafts accepted or wording-only edits
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/superpowers/rollout/phase-1-gate-checklist.md
@@ -3894,17 +3894,17 @@ git commit -m "docs(rollout): add Phase 1 gate checklist covering all 4 rollout 
 
 ### Task 18: Integration Verification
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 Run: `pnpm vitest run`
 Expected: All tests pass
 
-- [ ] **Step 2: Verify no TypeScript errors**
+- [x] **Step 2: Verify no TypeScript errors**
 
 Run: `pnpm tsc --noEmit`
 Expected: No errors
 
-- [ ] **Step 3: Final commit**
+- [x] **Step 3: Final commit**
 
 ```bash
 git add -A

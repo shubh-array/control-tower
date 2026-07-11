@@ -6,13 +6,13 @@ import {
   computeJaccardTop3,
   computeJaccardTop3Stability,
   type AttentionRunOutput,
-} from '../../eval/metrics/attention';
+} from '../../eval/metrics/attention.js';
 import {
   computeProvenanceValidity,
   computeFindingRecall,
   computeFalsePositiveRate,
   type ReviewRunOutput,
-} from '../../eval/metrics/primary-review';
+} from '../../eval/metrics/primary-review.js';
 
 describe('attention metrics', () => {
   const output: AttentionRunOutput = {
@@ -48,7 +48,7 @@ describe('primary review metrics', () => {
     observations: [
       {
         provenanceRefs: ['pv_001'],
-        fileReferences: [{ path: 'src/a.ts', blobSha: 'blob_abc', startLine: 1, endLine: 5 }],
+        fileReferences: [{ path: 'src/a.ts', blobSha: 'blob_abc' }],
       },
     ],
     recommendedDisposition: 'comment',

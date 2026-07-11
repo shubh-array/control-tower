@@ -4,7 +4,6 @@ import Database from 'better-sqlite3';
 import {
   startRuntime,
   stopRuntime,
-  type RuntimeConfig,
   type RuntimeDeps,
   type RuntimeHandle,
 } from '../../src/daemon/runtime.js';
@@ -102,7 +101,7 @@ const PR_SHA = 'abc123'.padEnd(40, '0');
 
 async function runFakePipeline(
   jobId: string,
-  runId: string,
+  _runId: string,
   cursor: FakeCursorAdapter,
   jobs: Map<string, { state: string; runIds: string[]; prNumber: number; repositoryKey: string }>,
   drafts: Map<string, FakeCursorOutput>,
@@ -181,7 +180,7 @@ function buildFakeDeps(opts: {
               startedAt: new Date().toISOString(),
               completedAt: j.state === 'draft_ready' ? new Date().toISOString() : null,
             })),
-            acceptedRunId: j.state === 'draft_ready' ? j.runIds[j.runIds.length - 1] : null,
+            acceptedRunId: j.state === 'draft_ready' ? (j.runIds[j.runIds.length - 1] ?? null) : null,
           };
         },
         getDraft: (jobId) => {
@@ -189,7 +188,7 @@ function buildFakeDeps(opts: {
           if (!d) return null;
           return {
             jobId,
-            runId: jobs.get(jobId)!.runIds[0],
+            runId: jobs.get(jobId)!.runIds[0] ?? '',
             summary: d.summary,
             draftSummary: d.draftSummary,
             findings: d.findings as never[],
@@ -304,7 +303,7 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
     const result = await publisher.publish('pba-webapp', 100, 'COMMENT', 'LGTM');
     expect(result.success).toBe(true);
     expect(publisher.published).toHaveLength(1);
-    expect(publisher.published[0].event).toBe('COMMENT');
+    expect(publisher.published[0]!.event).toBe('COMMENT');
   });
 
   it('facade.requestRetry creates a new run for an existing job', async () => {

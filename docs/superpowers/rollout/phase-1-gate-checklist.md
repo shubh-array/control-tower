@@ -64,5 +64,5 @@
 
 ## Plan 04 Residuals (Phase 1 final review)
 
-- [ ] Pipeline `sealRun` awaits disk seal before `updatePointers` sets `accepted_run_id`
+- [ ] Pipeline `sealRun` awaits disk seal before `updatePointers` sets `accepted_run_id` — **fixed** in `pipeline-runner.ts` / `pipeline.ts`
 - [ ] Pipeline agent wiring: `buildPipelineDeps.runAgent` remains a stub pending full Cursor adapter integration
