@@ -1812,7 +1812,7 @@ git commit -m "feat: add config loaders with strict Zod validation"
 **Files:**
 - Create: `src/app-safety/contracts.ts`
 
-- [ ] **Step 1: Create src/app-safety/contracts.ts**
+- [x] **Step 1: Create src/app-safety/contracts.ts**
 
 ```typescript
 import { sha256Hex } from "../util/hash.js";
@@ -1857,7 +1857,7 @@ Every fileReference must include repositoryId, blobSha, path, startLine, endLine
 export const OUTPUT_CONTRACT_HASH = sha256Hex(OUTPUT_CONTRACT_TEXT);
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/app-safety/contracts.ts
