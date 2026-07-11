@@ -5381,12 +5381,12 @@ export function enqueueFromPolicyDecision(
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `npx vitest run tests/orchestrator/enqueue.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/enqueue.ts tests/orchestrator/enqueue.test.ts
@@ -5401,7 +5401,7 @@ git commit -m "feat(orchestrator): enqueue logic with auto/on_demand modes and j
 - Create: `src/orchestrator/pipeline.ts`
 - Test: `tests/orchestrator/pipeline.test.ts`
 
-- [ ] **Step 1: Write failing tests for pipeline execution**
+- [x] **Step 1: Write failing tests for pipeline execution**
 
 Pipeline executes a single job through: `preparing_context → preparing_source|running_agent → validating → draft_ready`. Uses injected deps (fake Cursor, fake source, fake context).
 
