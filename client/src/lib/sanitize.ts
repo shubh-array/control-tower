@@ -38,16 +38,27 @@ export const sanitizeSchema: SanitizeSchema = {
 
 const SAFE_SCHEMES = new Set(["https:", "mailto:"]);
 
+function decodeHtmlEntities(url: string): string {
+  return url
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
+    .replace(/&#(\d+);/g, (_, dec) =>
+      String.fromCharCode(parseInt(dec, 10)),
+    );
+}
+
 export function isSafeUrl(url: string): boolean {
   const trimmed = url.trim();
+  const normalized = decodeHtmlEntities(trimmed);
 
-  if (trimmed.startsWith("#") || trimmed.startsWith("/")) {
+  if (normalized.startsWith("#") || normalized.startsWith("/")) {
     return true;
   }
 
   try {
-    const parsed = new URL(trimmed, "http://localhost");
-    if (trimmed.includes(":")) {
+    const parsed = new URL(normalized, "http://localhost");
+    if (normalized.includes(":")) {
       return SAFE_SCHEMES.has(parsed.protocol);
     }
     return true;
