@@ -84,7 +84,7 @@
 - Create: `src/api/session.ts`
 - Test: `tests/api/session.test.ts`
 
-- [ ] **Step 1: Write failing tests for session module**
+- [x] **Step 1: Write failing tests for session module**
 
 ```typescript
 // tests/api/session.test.ts
@@ -158,12 +158,12 @@ describe("session", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/api/session.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement session module**
+- [x] **Step 3: Implement session module**
 
 ```typescript
 // src/api/session.ts
@@ -214,12 +214,10 @@ export function validateSession(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
-
 Run: `pnpm vitest run tests/api/session.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/api/session.ts tests/api/session.test.ts
@@ -234,7 +232,7 @@ git commit -m "feat(api): add session cookie authentication for loopback API"
 - Create: `src/api/action-token.ts`
 - Test: `tests/api/action-token.test.ts`
 
-- [ ] **Step 1: Write failing tests for action tokens**
+- [x] **Step 1: Write failing tests for action tokens**
 
 ```typescript
 // tests/api/action-token.test.ts
@@ -296,12 +294,12 @@ describe("ActionTokenStore", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/api/action-token.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement action token store**
+- [x] **Step 3: Implement action token store**
 
 ```typescript
 // src/api/action-token.ts
@@ -346,12 +344,12 @@ export class ActionTokenStore {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/api/action-token.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/api/action-token.ts tests/api/action-token.test.ts
@@ -366,7 +364,7 @@ git commit -m "feat(api): add single-use action tokens with 60s TTL"
 - Create: `src/api/csp.ts`
 - Test: `tests/api/csp.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/api/csp.test.ts
@@ -447,12 +445,12 @@ describe("loopbackGuard", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/api/csp.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement CSP middleware**
+- [x] **Step 3: Implement CSP middleware**
 
 ```typescript
 // src/api/csp.ts
@@ -511,12 +509,12 @@ export const cspMiddleware: MiddlewareHandler = async (c, next) => {
 };
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/api/csp.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/api/csp.ts tests/api/csp.test.ts
@@ -531,7 +529,7 @@ git commit -m "feat(api): add CSP middleware and loopback host guard"
 - Create: `src/publisher/operation-hash.ts`
 - Test: `tests/publisher/operation-hash.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/publisher/operation-hash.test.ts
@@ -621,12 +619,12 @@ describe("computeOperationHash", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/publisher/operation-hash.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement operation hash**
+- [x] **Step 3: Implement operation hash**
 
 ```typescript
 // src/publisher/operation-hash.ts
@@ -699,12 +697,12 @@ export function computeOperationHash(op: ExternalOperation): string {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/publisher/operation-hash.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/publisher/operation-hash.ts tests/publisher/operation-hash.test.ts
@@ -719,7 +717,7 @@ git commit -m "feat(publisher): canonical per-operation hash computation"
 - Create: `src/publisher/operation-plan.ts`
 - Test: `tests/publisher/operation-plan.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/publisher/operation-plan.test.ts
@@ -851,12 +849,12 @@ describe("createOperationPlan", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/publisher/operation-plan.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement operation planner**
+- [x] **Step 3: Implement operation planner**
 
 ```typescript
 // src/publisher/operation-plan.ts
@@ -1007,12 +1005,12 @@ export function createOperationPlan(input: PlanInput): OperationPlan {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/publisher/operation-plan.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/publisher/operation-plan.ts tests/publisher/operation-plan.test.ts
