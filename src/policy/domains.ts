@@ -17,7 +17,12 @@ export interface DomainResult {
 export function selectDomains(input: DomainInput): DomainResult {
   const allReasons: DomainMatchReason[] = [];
 
-  for (const [declarationIndex, rule] of input.domainRules.entries()) {
+  for (let declarationIndex = 0; declarationIndex < input.domainRules.length; declarationIndex += 1) {
+    const rule = input.domainRules[declarationIndex];
+    if (!rule) {
+      continue;
+    }
+
     for (const changedFile of input.changedFiles) {
       if (!pathMatchesAny(changedFile, rule.paths)) {
         continue;
@@ -55,7 +60,7 @@ export function selectDomains(input: DomainInput): DomainResult {
 
   const selected: SelectedDomain[] = [];
 
-  for (const [domain, reasons] of reasonsByDomain) {
+  reasonsByDomain.forEach((reasons, domain) => {
     reasons.sort((left, right) => {
       if (right.numericPriority !== left.numericPriority) {
         return right.numericPriority - left.numericPriority;
@@ -70,7 +75,7 @@ export function selectDomains(input: DomainInput): DomainResult {
 
     const winner = reasons[0];
     if (!winner) {
-      continue;
+      return;
     }
 
     const matchedPaths = reasons
@@ -89,7 +94,7 @@ export function selectDomains(input: DomainInput): DomainResult {
       matchedPaths,
       allReasons: reasons,
     });
-  }
+  });
 
   selected.sort((left, right) => {
     if (right.selectedPriority !== left.selectedPriority) {

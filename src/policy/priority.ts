@@ -44,7 +44,11 @@ export function evaluatePriority(input: PriorityInput): PriorityResult {
 
   const matchingReasons: PriorityRuleReason[] = [];
 
-  for (const [declarationIndex, rule] of input.priorityRules.entries()) {
+  for (let declarationIndex = 0; declarationIndex < input.priorityRules.length; declarationIndex += 1) {
+    const rule = input.priorityRules[declarationIndex];
+    if (!rule) {
+      continue;
+    }
 
     for (const changedFile of input.changedFiles) {
       if (!pathMatchesAny(changedFile, rule.paths)) {

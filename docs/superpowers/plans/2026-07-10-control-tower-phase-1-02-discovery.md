@@ -2838,7 +2838,7 @@ git commit -m "feat(discovery): add auto-analysis evaluator with author-only gua
 **Files:**
 - Create: `src/policy/evaluate.ts`
 
-- [ ] **Step 1: Write the policy composition module**
+- [x] **Step 1: Write the policy composition module**
 
 ```typescript
 // src/policy/evaluate.ts
@@ -2947,12 +2947,12 @@ export function evaluatePolicy(input: PolicyInput): PolicyDecision {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/policy/evaluate.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/policy/evaluate.ts
