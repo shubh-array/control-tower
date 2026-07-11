@@ -102,7 +102,9 @@ export function validateReviewOutput(
         errors.push(`observation[${i}]: file reference not allowed in remote-evidence-only`);
       } else {
         const entry = input.sourceManifest.get(fileRef.path);
-        if (entry && entry.blobSha !== fileRef.blobSha) {
+        if (!entry) {
+          errors.push(`observation[${i}]: file reference path not in source manifest: ${fileRef.path}`);
+        } else if (entry.blobSha !== fileRef.blobSha) {
           errors.push(`observation[${i}]: blob SHA mismatch for ${fileRef.path}`);
         }
         if (fileRef.startLine < 1 || fileRef.endLine < fileRef.startLine) {

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { buildCursorArgv, buildCursorEnvironment } from './argv.js';
 import { parseNdjsonLine, validateInitEvent, extractResultFromTerminal, type InitEvent, type TerminalEvent, type NdjsonEvent } from './ndjson.js';
 
@@ -38,6 +39,16 @@ export interface AdapterRunResult {
   failureReason?: string;
 }
 
+export function writeAdapterStreams(
+  transcriptPath: string,
+  stderrPath: string,
+  stdout: string,
+  stderr: string,
+): void {
+  writeFileSync(transcriptPath, stdout, 'utf-8');
+  writeFileSync(stderrPath, stderr, 'utf-8');
+}
+
 export async function runCursorAgent(input: AdapterRunInput): Promise<AdapterRunResult> {
   const argv = buildCursorArgv({
     binary: input.binary,
@@ -61,16 +72,25 @@ export async function runCursorAgent(input: AdapterRunInput): Promise<AdapterRun
     cwd: input.runDirectory,
   });
 
-  return await collectOutput(child, input.modelId, timeoutMs);
+  return await collectOutput(
+    child,
+    input.modelId,
+    timeoutMs,
+    input.transcriptPath,
+    input.stderrPath,
+  );
 }
 
 async function collectOutput(
   child: ChildProcess,
   expectedModel: string,
   timeoutMs: number,
+  transcriptPath: string,
+  stderrPath: string,
 ): Promise<AdapterRunResult> {
   const events: NdjsonEvent[] = [];
   let stdoutBuffer = '';
+  let rawStdout = '';
   let stderrBuffer = '';
   let stdoutBytes = 0;
   let stderrBytes = 0;
@@ -88,7 +108,9 @@ async function collectOutput(
     child.stdout!.on('data', (chunk: Buffer) => {
       if (stdoutBytes >= STREAM_TRUNCATE_BYTES) return;
       stdoutBytes += chunk.length;
-      stdoutBuffer += chunk.toString('utf-8');
+      const text = chunk.toString('utf-8');
+      rawStdout += text;
+      stdoutBuffer += text;
       const lines = stdoutBuffer.split('\n');
       stdoutBuffer = lines.pop() ?? '';
       for (const line of lines) {
@@ -112,12 +134,24 @@ async function collectOutput(
       clearTimeout(timer);
 
       if (stdoutBuffer.trim()) {
+        rawStdout += stdoutBuffer;
         const event = parseNdjsonLine(stdoutBuffer);
         if (event) {
           events.push(event);
           if (event.type === 'init') initEvent = event as unknown as InitEvent;
           if (event.type === 'result') terminalEvent = event as unknown as TerminalEvent;
         }
+      }
+
+      try {
+        writeAdapterStreams(transcriptPath, stderrPath, rawStdout, stderrBuffer);
+      } catch (err) {
+        return resolve({
+          success: false,
+          events,
+          exitCode,
+          failureReason: `failed to write adapter streams: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
 
       if (exitCode !== 0) {

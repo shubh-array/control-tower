@@ -1,3 +1,5 @@
+import { classifySourceFailure } from '../source/errors.js';
+
 export interface PipelineJob {
   id: string;
   repositoryKey: string;
@@ -102,7 +104,8 @@ export async function executePipeline(
       deps.transitionJob(job.id, 'preparing_context', 'preparing_source');
       deps.prepareSource(job.id, runId);
       deps.transitionJob(job.id, 'preparing_source', 'running_agent');
-    } catch {
+    } catch (err) {
+      const failureReason = classifySourceFailure(err);
       try {
         deps.transitionJob(job.id, 'preparing_source', 'failed');
       } catch {
@@ -110,7 +113,7 @@ export async function executePipeline(
       }
       try { deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
       try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
-      return failResult(runId, 'fetch_failed');
+      return failResult(runId, failureReason);
     }
   } else {
     deps.transitionJob(job.id, 'preparing_context', 'running_agent');

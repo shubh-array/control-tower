@@ -8,6 +8,7 @@ import {
   type FailureRecoveryDeps,
 } from '../../src/orchestrator/failure-recovery.js';
 import { executePipeline, type PipelineDeps, type PipelineJob } from '../../src/orchestrator/pipeline.js';
+import { SourceMaterializeError } from '../../src/source/errors.js';
 import { createOrchestratorFacade, type FacadeDeps } from '../../src/orchestrator/facade.js';
 import type { AllTrackedItem } from '../../src/policy/evaluate.js';
 
@@ -436,6 +437,19 @@ describe('Fetch failure recovery', () => {
     expect(result.failureReason).toBe('fetch_failed');
     expect(transitions.some(t => t.to === 'failed')).toBe(true);
     expect(cleanedUp.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('fails job with materialize_failed when prepareSource throws SourceMaterializeError', async () => {
+    const deps = makeBaseDeps({
+      prepareSource() {
+        throw new SourceMaterializeError('worktree add failed: checkout conflict');
+      },
+    });
+
+    const result = await executePipeline(deps, makeJob());
+
+    expect(result.success).toBe(false);
+    expect(result.failureReason).toBe('materialize_failed');
   });
 
   it('item remains visible in All Tracked after fetch_failed', () => {

@@ -130,6 +130,17 @@ describe('validateReviewOutput', () => {
     expect(result.errors.some(e => e.includes('file reference') || e.includes('remote-evidence'))).toBe(true);
   });
 
+  it('rejects unknown file reference path not in source manifest', () => {
+    const catalog = makeCatalog();
+    const output = makeValidOutput(catalog);
+    const result = validateReviewOutput(
+      output,
+      { coverage: REGISTERED_COVERAGE, catalog, sourceManifest: new Map(), sourceMode: 'registered-source' },
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('source manifest'))).toBe(true);
+  });
+
   it('rejects observation with no provenance or file reference', () => {
     const catalog = makeCatalog();
     const output = makeValidOutput(catalog);

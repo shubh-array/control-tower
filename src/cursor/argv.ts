@@ -1,3 +1,4 @@
+import { buildCursorEnv } from '../security/child-env.js';
 
 export interface CursorArgvInput {
   binary: string;
@@ -30,11 +31,8 @@ export function buildCursorArgv(input: CursorArgvInput): string[] {
 }
 
 export function buildCursorEnvironment(homePath: string): Record<string, string> {
-  const env: Record<string, string> = {};
-  if (process.env.PATH) env.PATH = process.env.PATH;
-  env.HOME = homePath;
-  if (process.env.TMPDIR) env.TMPDIR = process.env.TMPDIR;
-  if (process.env.LANG) env.LANG = process.env.LANG;
-  if (process.env.USER) env.USER = process.env.USER;
-  return env;
+  return buildCursorEnv({
+    ...process.env,
+    HOME: homePath,
+  });
 }
