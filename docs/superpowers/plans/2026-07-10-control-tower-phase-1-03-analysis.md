@@ -4626,7 +4626,7 @@ git commit -m "feat(cursor): review output validator with coverage/provenance/fi
 **Files:**
 - Create: `src/cursor/hooks/protect-inputs-template.mjs`
 
-- [ ] **Step 1: Implement fail-closed beforeReadFile hook**
+- [x] **Step 1: Implement fail-closed beforeReadFile hook**
 
 This ESM hook runs inside the Cursor agent process. It strips the configured source-view root prefix, canonicalizes the remaining path, and checks against the content-hashed protected-path matcher artifact.
 
@@ -4716,7 +4716,7 @@ export default async function beforeReadFile({ filePath }) {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/cursor/hooks/protect-inputs-template.mjs
