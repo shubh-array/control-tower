@@ -2376,7 +2376,7 @@ git commit -m "feat(discovery): add priority evaluator with tier selection and u
 - Create: `src/policy/domains.ts`
 - Create: `tests/policy/domains.test.ts`
 
-- [ ] **Step 1: Write the domain selection test**
+- [x] **Step 1: Write the domain selection test**
 
 ```typescript
 // tests/policy/domains.test.ts
@@ -2491,12 +2491,12 @@ describe('selectDomains', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/policy/domains.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the domain selection implementation**
+- [x] **Step 3: Write the domain selection implementation**
 
 ```typescript
 // src/policy/domains.ts
@@ -2586,12 +2586,12 @@ export function selectDomains(input: DomainInput): DomainResult {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/policy/domains.test.ts`
 Expected: all 8 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/policy/domains.ts tests/policy/domains.test.ts
