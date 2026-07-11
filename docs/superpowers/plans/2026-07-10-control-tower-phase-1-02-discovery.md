@@ -3695,7 +3695,7 @@ git commit -m "feat(discovery): add discovery poll loop with identity verificati
 
 > **§12 invariants:** On GitHub unavailability or rate-limit, preserve last-known DB rows, surface freshness, back off with jitter, and never claim complete coverage. On operator identity mismatch, mark the host unhealthy, skip search/list, and do not enqueue new jobs until `gh api user` login exactly matches `profile.githubLogin`.
 
-- [ ] **Step 1: Write failing tests with fake gh**
+- [x] **Step 1: Write failing tests with fake gh**
 
 ```typescript
 // tests/discovery/poll-resilience.test.ts
@@ -3929,12 +3929,12 @@ describe('ResilientPoller — success path', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/discovery/poll-resilience.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement poll resilience**
+- [x] **Step 3: Implement poll resilience**
 
 ```typescript
 // src/discovery/poll-resilience.ts
@@ -4132,12 +4132,12 @@ export class ResilientPoller {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/discovery/poll-resilience.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/discovery/poll-resilience.ts tests/discovery/poll-resilience.test.ts
