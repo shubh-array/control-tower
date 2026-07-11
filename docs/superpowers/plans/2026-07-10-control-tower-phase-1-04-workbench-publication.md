@@ -1952,7 +1952,7 @@ git commit -m "test(client): XSS fixture tests for tags, event attrs, URL scheme
 - Create: `client/src/components/SafeText.tsx`
 - Create: `client/src/components/SafeMarkdown.tsx`
 
-- [ ] **Step 1: Implement SafeText**
+- [x] **Step 1: Implement SafeText**
 
 ```tsx
 // client/src/components/SafeText.tsx
@@ -1968,7 +1968,7 @@ export function SafeText({ text, className, as: Tag = "span" }: SafeTextProps) {
 }
 ```
 
-- [ ] **Step 2: Implement SafeMarkdown**
+- [x] **Step 2: Implement SafeMarkdown**
 
 ```tsx
 // client/src/components/SafeMarkdown.tsx
@@ -2018,7 +2018,7 @@ export function SafeMarkdown({ content, className }: SafeMarkdownProps) {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add client/src/components/SafeText.tsx client/src/components/SafeMarkdown.tsx
@@ -2032,7 +2032,7 @@ git commit -m "feat(client): SafeText and SafeMarkdown components with XSS-safe 
 **Files:**
 - Create: `client/src/lib/api.ts`
 
-- [ ] **Step 1: Implement typed API client**
+- [x] **Step 1: Implement typed API client**
 
 ```typescript
 // client/src/lib/api.ts
@@ -2276,7 +2276,7 @@ export interface AuditEntry {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add client/src/lib/api.ts
@@ -2291,7 +2291,7 @@ git commit -m "feat(client): typed API fetch wrapper with action-token support"
 - Create: `client/src/components/AdvisorBadge.tsx`
 - Create: `client/src/components/CoverageWarning.tsx`
 
-- [ ] **Step 1: Implement AdvisorBadge**
+- [x] **Step 1: Implement AdvisorBadge**
 
 ```tsx
 // client/src/components/AdvisorBadge.tsx
@@ -2366,7 +2366,7 @@ export function AdvisorBadge({ result }: AdvisorBadgeProps) {
 }
 ```
 
-- [ ] **Step 2: Implement CoverageWarning**
+- [x] **Step 2: Implement CoverageWarning**
 
 ```tsx
 // client/src/components/CoverageWarning.tsx
@@ -2430,7 +2430,7 @@ export function CoverageWarning({ coverage }: CoverageWarningProps) {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add client/src/components/AdvisorBadge.tsx client/src/components/CoverageWarning.tsx
@@ -2444,7 +2444,7 @@ git commit -m "feat(client): AdvisorBadge and CoverageWarning components"
 **Files:**
 - Create: `client/src/routes/AllTracked.tsx`
 
-- [ ] **Step 1: Implement AllTracked view**
+- [x] **Step 1: Implement AllTracked view**
 
 ```tsx
 // client/src/routes/AllTracked.tsx
@@ -2587,7 +2587,7 @@ export function AllTracked() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add client/src/routes/AllTracked.tsx
@@ -2601,7 +2601,7 @@ git commit -m "feat(client): AllTracked authoritative coverage view"
 **Files:**
 - Create: `client/src/routes/FocusQueue.tsx`
 
-- [ ] **Step 1: Implement FocusQueue view with Now/Next/Monitor lanes**
+- [x] **Step 1: Implement FocusQueue view with Now/Next/Monitor lanes**
 
 ```tsx
 // client/src/routes/FocusQueue.tsx
@@ -2731,7 +2731,7 @@ export function FocusQueue({
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add client/src/routes/FocusQueue.tsx
@@ -2745,7 +2745,7 @@ git commit -m "feat(client): FocusQueue with Now/Next/Monitor lanes and advisor 
 **Files:**
 - Create: `client/src/routes/Workbench.tsx`
 
-- [ ] **Step 1: Implement Workbench view**
+- [x] **Step 1: Implement Workbench view**
 
 ```tsx
 // client/src/routes/Workbench.tsx
@@ -3105,7 +3105,7 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add client/src/routes/Workbench.tsx
@@ -3122,7 +3122,7 @@ git commit -m "feat(client): Review Workbench with Understand/Verify/Act tabs an
 - Create: `client/src/main.tsx`
 - Create: `client/src/App.tsx`
 
-- [ ] **Step 1: Create client package.json**
+- [x] **Step 1: Create client package.json**
 
 ```json
 {
@@ -3150,7 +3150,7 @@ git commit -m "feat(client): Review Workbench with Understand/Verify/Act tabs an
 }
 ```
 
-- [ ] **Step 2: Create index.html (no inline script/style)**
+- [x] **Step 2: Create index.html (no inline script/style)**
 
 ```html
 <!-- client/index.html -->
@@ -3169,7 +3169,7 @@ git commit -m "feat(client): Review Workbench with Understand/Verify/Act tabs an
 </html>
 ```
 
-- [ ] **Step 3: Create main.tsx**
+- [x] **Step 3: Create main.tsx**
 
 ```tsx
 // client/src/main.tsx
@@ -3184,7 +3184,7 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [ ] **Step 4: Create App.tsx with route switching**
+- [x] **Step 4: Create App.tsx with route switching**
 
 ```tsx
 // client/src/App.tsx
@@ -3255,7 +3255,7 @@ export function App() {
 }
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add client/package.json client/index.html client/src/main.tsx client/src/App.tsx
