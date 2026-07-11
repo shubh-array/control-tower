@@ -3833,7 +3833,7 @@ git commit -m "feat: add doctor command with 11 checks — versions, auth, model
 6. Run doctor
 7. Ensure `publication.mode: "shadow"`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/cli/init.test.ts`:
 
@@ -3842,7 +3842,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { runInit, type InitOptions, type InitInteractiveAnswers } from "../src/cli/init.js";
+import { runInit, type InitInteractiveAnswers } from "../../src/cli/init.js";
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `ct-init-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -4127,12 +4127,12 @@ describe("runInit — step 7: enforces publication.mode shadow", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm test tests/cli/init.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement init.ts**
+- [x] **Step 3: Implement init.ts**
 
 Create `src/cli/init.ts`:
 
@@ -4297,12 +4297,12 @@ export function runInit(opts: InitOptions): InitResult {
 }
 ```
 
-- [ ] **Step 4: Create src/cli/daemon-control.ts**
+- [x] **Step 4: Create src/cli/daemon-control.ts**
 
 ```typescript
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { createDaemon, startDaemon, stopDaemon } from "../daemon/server.js";
+import { createDaemon, startDaemon } from "../daemon/server.js";
 import { openDatabase } from "../store/db.js";
 import { runMigrations } from "../store/migrate.js";
 
@@ -4371,12 +4371,12 @@ export function statusCommand(dataDir: string): string {
 
 > **Architecture note:** `createDaemon` in Plan 01 is a thin lifecycle stub using `node:http`. Plan 04 replaces the HTTP layer with Hono via `src/daemon/runtime.ts` — keep the health stub but document port **9120** as the canonical default.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `pnpm test tests/cli/init.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/cli/init.ts tests/cli/init.test.ts src/cli/daemon-control.ts
