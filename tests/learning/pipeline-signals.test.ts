@@ -1,13 +1,52 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { SignalRecorder } from '../../src/learning/record.js';
 import { buildPipelineDeps, runPipelineForJob } from '../../src/orchestrator/pipeline-runner.js';
 import { executePipeline, type PipelineJob } from '../../src/orchestrator/pipeline.js';
 import { openDatabase } from '../../src/store/db.js';
 import { runMigrations } from '../../src/store/migrate.js';
+import { createCommitRecord } from '../../src/context/provenance.js';
+import { forceRemoveDir } from '../helpers/force-remove-dir.js';
+
+const appRoot = resolve(join(import.meta.dirname, '../..'));
+
+function makeStubAgentOutput(job: PipelineJob): string {
+  const provenanceId = createCommitRecord({
+    repositoryId: job.repositoryKey,
+    commitSha: job.headSha,
+  }).id;
+
+  return JSON.stringify({
+    schemaVersion: 1,
+    coverage: {
+      mode: job.sourceMode,
+      sourceTreeInspected: job.sourceMode === 'registered-source',
+      diffFiltered: true,
+      omittedProtectedPaths: [],
+      omittedSourceEntries: [],
+      missingCoverage: job.sourceMode === 'remote-evidence-only' ? ['source_tree'] : [],
+    },
+    summary: { intent: 'test', implementation: 'test' },
+    observations: [{
+      type: 'observation',
+      statement: 'stub observation',
+      provenanceRefs: [provenanceId],
+      fileReferences: [],
+    }],
+    checks: [],
+    findings: [],
+    unknowns: [],
+    recommendedDisposition: 'needs_human',
+    draftSummary: {
+      body: 'stub draft',
+      observationIndexes: [0],
+      provenanceRefs: [provenanceId],
+    },
+  });
+}
 
 describe('pipeline signal hooks (production wiring)', () => {
   let db: Database.Database;
@@ -40,7 +79,7 @@ describe('pipeline signal hooks (production wiring)', () => {
 
   afterEach(() => {
     db.close();
-    rmSync(dataDir, { recursive: true, force: true });
+    forceRemoveDir(dataDir);
   });
 
   it('records timing and disposition signals when pipeline succeeds', async () => {
@@ -59,8 +98,13 @@ describe('pipeline signal hooks (production wiring)', () => {
       dataDirectory: dataDir,
       signalRecorder: recorder,
       modelSpecHash: 'model-spec-hash',
+      appRoot,
+      runAgent: () => ({
+        rawOutput: makeStubAgentOutput(job),
+        exitCode: 0,
+        modelId: 'test-model',
+      }),
     }, job.id);
-    deps.validateOutput = () => ({ valid: true, errors: [], validatedProvenance: [] });
     deps.sealRun = async () => ({ sealed: true });
 
     const result = await executePipeline(deps, job);
@@ -92,6 +136,9 @@ describe('pipeline signal hooks (production wiring)', () => {
       dataDirectory: dataDir,
       signalRecorder: recorder,
       modelSpecHash: 'model-spec-hash',
+      appRoot,
+      repositoryPaths: {},
+      protectedPaths: [],
     }, job.id);
 
     const signals = recorder.queryByJobId('job-signal-1');

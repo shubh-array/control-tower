@@ -614,6 +614,15 @@ export function createBootstrap(input: BootstrapInput): {
               currentLocal.cursor.modelRoles.primaryReview?.modelId ??
                 "primary-review-default",
             ),
+            appRoot: context.appRoot,
+            profileDirectory: context.profileDirectory,
+            repositoryPaths: currentLocal.repositoryPaths,
+            protectedPaths: org.security.protectedPaths,
+            cursorBinary: currentLocal.cursor.binary,
+            cursorModelId:
+              currentLocal.cursor.modelRoles.primaryReview?.modelId,
+            cursorHomePath: process.env.HOME,
+            sshAuthSock: process.env.SSH_AUTH_SOCK,
           },
           jobId,
         ).catch((err) => {

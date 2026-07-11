@@ -39,16 +39,27 @@ export interface PipelineDeps {
     runDir: string;
     manifest: Record<string, unknown>;
     coverage: Record<string, unknown>;
-  };
+  } | Promise<{
+    runDir: string;
+    manifest: Record<string, unknown>;
+    coverage: Record<string, unknown>;
+  }>;
   prepareSource(jobId: string, runId: string): {
     sourceViewRoot: string;
     adminWorktree: string;
-  };
+  } | Promise<{
+    sourceViewRoot: string;
+    adminWorktree: string;
+  }>;
   runAgent(runId: string, runDir: string): {
     rawOutput: string;
     exitCode: number;
     modelId: string;
-  };
+  } | Promise<{
+    rawOutput: string;
+    exitCode: number;
+    modelId: string;
+  }>;
   validateOutput(rawOutput: string, context: Record<string, unknown>): {
     valid: boolean;
     errors: string[];
@@ -117,7 +128,7 @@ export async function executePipeline(
 
   let context;
   try {
-    context = deps.prepareContext(job.id, runId);
+    context = await Promise.resolve(deps.prepareContext(job.id, runId));
   } catch {
     deps.transitionJob(job.id, 'preparing_context', 'failed');
     recordPipelineFailure(deps, 'materialize_failed');
@@ -129,7 +140,7 @@ export async function executePipeline(
   if (job.sourceMode === 'registered-source') {
     try {
       deps.transitionJob(job.id, 'preparing_context', 'preparing_source');
-      deps.prepareSource(job.id, runId);
+      await Promise.resolve(deps.prepareSource(job.id, runId));
       deps.transitionJob(job.id, 'preparing_source', 'running_agent');
     } catch (err) {
       const failureReason = classifySourceFailure(err);
@@ -158,7 +169,7 @@ export async function executePipeline(
 
   let agentResult;
   try {
-    agentResult = deps.runAgent(runId, context.runDir);
+    agentResult = await Promise.resolve(deps.runAgent(runId, context.runDir));
   } catch {
     deps.transitionRun(runId, 'running', 'failed');
     deps.transitionJob(job.id, 'running_agent', 'failed');
