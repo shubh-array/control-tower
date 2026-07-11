@@ -2223,7 +2223,7 @@ git commit -m "feat: add example profile, policy, persona, and local-config temp
 - Create: `src/store/migrate.ts`
 - Create: `tests/store/migrate.test.ts`
 
-- [ ] **Step 1: Create the initial migration SQL**
+- [x] **Step 1: Create the initial migration SQL**
 
 Create `src/store/migrations/001_initial.sql`:
 
@@ -2441,7 +2441,7 @@ CREATE INDEX idx_advisor_runs_identity ON advisor_runs (identity_hash);
 CREATE INDEX idx_audit_entity ON audit_events (entity_type, entity_id);
 ```
 
-- [ ] **Step 2: Create src/store/db.ts**
+- [x] **Step 2: Create src/store/db.ts**
 
 ```typescript
 import Database from "better-sqlite3";
@@ -2454,7 +2454,7 @@ export function openDatabase(path: string): Database.Database {
 }
 ```
 
-- [ ] **Step 3: Write the failing migration tests**
+- [x] **Step 3: Write the failing migration tests**
 
 Create `tests/store/migrate.test.ts`:
 
@@ -2549,12 +2549,12 @@ describe("migration runner", () => {
 });
 ```
 
-- [ ] **Step 4: Run tests to verify they fail**
+- [x] **Step 4: Run tests to verify they fail**
 
 Run: `pnpm test tests/store/migrate.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 5: Implement migration runner**
+- [x] **Step 5: Implement migration runner**
 
 Create `src/store/migrate.ts`:
 
@@ -2621,12 +2621,12 @@ export function runMigrations(db: Database.Database): void {
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `pnpm test tests/store/migrate.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/store/db.ts src/store/migrations/001_initial.sql src/store/migrate.ts tests/store/migrate.test.ts
