@@ -1197,7 +1197,7 @@ git commit -m "test(discovery): add diff filter fixture files"
 - Create: `src/github/diff-filter.ts`
 - Create: `tests/github/diff-filter.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/github/diff-filter.test.ts
@@ -1329,12 +1329,12 @@ describe('filterDiff', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/github/diff-filter.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the diff filter implementation**
+- [x] **Step 3: Write the diff filter implementation**
 
 ```typescript
 // src/github/diff-filter.ts
@@ -1461,12 +1461,12 @@ export function filterDiff(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/github/diff-filter.test.ts`
 Expected: all 8 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/github/diff-filter.ts tests/github/diff-filter.test.ts
