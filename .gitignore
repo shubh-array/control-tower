@@ -2,3 +2,5 @@
 .superpowers/
 .cursor/orchestration/
 .worktrees/
+node_modules/
+dist/
