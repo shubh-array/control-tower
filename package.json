@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.8",
     "better-sqlite3": "^11.7.0",
     "commander": "^13.1.0",
     "hono": "^4.12.28",
