@@ -4625,21 +4625,21 @@ git commit -m "feat: add CLI entry point with doctor, init, start, stop, status 
 
 **Files:** (no new files)
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 Run: `pnpm test`
 Expected: all tests pass
 
-- [ ] **Step 2: Run typecheck**
+- [x] **Step 2: Run typecheck**
 
 Run: `pnpm typecheck`
 Expected: exits 0, no errors
 
-- [ ] **Step 3: Fix any issues found**
+- [x] **Step 3: Fix any issues found**
 
 If any test fails or typecheck reports errors, fix the specific issue in the relevant file and re-run.
 
-- [ ] **Step 4: Commit any fixes**
+- [x] **Step 4: Commit any fixes**
 
 ```bash
 git add -A
