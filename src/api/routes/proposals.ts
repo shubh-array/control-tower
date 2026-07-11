@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { ActionTokenStore } from "../action-token.js";
 import { validateProposal } from "../../proposals/validate.js";
 import { adoptProposal } from "../../proposals/adopt.js";
 import { sha256Hex } from "../../util/hash.js";
@@ -11,9 +12,11 @@ export interface ProposalStore {
 }
 
 export interface ProposalRoutesDeps {
+  actionTokens: ActionTokenStore;
   store: ProposalStore;
   profileDir: string;
   getCurrentFiles: () => Record<string, { content: string; hash: string }>;
+  startProposal: (signalRunIds: string[]) => Promise<ProfileChangeProposal>;
 }
 
 export function proposalRoutes(deps: ProposalRoutesDeps) {
@@ -30,7 +33,33 @@ export function proposalRoutes(deps: ProposalRoutesDeps) {
     return c.json(proposal);
   });
 
+  app.post("/api/proposals/start", async (c) => {
+    const body = await c.req.json<{
+      signalRunIds: string[];
+      actionToken: string;
+    }>();
+
+    if (!deps.actionTokens.consume(body.actionToken)) {
+      return c.json({ error: "Invalid or expired action token" }, 403);
+    }
+
+    try {
+      const proposal = await deps.startProposal(body.signalRunIds ?? []);
+      deps.store.save(proposal);
+      return c.json(proposal);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ error: message }, 400);
+    }
+  });
+
   app.post("/api/proposals/:id/validate", async (c) => {
+    const body = await c.req.json<{ actionToken: string }>();
+
+    if (!deps.actionTokens.consume(body.actionToken)) {
+      return c.json({ error: "Invalid or expired action token" }, 403);
+    }
+
     const id = c.req.param("id");
     const proposal = deps.store.get(id);
     if (!proposal) return c.json({ error: "Not found" }, 404);
@@ -38,13 +67,19 @@ export function proposalRoutes(deps: ProposalRoutesDeps) {
     const currentFiles = deps.getCurrentFiles();
     const result = validateProposal(proposal, currentFiles);
     if (result.valid) {
-      proposal.status = "validated";
+      proposal.status = "previewed";
       deps.store.save(proposal);
     }
     return c.json(result);
   });
 
   app.post("/api/proposals/:id/adopt", async (c) => {
+    const body = await c.req.json<{ actionToken: string }>();
+
+    if (!deps.actionTokens.consume(body.actionToken)) {
+      return c.json({ error: "Invalid or expired action token" }, 403);
+    }
+
     const id = c.req.param("id");
     const proposal = deps.store.get(id);
     if (!proposal) return c.json({ error: "Not found" }, 404);

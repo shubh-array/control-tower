@@ -6,6 +6,12 @@ import type { OrchestratorFacade } from "../orchestrator/facade.js";
 import { GuardInputStore } from "../publisher/guard-store.js";
 import { PublisherService } from "../publisher/publisher-service.js";
 import type { FocusQueueRow, TrackedQueueRow } from "../api/contracts.js";
+import type { SignalRecorder } from "../learning/record.js";
+import type { ProposalStore } from "../api/routes/proposals.js";
+import type { ProfileChangeProposal } from "../proposals/types.js";
+import Database from "better-sqlite3";
+import { SignalRecorder as SignalRecorderImpl } from "../learning/record.js";
+import { InMemoryProposalStore } from "../proposals/store.js";
 
 export interface RuntimeConfig {
   port: number;
@@ -32,6 +38,11 @@ export interface RuntimePublishContext {
   };
   getJobDetail: (id: string) => import("../api/contracts.js").JobDetail | null;
   getDraftDetail: (jobId: string) => import("../api/contracts.js").DraftDetail | null;
+  signalRecorder: SignalRecorder;
+  proposalStore: ProposalStore;
+  profileDirectory: string;
+  getProfileFiles: () => Record<string, { content: string; hash: string }>;
+  startProposal: (signalRunIds: string[]) => Promise<ProfileChangeProposal>;
 }
 
 export interface RuntimeHandle {
@@ -65,6 +76,29 @@ function defaultClientDistPath(): string {
   );
 }
 
+function createStubLearningDeps(): {
+  signalRecorder: SignalRecorder;
+  proposalStore: ProposalStore;
+  profileDirectory: string;
+  getProfileFiles: () => Record<string, { content: string; hash: string }>;
+  startProposal: (signalRunIds: string[]) => Promise<ProfileChangeProposal>;
+} {
+  const db = new Database(":memory:");
+  const signalRecorder = new SignalRecorderImpl(db);
+  signalRecorder.initialize();
+  const proposalStore = new InMemoryProposalStore();
+
+  return {
+    signalRecorder,
+    proposalStore,
+    profileDirectory: "/tmp/ct-stub-profile",
+    getProfileFiles: () => ({}),
+    startProposal: async () => {
+      throw new Error("Proposal orchestration not configured");
+    },
+  };
+}
+
 function buildServerDeps(
   facade: OrchestratorFacade,
   publishContext: RuntimePublishContext,
@@ -96,6 +130,13 @@ function buildServerDeps(
     executePublish: (opHash, body) =>
       publishContext.publisher.executeOperation(opHash, body),
     clientDistPath: publishContext.clientDistPath,
+    signalRecorder: publishContext.signalRecorder,
+    proposalRoutes: {
+      store: publishContext.proposalStore,
+      profileDir: publishContext.profileDirectory,
+      getCurrentFiles: publishContext.getProfileFiles,
+      startProposal: publishContext.startProposal,
+    },
   };
 }
 
@@ -138,6 +179,7 @@ export async function startRuntime(
   }, config.attentionIntervalMs);
 
   const facade = deps.createFacade();
+  const stubLearning = createStubLearningDeps();
 
   const publishContext: RuntimePublishContext = deps.publishContext ?? {
     guardStore: new GuardInputStore(),
@@ -150,6 +192,7 @@ export async function startRuntime(
     publicationMode: "shadow",
     configuredOperator: "",
     authenticatedLogin: "",
+    ...stubLearning,
     getAllTrackedRows: () => facade.getAllTracked().map((item) => ({
       jobId: null,
       repository: item.repositoryKey,

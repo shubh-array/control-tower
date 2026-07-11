@@ -100,6 +100,40 @@ export const api = {
       },
     );
   },
+
+  getSignals(limit = 50) {
+    return request<LearningSignalSummary[]>(`/api/signals?limit=${limit}`);
+  },
+
+  async startProposal(signalRunIds: string[]) {
+    const actionToken = await this.createActionToken();
+    return request<ProposalDetail>("/api/proposals/start", {
+      method: "POST",
+      body: JSON.stringify({ signalRunIds, actionToken }),
+    });
+  },
+
+  async validateProposal(proposalId: string) {
+    const actionToken = await this.createActionToken();
+    return request<ProposalValidationResult>(
+      `/api/proposals/${encodeURIComponent(proposalId)}/validate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ actionToken }),
+      },
+    );
+  },
+
+  async adoptProposal(proposalId: string) {
+    const actionToken = await this.createActionToken();
+    return request<ProposalAdoptionResult>(
+      `/api/proposals/${encodeURIComponent(proposalId)}/adopt`,
+      {
+        method: "POST",
+        body: JSON.stringify({ actionToken }),
+      },
+    );
+  },
 };
 
 export interface TrackedQueueRow {
@@ -241,4 +275,33 @@ export interface AuditEntry {
   timestamp: string;
   event: string;
   details: Record<string, unknown>;
+}
+
+export interface LearningSignalSummary {
+  type: string;
+  jobId: string;
+  runId: string;
+  timestamp: string;
+  modelRole: string;
+}
+
+export interface ProposalDetail {
+  id: string;
+  status: string;
+  targets: Array<{
+    path: string;
+    rationale: string;
+    proposedContent: string;
+    baseContentHash: string;
+  }>;
+}
+
+export interface ProposalValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export interface ProposalAdoptionResult {
+  adopted: boolean;
+  errors: string[];
 }

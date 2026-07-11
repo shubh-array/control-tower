@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "sealed": true,
+  "generatedAt": "2026-07-11T02:24:53.693Z",
+  "canonicalHash": "c0f4c375d65375eddd5850cc604807416421b1954bb1953768a1a06033196732",
+  "phase1Contract": {
+    "contractHash": "798c91d684d4870ed57186afbcb84e2dda25f21f4e6bdd62455edb1d4a4949ad",
+    "implementationHash": "9f2ed9404dcb7cc2a1fab83f7f70f37fde9b78891e8d545b5df43ba46915b075",
+    "schemasHash": "db85e6ca68849a4d02926d73baf192e1d883dec8515f78155219ffc3802fa446",
+    "migrationsHash": "4c4569b46609dd043ce531a650359d43d20fffe8e125c669c4b0852b6a2a5982",
+    "safetyContractHash": "f9c3adc90a2a431f667cc68f7ce62ce35109e6c25611ad5b4b27d69e281d50e4",
+    "provenanceContractHash": "818f3c5d6de72632eb17bc6a4e29aa4121ac9d1f274f59456aa6521b4767375d",
+    "modelRoleContractHash": "29d91962604b9be0de449cc0f0e72cabd689ab1b2a6fbea268b96444307411aa",
+    "harnessContractHash": "6f3d1e9bbea9599d3758a7cb0f1ce8c40443259510f1d08fb4f6243456641dd5"
+  },
+  "evaluation": {
+    "corpusHashes": {
+      "attention": "b4ba5b4b40bdc1d47d1dccdd231087bd5a97faa3f604b0d5733020d572f7b4ab",
+      "primaryReview": "24c1afaba800008e6c8c3d0379fac208a7315a361c550f74d1da0fe5fc39081f"
+    },
+    "corpusResultsHashes": {
+      "attention": "56c4f771ccc5eb8375c9214a0d20dea54cb04534ac467c238f07888d9870f4d8",
+      "primaryReview": "f1b993cec729534b4012757821e119f324bc80ffda3240fd614ca3b45116bcb2"
+    },
+    "metricDefinitionHash": "df6fc353a5c476bcc80ddcdce21cc0a076a633009c6d4bb6a0d63bc6dd758662",
+    "metricSchemaHash": "3047e2e20032d5b50f034c5ea357a3fac5fc75cf93ee12be884b31b3e6d976ab"
+  }
+}

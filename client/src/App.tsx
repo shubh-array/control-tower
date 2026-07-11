@@ -3,11 +3,13 @@ import { useState } from "react";
 import { AllTracked } from "./routes/AllTracked.js";
 import { FocusQueue } from "./routes/FocusQueue.js";
 import { Workbench } from "./routes/Workbench.js";
+import { ProposeChange } from "./routes/ProposeChange.js";
 import type { FocusQueueRow } from "./lib/api.js";
 
 type Route =
   | { page: "focus" }
   | { page: "all-tracked" }
+  | { page: "propose-change" }
   | { page: "workbench"; jobId: string };
 
 export function App() {
@@ -48,6 +50,18 @@ export function App() {
           >
             All Tracked
           </button>
+          <button
+            onClick={() => setRoute({ page: "propose-change" })}
+            style={{
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              fontWeight: route.page === "propose-change" ? 700 : 400,
+              textDecoration: route.page === "propose-change" ? "underline" : "none",
+            }}
+          >
+            Propose Change
+          </button>
         </nav>
       </header>
 
@@ -55,6 +69,7 @@ export function App() {
         <FocusQueue onSelectItem={handleSelectItem} />
       )}
       {route.page === "all-tracked" && <AllTracked />}
+      {route.page === "propose-change" && <ProposeChange />}
       {route.page === "workbench" && (
         <Workbench
           jobId={route.jobId}

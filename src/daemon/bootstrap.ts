@@ -45,7 +45,16 @@ import { createRetryAttempt } from "../orchestrator/retry.js";
 import { runPipelineForJob } from "../orchestrator/pipeline-runner.js";
 import type { RuntimeDeps, RuntimeConfig } from "./runtime.js";
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { SignalRecorder } from "../learning/record.js";
+import { InMemoryProposalStore } from "../proposals/store.js";
+import { startProposalFromSignals } from "../proposals/start.js";
+import {
+  defaultProposalEvaluator,
+  loadCorpusCases,
+  loadProfileFiles,
+} from "../proposals/profile-files.js";
+import type { CursorRunAdapter } from "../proposals/run.js";
 
 const MATCHER_VERSION = 1;
 const startTime = Date.now();
@@ -58,6 +67,10 @@ export interface BootstrapContext {
   configuredOperator: string;
   authenticatedLogin: string;
   clientDistPath: string;
+  signalRecorder: SignalRecorder;
+  proposalStore: InMemoryProposalStore;
+  profileDirectory: string;
+  appRoot: string;
 }
 
 export interface BootstrapInput {
@@ -352,6 +365,9 @@ export function createBootstrap(input: BootstrapInput): {
     "../../client/dist",
   );
 
+  const signalRecorder = new SignalRecorder(db);
+  const proposalStore = new InMemoryProposalStore();
+
   const context: BootstrapContext = {
     db,
     guardStore,
@@ -360,6 +376,10 @@ export function createBootstrap(input: BootstrapInput): {
     configuredOperator: operatorLogin,
     authenticatedLogin,
     clientDistPath,
+    signalRecorder,
+    proposalStore,
+    profileDirectory: local.profileDirectory,
+    appRoot: input.appRoot,
   };
 
   let lastValidLocal: LocalConfig = local;
@@ -417,6 +437,7 @@ export function createBootstrap(input: BootstrapInput): {
   const deps: RuntimeDeps = {
     migrate() {
       runMigrations(db);
+      signalRecorder.initialize();
     },
     recoverOrphanedStates() {
       return recoverOrphanedStates(db);
@@ -562,6 +583,59 @@ export function createBootstrap(input: BootstrapInput): {
       publicationMode: context.publicationMode,
       configuredOperator: context.configuredOperator,
       authenticatedLogin: context.authenticatedLogin,
+      signalRecorder: context.signalRecorder,
+      proposalStore: context.proposalStore,
+      profileDirectory: context.profileDirectory,
+      getProfileFiles: () => loadProfileFiles(context.profileDirectory),
+      startProposal: (signalRunIds) => {
+        const modelSpec =
+          local.cursor.modelRoles.primaryReview?.modelId ?? "primary-review-default";
+        const cursorAdapter: CursorRunAdapter = {
+          async run(prompt) {
+            const parsed = JSON.parse(prompt) as {
+              signals?: Array<{ type: string; modelRole: string }>;
+            };
+            const attentionSignals =
+              parsed.signals?.filter((s) => s.modelRole === "attention").length ?? 0;
+            const personaPath = join(context.profileDirectory, "persona.md");
+            const personaContent = existsSync(personaPath)
+              ? readFileSync(personaPath, "utf-8")
+              : "# Persona\n";
+            const annotation =
+              attentionSignals > 0
+                ? `\n\n<!-- proposal: ${attentionSignals} attention signal(s) -->\n`
+                : "\n";
+            return {
+              exitCode: 0,
+              output: {
+                targets: [
+                  {
+                    path: "persona.md",
+                    proposedContent: personaContent.endsWith("\n")
+                      ? `${personaContent.trimEnd()}${annotation}`
+                      : `${personaContent}${annotation}`,
+                    rationale: `Informed by ${parsed.signals?.length ?? 0} learning signal(s)`,
+                    expectedEffect: "Calibrate review attention based on historical outcomes",
+                    risks: ["Requires validation against current profile hashes"],
+                    replayCases: [],
+                  },
+                ],
+              },
+            };
+          },
+        };
+        const currentFiles = loadProfileFiles(context.profileDirectory);
+        return startProposalFromSignals({
+          signalRunIds,
+          recorder: context.signalRecorder,
+          currentFiles,
+          profileDir: context.profileDirectory,
+          corpusCases: loadCorpusCases(context.appRoot, "attention"),
+          modelSpec,
+          evaluator: defaultProposalEvaluator(),
+          cursorAdapter,
+        });
+      },
       getAllTrackedRows: () =>
         projectAllTracked(db, workGraph.getAllTracked()),
       getFocusQueueRows: () =>

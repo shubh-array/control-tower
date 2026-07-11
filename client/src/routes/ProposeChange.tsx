@@ -1,40 +1,23 @@
 import { useState, useEffect } from 'react';
-
-interface Signal {
-  type: string;
-  jobId: string;
-  runId: string;
-  timestamp: string;
-  modelRole: string;
-}
-
-interface Proposal {
-  id: string;
-  status: string;
-  targets: Array<{ path: string; rationale: string; proposedContent: string; baseContentHash: string }>;
-}
-
-interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-interface AdoptionResult {
-  adopted: boolean;
-  errors: string[];
-}
+import {
+  api,
+  type LearningSignalSummary,
+  type ProposalDetail,
+  type ProposalValidationResult,
+  type ProposalAdoptionResult,
+} from '../lib/api.js';
 
 export function ProposeChange() {
-  const [signals, setSignals] = useState<Signal[]>([]);
+  const [signals, setSignals] = useState<LearningSignalSummary[]>([]);
   const [selectedSignals, setSelectedSignals] = useState<Set<string>>(new Set());
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [validation, setValidation] = useState<ValidationResult | null>(null);
-  const [adoptionResult, setAdoptionResult] = useState<AdoptionResult | null>(null);
+  const [proposal, setProposal] = useState<ProposalDetail | null>(null);
+  const [validation, setValidation] = useState<ProposalValidationResult | null>(null);
+  const [adoptionResult, setAdoptionResult] = useState<ProposalAdoptionResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/signals?limit=50')
-      .then(r => r.json())
+    api.getSignals(50)
       .then(setSignals)
       .catch(() => setSignals([]));
   }, []);
@@ -51,31 +34,46 @@ export function ProposeChange() {
   async function startProposal() {
     if (selectedSignals.size === 0) return;
     setLoading(true);
-    const resp = await fetch('/api/proposals/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ signalRunIds: [...selectedSignals] }),
-    });
-    const data = await resp.json();
-    setProposal(data);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await api.startProposal([...selectedSignals]);
+      setProposal(data);
+      setValidation(null);
+      setAdoptionResult(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start proposal');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function validateProposal() {
     if (!proposal) return;
-    const resp = await fetch(`/api/proposals/${proposal.id}/validate`, { method: 'POST' });
-    setValidation(await resp.json());
+    setError(null);
+    try {
+      setValidation(await api.validateProposal(proposal.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Validation failed');
+    }
   }
 
   async function adoptProposal() {
     if (!proposal) return;
-    const resp = await fetch(`/api/proposals/${proposal.id}/adopt`, { method: 'POST' });
-    setAdoptionResult(await resp.json());
+    setError(null);
+    try {
+      setAdoptionResult(await api.adoptProposal(proposal.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Adoption failed');
+    }
   }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Propose Profile Change</h1>
+
+      {error && (
+        <p className="text-red-700 mb-4">{error}</p>
+      )}
 
       <section className="mb-6">
         <h2 className="text-lg font-semibold mb-2">1. Select Learning Signals</h2>

@@ -11,7 +11,10 @@ import { draftsRoutes, type DraftsDeps } from "./routes/drafts.js";
 import { approvalsRoutes } from "./routes/approvals.js";
 import { publicationRoutes, type PublicationDeps } from "./routes/publication.js";
 import { auditRoutes, type AuditDeps } from "./routes/audit.js";
+import { signalRoutes } from "./routes/signals.js";
+import { proposalRoutes, type ProposalRoutesDeps } from "./routes/proposals.js";
 import { ApprovalStore } from "../publisher/approvals.js";
+import type { SignalRecorder } from "../learning/record.js";
 
 export interface ServerDeps extends HealthDeps, QueueDeps, DraftsDeps, AuditDeps {
   getJob: JobsDeps["getJob"];
@@ -20,6 +23,8 @@ export interface ServerDeps extends HealthDeps, QueueDeps, DraftsDeps, AuditDeps
   getGuardInput: PublicationDeps["getGuardInput"];
   executePublish: PublicationDeps["executePublish"];
   clientDistPath: string;
+  signalRecorder: SignalRecorder;
+  proposalRoutes: Omit<ProposalRoutesDeps, "actionTokens">;
 }
 
 export function createApiServer(deps: ServerDeps) {
@@ -80,6 +85,14 @@ export function createApiServer(deps: ServerDeps) {
     }),
   );
   app.route("/", auditRoutes(deps));
+  app.route("/", signalRoutes(deps.signalRecorder));
+  app.route(
+    "/",
+    proposalRoutes({
+      actionTokens,
+      ...deps.proposalRoutes,
+    }),
+  );
 
   app.use("/*", async (c, next) => {
     const cookie = c.req.header("cookie");
