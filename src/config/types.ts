@@ -89,4 +89,7 @@ export interface LocalConfig {
   publication: {
     mode: "shadow" | "gated";
   };
+  daemon: {
+    port: number;
+  };
 }

@@ -1535,7 +1535,7 @@ git commit -m "feat: add protected-path union builder (app defaults ∪ org secu
 - Create: `src/config/load.ts`
 - Create: `tests/config/load.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/config/load.test.ts`:
 
@@ -1702,12 +1702,12 @@ describe("loadLocalConfig", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm test tests/config/load.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement config loader**
+- [x] **Step 3: Implement config loader**
 
 Create `src/config/load.ts`:
 
@@ -1793,12 +1793,12 @@ export function loadLocalConfig(path: string): LocalConfig {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm test tests/config/load.test.ts`
 Expected: all tests PASS (the organization.json test depends on Task 12 — if running in isolation, skip that one test and revisit after Task 12)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/config/load.ts tests/config/load.test.ts
