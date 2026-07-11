@@ -26,17 +26,35 @@ function stubItem(): AllTrackedItem {
     explicitRequestTimestamp: null,
     policy: {
       eligible: true,
-      eligibilityReasons: [{ code: "explicit_request" }],
+      eligibilityReasons: [
+        { code: "explicit_review_request", requestedLogin: "dev" },
+      ],
       exclusionReasons: [],
       authorOnly: false,
       priorityStatus: "p1",
       prioritySortOrdinal: 1,
-      priorityReasons: [{ code: "priority_rule", tier: "p1" }],
+      priorityReasons: [
+        {
+          code: "priority_rule",
+          tier: "p1",
+          declarationIndex: 0,
+          matchedPath: "src/a.ts",
+          matchedRule: "backend",
+        },
+      ],
       allPriorityReasons: [],
       selectedPriorityReason: null,
       analysisMode: "on_demand",
       autoAnalyzeReasons: [],
-      selectedDomains: [{ domain: "backend", priority: 1 }],
+      selectedDomains: [
+        {
+          domain: "backend",
+          selectedPriority: 1,
+          selectedDeclarationIndex: 0,
+          matchedPaths: ["src/a.ts"],
+          allReasons: [],
+        },
+      ],
       allDomainReasons: [],
     },
     sourceMode: "registered-source",
@@ -79,6 +97,6 @@ describe("queue projection", () => {
     expect(row.attentionState).toBe("ready_for_analysis");
     expect(row.priority).toBe("p1");
     expect(row.domains).toEqual(["backend"]);
-    expect(row.eligibilityReasons[0]?.code).toBe("explicit_request");
+    expect(row.eligibilityReasons[0]?.code).toBe("explicit_review_request");
   });
 });

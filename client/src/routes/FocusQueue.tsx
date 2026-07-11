@@ -138,8 +138,6 @@ export function FocusQueue({
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <p>Loading queue…</p>;
-
   const displayQueue = useMemo(
     () => ({
       now: applyViewOrder(queue.now, viewOrder),
@@ -148,6 +146,8 @@ export function FocusQueue({
     }),
     [queue, viewOrder],
   );
+
+  if (loading) return <p>Loading queue…</p>;
 
   return (
     <div>
