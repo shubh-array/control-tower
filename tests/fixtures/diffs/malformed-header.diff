@@ -1,0 +1,6 @@
+diff --git
+--- a/src/valid.ts
++++ b/src/valid.ts
+@@ -1 +1,2 @@
+ export const x = 1;
++export const y = 2;

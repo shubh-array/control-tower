@@ -1,0 +1,11 @@
+diff --git a/.env.example b/.env.production
+similarity index 80%
+rename from .env.example
+rename to .env.production
+index 6666666..7777777 100644
+--- a/.env.example
++++ b/.env.production
+@@ -1,2 +1,2 @@
+-DATABASE_URL=
++DATABASE_URL=postgres://prod/db
+ PORT=3000

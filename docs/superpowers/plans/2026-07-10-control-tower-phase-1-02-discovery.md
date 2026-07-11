@@ -1072,7 +1072,7 @@ git commit -m "feat(discovery): add GitHub adapter with fixture tests"
 - Create: `tests/fixtures/diffs/malformed-header.diff`
 - Create: `tests/fixtures/diffs/binary-protected.diff`
 
-- [ ] **Step 1: Create allowed-only fixture**
+- [x] **Step 1: Create allowed-only fixture**
 
 ```diff
 // tests/fixtures/diffs/allowed-only.diff
@@ -1099,7 +1099,7 @@ index 0000000..1111111
 +}
 ```
 
-- [ ] **Step 2: Create protected-env fixture**
+- [x] **Step 2: Create protected-env fixture**
 
 ```diff
 // tests/fixtures/diffs/protected-env.diff
@@ -1113,7 +1113,7 @@ index aaa1111..bbb2222 100644
  PORT=3000
 ```
 
-- [ ] **Step 3: Create mixed allowed/protected fixture**
+- [x] **Step 3: Create mixed allowed/protected fixture**
 
 ```diff
 // tests/fixtures/diffs/mixed.diff
@@ -1144,7 +1144,7 @@ index 0000000..5555555
 +}
 ```
 
-- [ ] **Step 4: Create rename-protected fixture**
+- [x] **Step 4: Create rename-protected fixture**
 
 ```diff
 // tests/fixtures/diffs/rename-protected.diff
@@ -1161,7 +1161,7 @@ index 6666666..7777777 100644
  PORT=3000
 ```
 
-- [ ] **Step 5: Create malformed-header fixture**
+- [x] **Step 5: Create malformed-header fixture**
 
 ```diff
 // tests/fixtures/diffs/malformed-header.diff
@@ -1173,7 +1173,7 @@ diff --git
 +export const y = 2;
 ```
 
-- [ ] **Step 6: Create binary-protected fixture**
+- [x] **Step 6: Create binary-protected fixture**
 
 ```diff
 // tests/fixtures/diffs/binary-protected.diff
@@ -1182,7 +1182,7 @@ index 8888888..9999999 100644
 Binary files a/deploy.prod.parameters.json and b/deploy.prod.parameters.json differ
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tests/fixtures/diffs/
