@@ -2641,7 +2641,7 @@ git commit -m "feat: add SQLite schema v1 and forward-only migration runner"
 - Create: `src/security/child-env.ts`
 - Create: `tests/security/child-env.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/security/child-env.test.ts`:
 
@@ -2784,12 +2784,12 @@ describe("buildGitLocalEnv", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm test tests/security/child-env.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement child-env.ts**
+- [x] **Step 3: Implement child-env.ts**
 
 Create `src/security/child-env.ts`:
 
@@ -2857,12 +2857,12 @@ export function buildGitLocalEnv(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm test tests/security/child-env.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/security/child-env.ts tests/security/child-env.test.ts
