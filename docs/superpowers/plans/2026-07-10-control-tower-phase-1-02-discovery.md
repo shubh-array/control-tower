@@ -1773,7 +1773,7 @@ git commit -m "feat(discovery): add normalizer upsert against Plan 01 schema"
 - Create: `src/policy/eligibility.ts`
 - Create: `tests/policy/eligibility.test.ts`
 
-- [ ] **Step 1: Write the eligibility truth-table test**
+- [x] **Step 1: Write the eligibility truth-table test**
 
 ```typescript
 // tests/policy/eligibility.test.ts
@@ -1988,12 +1988,12 @@ describe('evaluateEligibility', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/policy/eligibility.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the eligibility implementation**
+- [x] **Step 3: Write the eligibility implementation**
 
 ```typescript
 // src/policy/eligibility.ts
@@ -2087,12 +2087,12 @@ export function evaluateEligibility(input: EligibilityInput): EligibilityResult 
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/policy/eligibility.test.ts`
 Expected: all 10+ tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/policy/eligibility.ts tests/policy/eligibility.test.ts
