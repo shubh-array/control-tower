@@ -201,7 +201,7 @@ git commit -m "chore: scaffold project with pnpm, TypeScript, vitest"
 - Create: `src/util/canonical-json.ts`
 - Create: `src/util/hash.ts`
 
-- [ ] **Step 1: Create src/util/canonical-json.ts**
+- [x] **Step 1: Create src/util/canonical-json.ts**
 
 ```typescript
 export function canonicalJsonSerialize(value: unknown): string {
@@ -218,7 +218,7 @@ export function canonicalJsonSerialize(value: unknown): string {
 }
 ```
 
-- [ ] **Step 2: Create src/util/hash.ts**
+- [x] **Step 2: Create src/util/hash.ts**
 
 ```typescript
 import { createHash } from "node:crypto";
@@ -233,7 +233,7 @@ export function sha256OfCanonicalJson(value: unknown): string {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/util/canonical-json.ts src/util/hash.ts
