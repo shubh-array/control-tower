@@ -4390,22 +4390,27 @@ git commit -m "feat: add init command (7-step §8.2) and daemon control with por
 **Files:**
 - Create: `src/cli/main.ts`
 
-- [ ] **Step 1: Create src/cli/main.ts**
+- [x] **Step 1: Create src/cli/main.ts**
 
 ```typescript
 import { Command } from "commander";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { createServer as createNetServer } from "node:net";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { runDoctor, type DoctorConfig } from "./doctor.js";
 import { runInit } from "./init.js";
 import { startCommand, stopCommand, statusCommand } from "./daemon-control.js";
-import { loadLocalConfig, loadOrganizationConfig, loadProfileConfig } from "../config/load.js";
-import { loadPolicyConfig } from "../config/load.js";
+import {
+  loadLocalConfig,
+  loadOrganizationConfig,
+  loadProfileConfig,
+  loadPolicyConfig,
+} from "../config/load.js";
 import { normalizeLogin } from "../config/author-login.js";
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { homedir } from "node:os";
-import { execFileSync } from "node:child_process";
 
-const appRoot = resolve(join(import.meta.dirname ?? ".", ".."));
+const appRoot = resolve(join(import.meta.dirname, "../.."));
 const CURSOR_VERSION_FLOOR = "2026.07.09-a3815c0";
 
 const program = new Command();
@@ -4455,13 +4460,6 @@ program
     }
 
     const domainGlobs: string[] = [];
-    for (const repo of orgConfig.repositories) {
-      if (repo.domainRules) {
-        for (const rule of repo.domainRules) {
-          domainGlobs.push(...(rule.globs ?? []));
-        }
-      }
-    }
 
     const doctorConfig: DoctorConfig = {
       githubHost: orgConfig.github.host,
@@ -4491,8 +4489,7 @@ program
       checkDiskSpace: () => 20 * 1024 * 1024 * 1024,
       checkPortAvailable: (port: number) => {
         try {
-          const { createServer } = require("node:net");
-          const srv = createServer();
+          const srv = createNetServer();
           srv.listen(port, "127.0.0.1");
           srv.close();
           return true;
@@ -4610,12 +4607,12 @@ program.parse();
 
 > **Note:** All CLI imports use `.js` extensions (ESM resolution). Plan 01 `createDaemon` is a thin lifecycle stub; Plan 04 replaces the HTTP layer with Hono via `src/daemon/runtime.ts` — the health stub remains but port **9120** is canonical.
 
-- [ ] **Step 2: Verify CLI runs**
+- [x] **Step 2: Verify CLI runs**
 
 Run: `pnpm ct --help`
 Expected output includes: `doctor`, `init`, `start`, `stop`, `status` commands
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/cli/main.ts
