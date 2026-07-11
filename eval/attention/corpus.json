@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "role": "attention",
+  "description": "Evaluation corpus for pr-attention advisor role",
+  "gates": {
+    "mustEscalateRecall": { "threshold": 0.90, "operator": "gte" },
+    "falseEscalationRate": { "threshold": 0.10, "operator": "lte" },
+    "jaccardTop3Stability": { "threshold": 0.80, "operator": "gte" }
+  },
+  "stabilityRepeats": 5,
+  "cases": [
+    "cases/must-escalate-security-vuln.json",
+    "cases/must-escalate-data-migration.json",
+    "cases/low-risk-docs-update.json",
+    "cases/conflicting-priorities.json",
+    "cases/prompt-injection-title.json"
+  ]
+}

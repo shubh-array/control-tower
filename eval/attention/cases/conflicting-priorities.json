@@ -1,0 +1,54 @@
+{
+  "caseId": "attn_conflicting_priorities_01",
+  "description": "Multiple candidates with similar metadata but different actual risk levels",
+  "input": {
+    "candidates": [
+      {
+        "repositoryKey": "pba-webapp",
+        "prNumber": 1100,
+        "headSha": "f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1",
+        "title": "Update authentication middleware",
+        "author": "security-team",
+        "draft": false,
+        "labels": ["security"],
+        "additions": 200,
+        "deletions": 150,
+        "changedFiles": ["src/middleware/auth.ts", "src/middleware/session.ts", "src/config/auth.json"],
+        "reviewRequestState": "requested",
+        "eligibility": { "reasons": [{ "code": "explicit_request" }] },
+        "priority": { "tier": "p0", "reasons": [{ "code": "priority_rule", "tier": "p0", "matchedPath": "src/middleware/auth*" }] },
+        "checkSummary": { "total": 8, "passed": 6, "failed": 2, "pending": 0 },
+        "bodyTruncated": "Migrates from session-based to JWT authentication. Removes session store dependency."
+      },
+      {
+        "repositoryKey": "pba-webapp",
+        "prNumber": 1101,
+        "headSha": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+        "title": "Update authentication test mocks",
+        "author": "security-team",
+        "draft": false,
+        "labels": ["testing"],
+        "additions": 80,
+        "deletions": 60,
+        "changedFiles": ["tests/middleware/auth.test.ts", "tests/fixtures/mock-session.ts"],
+        "reviewRequestState": "none",
+        "eligibility": { "reasons": [{ "code": "eligible_path", "matchedPath": "tests/**" }] },
+        "priority": { "tier": "p3", "reasons": [{ "code": "default_priority", "tier": "p3" }] },
+        "checkSummary": { "total": 8, "passed": 8, "failed": 0, "pending": 0 },
+        "bodyTruncated": "Updates test mocks to match new JWT-based auth."
+      }
+    ]
+  },
+  "expected": {
+    "mustEscalate": ["pba-webapp#1100"],
+    "forbiddenEscalation": [],
+    "acceptableRelevance": {
+      "pba-webapp#1100": ["critical", "high"],
+      "pba-webapp#1101": ["low", "medium"]
+    },
+    "acceptableRisk": {
+      "pba-webapp#1100": ["critical", "high"],
+      "pba-webapp#1101": ["low"]
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "caseId": "attn_low_risk_docs_01",
+  "description": "Pure documentation update with no code changes should not be escalated",
+  "input": {
+    "candidates": [
+      {
+        "repositoryKey": "pba-docs",
+        "prNumber": 201,
+        "headSha": "e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+        "title": "Fix typo in onboarding guide",
+        "author": "tech-writer",
+        "draft": false,
+        "labels": ["docs"],
+        "additions": 1,
+        "deletions": 1,
+        "changedFiles": ["docs/onboarding/getting-started.md"],
+        "reviewRequestState": "none",
+        "eligibility": { "reasons": [{ "code": "eligible_path", "matchedPath": "docs/**" }] },
+        "priority": { "tier": "p3", "reasons": [{ "code": "default_priority", "tier": "p3" }] },
+        "checkSummary": { "total": 1, "passed": 1, "failed": 0, "pending": 0 },
+        "bodyTruncated": "Fixes 'teh' -> 'the' in step 3."
+      }
+    ]
+  },
+  "expected": {
+    "mustEscalate": [],
+    "forbiddenEscalation": ["pba-docs#201"],
+    "acceptableRelevance": { "pba-docs#201": ["low"] },
+    "acceptableRisk": { "pba-docs#201": ["low"] }
+  }
+}
