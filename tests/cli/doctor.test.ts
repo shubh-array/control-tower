@@ -1,4 +1,5 @@
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   type DoctorDeps,
@@ -237,10 +238,19 @@ describe("checkSchemaValidity", () => {
   it("validates harness manifest materializability", () => {
     const r = checkSchemaValidity("harness-manifest", {
       id: "pr-review",
-      prompt: "config/harnesses/pr-review/prompt.md",
+      prompt: join(process.cwd(), "config/harnesses/pr-review/prompt.md"),
       skills: ["config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md"],
     });
     expect(r.ok).toBe(true);
+  });
+
+  it("fails harness manifests when the prompt file is missing", () => {
+    const r = checkSchemaValidity("harness-manifest", {
+      id: "pr-review",
+      prompt: join(tmpdir(), "definitely-missing-control-tower-prompt.md"),
+      skills: ["config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md"],
+    });
+    expect(r.ok).toBe(false);
   });
 
   it("confirms CanonicalPathMatcher compiles all globs without error", () => {
@@ -297,6 +307,7 @@ describe("runDoctor (integration with fake deps)", () => {
       },
       checkDiskSpace: () => 20 * 1024 * 1024 * 1024,
       checkPortAvailable: () => true,
+      smokeModel: (modelId) => ({ ok: true, reportedModelId: modelId }),
     };
   }
 
@@ -322,6 +333,13 @@ describe("runDoctor (integration with fake deps)", () => {
     const results = await runDoctor(baseConfig, deps);
     const failures = results.filter((r) => !r.ok);
     expect(failures).toHaveLength(0);
+  });
+
+  it("passes model smoke when each distinct configured model echoes back correctly", async () => {
+    const deps = makeFakeDeps();
+    const results = await runDoctor(baseConfig, deps);
+    const smokeResult = results.find((r) => r.name === "Model smoke");
+    expect(smokeResult?.ok).toBe(true);
   });
 
   it("fails when agent is not authenticated", async () => {
@@ -386,6 +404,16 @@ describe("runDoctor (integration with fake deps)", () => {
     expect(portResult?.ok).toBe(false);
   });
 
+  it("awaits async port probes before reporting daemon port status", async () => {
+    const deps: DoctorDeps = {
+      ...makeFakeDeps(),
+      checkPortAvailable: async () => false,
+    };
+    const results = await runDoctor(baseConfig, deps);
+    const portResult = results.find((r) => r.name === "Daemon port");
+    expect(portResult?.ok).toBe(false);
+  });
+
   it("disk space below 10GB fails", async () => {
     const deps: DoctorDeps = {
       ...makeFakeDeps(),
@@ -403,6 +431,16 @@ describe("runDoctor (integration with fake deps)", () => {
     const results = await runDoctor(baseConfig, deps);
     const modelResult = results.find((r) => r.name === "Model availability");
     expect(modelResult?.ok).toBe(false);
+  });
+
+  it("fails when model smoke reports a different model id than requested", async () => {
+    const deps: DoctorDeps = {
+      ...makeFakeDeps(),
+      smokeModel: () => ({ ok: true, reportedModelId: "wrong-model" }),
+    };
+    const results = await runDoctor(baseConfig, deps);
+    const smokeResult = results.find((r) => r.name === "Model smoke");
+    expect(smokeResult?.ok).toBe(false);
   });
 
   it("fails when a configured repository path does not exist", async () => {

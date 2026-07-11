@@ -20,6 +20,7 @@ export interface InitOptions {
   answers?: InitInteractiveAnswers;
   fakeRepoRemotes?: Record<string, string>;
   catalog?: Array<{ id: string; github: string }>;
+  runDoctor?: () => void;
 }
 
 export interface InitResult {
@@ -115,6 +116,8 @@ export function runInit(opts: InitOptions): InitResult {
       config.cursor.modelRoles = appliedAnswers.modelRoles;
     }
 
+    config.profileDirectory = profileDir;
+    config.dataDirectory = dataDir;
     config.publication = config.publication ?? {};
     if (config.publication.mode !== "shadow") {
       config.publication.mode = "shadow";
@@ -134,7 +137,11 @@ export function runInit(opts: InitOptions): InitResult {
     }
   }
 
-  const doctorRan = false;
+  let doctorRan = false;
+  if (opts.runDoctor) {
+    opts.runDoctor();
+    doctorRan = true;
+  }
 
   return {
     profileCreated,

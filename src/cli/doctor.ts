@@ -167,6 +167,9 @@ export function checkSchemaValidity(
       if (!manifest.id || !manifest.prompt) {
         return { ok: false, name: "Harness manifest", severity: "fail", message: "Manifest missing required id or prompt" };
       }
+      if (!existsSync(manifest.prompt)) {
+        return { ok: false, name: "Harness manifest", severity: "fail", message: `Prompt not found: ${manifest.prompt}` };
+      }
       return { ok: true, name: "Harness manifest", severity: "pass", message: `Harness "${manifest.id}" materializable` };
     }
     case "glob-compilation": {
@@ -193,7 +196,8 @@ export function checkDockerAvailable(available: boolean): CheckResult {
 export interface DoctorDeps {
   execCommand: (cmd: string, args: string[], env?: Record<string, string>) => string;
   checkDiskSpace: (path: string) => number;
-  checkPortAvailable: (port: number) => boolean;
+  checkPortAvailable: (port: number) => boolean | Promise<boolean>;
+  smokeModel?: (modelId: string) => { ok: boolean; reportedModelId: string };
 }
 
 export interface DoctorConfig {
@@ -268,6 +272,7 @@ export async function runDoctor(
     results.push({ ok: false, name: "Cursor auth", message: "Cannot check Cursor auth status", severity: "fail" });
   }
 
+  let modelAvailability: CheckResult | null = null;
   try {
     const modelsOut = deps.execCommand(config.cursorBinary, ["models", "--format", "json"]);
     const parsed = JSON.parse(modelsOut);
@@ -275,12 +280,49 @@ export async function runDoctor(
     const roleModelMap: Record<string, string> = {};
     if (config.modelRoles.primaryReview) roleModelMap.primaryReview = config.modelRoles.primaryReview.modelId;
     if (config.modelRoles.attention) roleModelMap.attention = config.modelRoles.attention.modelId;
-    results.push(checkModelAvailability(available, roleModelMap));
+    modelAvailability = checkModelAvailability(available, roleModelMap);
+    results.push(modelAvailability);
   } catch {
     results.push({ ok: false, name: "Model availability", message: "Cannot retrieve agent models", severity: "fail" });
   }
 
   results.push(checkModelRoleRequirements(config.modelRoles, { attentionAdvisorEnabled: config.attentionAdvisorEnabled }));
+
+  if (modelAvailability?.ok && modelAvailability.smokeModels?.length && deps.smokeModel) {
+    let smokeFailure: CheckResult | null = null;
+
+    for (const modelId of modelAvailability.smokeModels) {
+      try {
+        const smoke = deps.smokeModel(modelId);
+        if (!smoke.ok || smoke.reportedModelId !== modelId) {
+          smokeFailure = {
+            ok: false,
+            name: "Model smoke",
+            severity: "fail",
+            message: `Smoke for "${modelId}" reported "${smoke.reportedModelId}"`,
+          };
+          break;
+        }
+      } catch {
+        smokeFailure = {
+          ok: false,
+          name: "Model smoke",
+          severity: "fail",
+          message: `Smoke for "${modelId}" failed`,
+        };
+        break;
+      }
+    }
+
+    results.push(
+      smokeFailure ?? {
+        ok: true,
+        name: "Model smoke",
+        severity: "pass",
+        message: `Smoke passed for ${modelAvailability.smokeModels.length} model(s)`,
+      },
+    );
+  }
 
   try {
     const ghEnv = buildGhEnv(process.env as Record<string, string>, { host: config.githubHost });
@@ -378,7 +420,7 @@ export async function runDoctor(
     results.push({ ok: false, name: "Data directory", message: `Not writable: ${config.dataDirectory}`, severity: "fail" });
   }
 
-  const portOk = deps.checkPortAvailable(config.daemonPort);
+  const portOk = await Promise.resolve(deps.checkPortAvailable(config.daemonPort));
   results.push({
     ok: portOk,
     name: "Daemon port",

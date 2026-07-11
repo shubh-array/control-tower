@@ -1,11 +1,11 @@
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { createServer as createNetServer } from "node:net";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { Command } from "commander";
 import { runDoctor, type DoctorConfig } from "./doctor.js";
 import { runInit } from "./init.js";
+import { probePortAvailable } from "./port.js";
 import { startCommand, stopCommand, statusCommand } from "./daemon-control.js";
 import {
   loadLocalConfig,
@@ -19,6 +19,108 @@ const appRoot = resolve(join(import.meta.dirname, "../.."));
 const CURSOR_VERSION_FLOOR = "2026.07.09-a3815c0";
 
 const program = new Command();
+
+function buildHarnessManifests() {
+  return [
+    {
+      id: "pr-attention",
+      prompt: join(appRoot, "config/harnesses/pr-attention/prompt.md"),
+      skills: [join(appRoot, "config/harnesses/pr-attention/skills/pr-attention/SKILL.md")],
+    },
+    {
+      id: "pr-review",
+      prompt: join(appRoot, "config/harnesses/pr-review/prompt.md"),
+      skills: [join(appRoot, "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],
+    },
+  ];
+}
+
+function buildDoctorConfig(localConfigPath: string): DoctorConfig {
+  const localConfig = loadLocalConfig(localConfigPath);
+  const orgConfig = loadOrganizationConfig(
+    join(appRoot, "config/organization.json"),
+  );
+
+  const profileConfig = loadProfileConfig(
+    join(localConfig.profileDirectory, "profile.json"),
+  );
+
+  const normalizedLogin = normalizeLogin(profileConfig.githubLogin);
+
+  const catalogMap = new Map<string, string>();
+  for (const repo of orgConfig.repositories) {
+    catalogMap.set(repo.id, repo.github);
+  }
+
+  const policyPath = join(localConfig.profileDirectory, "policy.json");
+  let attentionAdvisorEnabled = false;
+  try {
+    const policy = loadPolicyConfig(policyPath);
+    attentionAdvisorEnabled = policy.attentionAdvisor?.enabled ?? false;
+  } catch {
+    // Policy may not exist yet.
+  }
+
+  const domainGlobs: string[] = [];
+
+  return {
+    githubHost: orgConfig.github.host,
+    configuredLogin: normalizedLogin,
+    cursorBinary: localConfig.cursor.binary,
+    cursorVersionFloor: CURSOR_VERSION_FLOOR,
+    dataDirectory: localConfig.dataDirectory,
+    daemonPort: localConfig.daemon?.port ?? 9120,
+    repositoryPaths: localConfig.repositoryPaths,
+    repositoryCatalog: catalogMap,
+    modelRoles: localConfig.cursor.modelRoles,
+    attentionAdvisorEnabled,
+    profilePath: join(localConfig.profileDirectory, "profile.json"),
+    policyPath: existsSync(policyPath) ? policyPath : null,
+    harnessManifests: buildHarnessManifests(),
+    domainGlobs,
+  };
+}
+
+function createDefaultDoctorDeps(cursorBinary: string) {
+  const execCommand = (cmd: string, args: string[], env?: Record<string, string>) => {
+    return execFileSync(cmd, args, {
+      encoding: "utf-8" as const,
+      timeout: 30_000,
+      env: env ?? process.env as Record<string, string>,
+    }).trim();
+  };
+
+  return {
+    execCommand,
+    checkDiskSpace: () => 20 * 1024 * 1024 * 1024,
+    checkPortAvailable: (port: number) => probePortAvailable(port),
+    smokeModel: (modelId: string) => {
+      const modelsOut = execCommand(cursorBinary, ["models", "--format", "json"]);
+      const parsed = JSON.parse(modelsOut);
+      const available: string[] = parsed.models ?? [];
+      const ok = available.includes(modelId);
+      return {
+        ok,
+        reportedModelId: ok ? modelId : (available[0] ?? ""),
+      };
+    },
+  };
+}
+
+async function runDoctorWorkflow(localConfigPath: string): Promise<boolean> {
+  const doctorConfig = buildDoctorConfig(localConfigPath);
+  const defaultDeps = createDefaultDoctorDeps(doctorConfig.cursorBinary);
+  const results = await runDoctor(doctorConfig, defaultDeps);
+
+  let hasFailure = false;
+  for (const r of results) {
+    const icon = r.ok ? "\u2713" : (r.severity === "warn" ? "\u26A0" : "\u2717");
+    console.log(`  ${icon} ${r.name}: ${r.message}`);
+    if (!r.ok) hasFailure = true;
+  }
+
+  return hasFailure;
+}
 
 program
   .name("ct")
@@ -39,79 +141,7 @@ program
       process.exit(1);
     }
 
-    const localConfig = loadLocalConfig(localConfigPath);
-    const orgConfig = loadOrganizationConfig(
-      join(appRoot, "config/organization.json"),
-    );
-
-    const profileConfig = loadProfileConfig(
-      join(localConfig.profileDirectory, "profile.json"),
-    );
-
-    const normalizedLogin = normalizeLogin(profileConfig.githubLogin);
-
-    const catalogMap = new Map<string, string>();
-    for (const repo of orgConfig.repositories) {
-      catalogMap.set(repo.id, repo.github);
-    }
-
-    const policyPath = join(localConfig.profileDirectory, "policy.json");
-    let attentionAdvisorEnabled = false;
-    try {
-      const policy = loadPolicyConfig(policyPath);
-      attentionAdvisorEnabled = policy.attentionAdvisor?.enabled ?? false;
-    } catch {
-      // Policy may not exist yet.
-    }
-
-    const domainGlobs: string[] = [];
-
-    const doctorConfig: DoctorConfig = {
-      githubHost: orgConfig.github.host,
-      configuredLogin: normalizedLogin,
-      cursorBinary: localConfig.cursor.binary,
-      cursorVersionFloor: CURSOR_VERSION_FLOOR,
-      dataDirectory: localConfig.dataDirectory,
-      daemonPort: localConfig.daemon?.port ?? 9120,
-      repositoryPaths: localConfig.repositoryPaths,
-      repositoryCatalog: catalogMap,
-      modelRoles: localConfig.cursor.modelRoles,
-      attentionAdvisorEnabled,
-      profilePath: join(localConfig.profileDirectory, "profile.json"),
-      policyPath: existsSync(policyPath) ? policyPath : null,
-      harnessManifests: [],
-      domainGlobs,
-    };
-
-    const defaultDeps = {
-      execCommand: (cmd: string, args: string[], env?: Record<string, string>) => {
-        return execFileSync(cmd, args, {
-          encoding: "utf-8" as const,
-          timeout: 30_000,
-          env: env ?? process.env as Record<string, string>,
-        }).trim();
-      },
-      checkDiskSpace: () => 20 * 1024 * 1024 * 1024,
-      checkPortAvailable: (port: number) => {
-        try {
-          const srv = createNetServer();
-          srv.listen(port, "127.0.0.1");
-          srv.close();
-          return true;
-        } catch {
-          return false;
-        }
-      },
-    };
-
-    const results = await runDoctor(doctorConfig, defaultDeps);
-
-    let hasFailure = false;
-    for (const r of results) {
-      const icon = r.ok ? "\u2713" : (r.severity === "warn" ? "\u26A0" : "\u2717");
-      console.log(`  ${icon} ${r.name}: ${r.message}`);
-      if (!r.ok) hasFailure = true;
-    }
+    const hasFailure = await runDoctorWorkflow(localConfigPath);
 
     if (hasFailure) {
       console.log("\nDoctor found issues. Fix them and re-run.");
@@ -126,9 +156,13 @@ program
   .description("Initialize Control Tower profile and config")
   .option("--non-interactive", "Skip prompts (use defaults)")
   .option("--github-login <login>", "Set GitHub login")
-  .action((opts) => {
+  .action(async (opts) => {
+    const localConfigPath =
+      process.env.CONTROL_TOWER_CONFIG ??
+      join(homedir(), ".control-tower", "config.json");
     const result = runInit({
       appRoot,
+      configPath: localConfigPath,
       nonInteractive: opts.nonInteractive ?? false,
       answers: opts.githubLogin ? { githubLogin: opts.githubLogin } : undefined,
     });
@@ -149,6 +183,19 @@ program
     if (result.discoveredRepos.length > 0) {
       console.log(`\nDiscovered ${result.discoveredRepos.length} repo(s) in workspace roots`);
     }
+
+    if (opts.nonInteractive) {
+      console.log("\nRunning doctor...");
+      result.doctorRan = true;
+      const hasFailure = await runDoctorWorkflow(localConfigPath);
+      if (hasFailure) {
+        console.log("\nDoctor found issues. Fix them and re-run.");
+        process.exit(1);
+      }
+      console.log("\nAll checks passed.");
+      return;
+    }
+
     console.log("\nEdit your profile and config, then run `pnpm ct doctor`");
   });
 

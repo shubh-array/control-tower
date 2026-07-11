@@ -74,6 +74,14 @@ export class CanonicalPathMatcher {
     return new CanonicalPathMatcher(compiled, sourceMap, contentHash);
   }
 
+  canonicalize(
+    rawPath: string,
+    opts?: { stripDiffPrefix?: boolean },
+  ): string | null {
+    const result = validateCanonicalPath(rawPath, opts);
+    return result.valid ? result.path : null;
+  }
+
   matches(path: string): boolean {
     const result = validateCanonicalPath(path);
     if (!result.valid) return false;

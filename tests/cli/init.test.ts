@@ -80,17 +80,39 @@ describe("runInit - step 1: create local config + profile from examples", () => 
 
   it("creates local config from example when absent", () => {
     const configPath = join(tmp, "config.json");
+    const profileDir = join(tmp, "profile");
+    const dataDir = join(tmp, "data");
     const result = runInit({
       appRoot,
-      profileDir: join(tmp, "profile"),
-      dataDir: join(tmp, "data"),
+      profileDir,
+      dataDir,
       configPath,
       nonInteractive: true,
     });
     expect(result.configCreated).toBe(true);
     expect(existsSync(configPath)).toBe(true);
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    expect(config.profileDirectory).toBe(profileDir);
+    expect(config.dataDirectory).toBe(dataDir);
     expect(config.publication.mode).toBe("shadow");
+  });
+
+  it("runs the optional doctor callback and reports doctorRan", () => {
+    let doctorCalls = 0;
+
+    const result = runInit({
+      appRoot,
+      profileDir: join(tmp, "profile"),
+      dataDir: join(tmp, "data"),
+      configPath: join(tmp, "config.json"),
+      nonInteractive: true,
+      runDoctor: () => {
+        doctorCalls++;
+      },
+    });
+
+    expect(doctorCalls).toBe(1);
+    expect(result.doctorRan).toBe(true);
   });
 });
 

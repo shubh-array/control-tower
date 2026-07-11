@@ -8,6 +8,23 @@ function matcher(...patterns: string[]): CanonicalPathMatcher {
 }
 
 describe("CanonicalPathMatcher", () => {
+  describe("canonicalize", () => {
+    it("returns the canonical relative path when valid", () => {
+      const m = matcher("src/**");
+      expect(m.canonicalize("src/a.ts")).toBe("src/a.ts");
+    });
+
+    it("returns null for invalid absolute paths", () => {
+      const m = matcher("src/**");
+      expect(m.canonicalize("/abs")).toBeNull();
+    });
+
+    it("can strip git diff prefixes before validation", () => {
+      const m = matcher("src/**");
+      expect(m.canonicalize("a/src/x.ts", { stripDiffPrefix: true })).toBe("src/x.ts");
+    });
+  });
+
   describe("root anchoring", () => {
     it("*.pem matches only root-level .pem files", () => {
       const m = matcher("*.pem");
