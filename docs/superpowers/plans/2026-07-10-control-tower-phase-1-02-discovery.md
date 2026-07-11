@@ -126,7 +126,7 @@ export function sha256OfCanonicalJson(value: unknown): string;
 - Create: `src/github/types.ts`
 - Create: `src/policy/reasons.ts`
 
-- [ ] **Step 1: Create GitHub types**
+- [x] **Step 1: Create GitHub types**
 
 ```typescript
 // src/github/types.ts
@@ -294,7 +294,7 @@ export const PRIORITY_SORT_ORDINALS: Record<PriorityStatus, number> = {
 export type AnalysisMode = 'auto' | 'on_demand';
 ```
 
-- [ ] **Step 2: Create policy reason records**
+- [x] **Step 2: Create policy reason records**
 
 ```typescript
 // src/policy/reasons.ts
@@ -391,12 +391,12 @@ export interface SelectedDomain {
 }
 ```
 
-- [ ] **Step 3: Verify types compile**
+- [x] **Step 3: Verify types compile**
 
 Run: `npx tsc --noEmit src/github/types.ts src/policy/reasons.ts`
 Expected: no errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/github/types.ts src/policy/reasons.ts
