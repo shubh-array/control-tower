@@ -1,4 +1,4 @@
-import type { HostHealth, GhSearchPrItem, GhPrListItem } from "../github/types.js";
+import type { HostHealth, GhSearchPrItem, GhPrListItem, DiscoveredPr } from "../github/types.js";
 import type { RateLimitTracker } from "../github/rate-limit.js";
 import type { GhExecOptions } from "../github/gh-process.js";
 import {
@@ -54,6 +54,14 @@ export interface ResilientPollDeps {
     prId: number,
     raw: unknown,
     explicitRequest: boolean,
+  ) => void;
+  /** Real policy evaluator; required for attention persistence / WorkGraph projection. */
+  evaluatePolicy?: (pr: DiscoveredPr) => PolicyDecision;
+  /** Persist PolicyDecision into attention_items (e.g. createPersistDecision). */
+  persistDecision?: (
+    prId: number,
+    pr: DiscoveredPr,
+    decision: PolicyDecision,
   ) => void;
   countKnownPrs: () => number;
   getFreshnessAt: (host: string) => string | null;
@@ -210,7 +218,10 @@ export class ResilientPoller {
         );
         return prId;
       },
-      evaluatePolicy: () => ({}) as PolicyDecision,
+      evaluatePolicy:
+        this.deps.evaluatePolicy ??
+        (() => ({}) as PolicyDecision),
+      persistDecision: this.deps.persistDecision,
       checkpoint: {
         getLastPollTime: this.deps.getFreshnessAt,
         setLastPollTime: (host) => {

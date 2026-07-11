@@ -265,4 +265,35 @@ describe("ResilientPoller — success path", () => {
     );
     expect(deps.scheduleNextPoll).not.toHaveBeenCalled();
   });
+
+  it("forwards evaluatePolicy + persistDecision into DiscoveryPoller", async () => {
+    const decision = {
+      eligible: true,
+      eligibilityReasons: [],
+      exclusionReasons: [],
+      authorOnly: false,
+      priorityStatus: "p1" as const,
+      prioritySortOrdinal: 1,
+      priorityReasons: [],
+      allPriorityReasons: [],
+      selectedPriorityReason: null,
+      analysisMode: "auto" as const,
+      autoAnalyzeReasons: [],
+      selectedDomains: [],
+      allDomainReasons: [],
+    };
+    const evaluatePolicy = vi.fn().mockReturnValue(decision);
+    const persistDecision = vi.fn();
+    const deps = makeDeps({ evaluatePolicy, persistDecision });
+    const poller = new ResilientPoller(deps);
+
+    await poller.poll();
+
+    expect(evaluatePolicy).toHaveBeenCalled();
+    expect(persistDecision).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ prNumber: 101 }),
+      decision,
+    );
+  });
 });
