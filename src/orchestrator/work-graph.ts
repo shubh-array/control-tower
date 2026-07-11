@@ -1,7 +1,7 @@
 import type { Database } from '../store/db.js';
 import type { PolicyDecision } from '../policy/evaluate.js';
 
-export { AllTrackedItem } from '../policy/evaluate.js';
+export type { AllTrackedItem } from '../policy/evaluate.js';
 import type { AllTrackedItem } from '../policy/evaluate.js';
 
 export interface FocusQueue {
