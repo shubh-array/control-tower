@@ -67,3 +67,81 @@ describe('Proposal Types', () => {
     expect(isAllowedTarget('schemas/signal.json')).toBe(false);
   });
 });
+
+import { validateProposal } from '../../src/proposals/validate';
+
+describe('validateProposal', () => {
+  const validProposal: ProfileChangeProposal = {
+    id: 'prop_001',
+    version: 1,
+    createdAt: '2026-07-10T12:00:00Z',
+    selectedSignalHash: 'signals_abc',
+    targetBaseContentHashes: { 'policy.json': 'base_policy' },
+    immutableProposalContractHash: 'contract1',
+    personaHash: 'persona1',
+    modelSpecHash: 'model_primary',
+    targets: [{
+      path: 'policy.json',
+      baseContentHash: 'base_policy',
+      proposedContent: '{"autoAnalyze":{"enabled":true}}',
+      rationale: 'Enable auto-analysis based on signal trends',
+      expectedEffect: 'PRs matching priority tiers auto-analyze',
+      risks: ['May increase agent usage'],
+      replayCases: ['case_attention_01'],
+    }],
+    status: 'pending_validation',
+  };
+
+  it('accepts a valid proposal with allowed target and matching base hash', () => {
+    const currentFiles = { 'policy.json': { content: '{}', hash: 'base_policy' } };
+    const result = validateProposal(validProposal, currentFiles);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects proposal with disallowed target path', () => {
+    const badProposal = {
+      ...validProposal,
+      targets: [{ ...validProposal.targets[0], path: 'src/safety/guards.ts' }],
+      targetBaseContentHashes: { 'src/safety/guards.ts': 'x' },
+    };
+    const currentFiles = { 'src/safety/guards.ts': { content: '', hash: 'x' } };
+    const result = validateProposal(badProposal, currentFiles);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Target "src/safety/guards.ts" is not in the allowlist');
+  });
+
+  it('rejects proposal with base hash mismatch', () => {
+    const currentFiles = { 'policy.json': { content: '{}', hash: 'different_hash' } };
+    const result = validateProposal(validProposal, currentFiles);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('Base hash mismatch');
+  });
+
+  it('rejects proposal exceeding max targets', () => {
+    const tooMany = {
+      ...validProposal,
+      targets: Array.from({ length: 5 }, (_, i) => ({
+        ...validProposal.targets[0],
+        path: `policy.json`,
+        baseContentHash: `h${i}`,
+      })),
+    };
+    const currentFiles = { 'policy.json': { content: '', hash: 'h0' } };
+    const result = validateProposal(tooMany, currentFiles);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('exceeds maximum');
+  });
+
+  it('rejects proposal with per-file content exceeding 256 KiB', () => {
+    const bigContent = 'x'.repeat(256 * 1024 + 1);
+    const bigProposal = {
+      ...validProposal,
+      targets: [{ ...validProposal.targets[0], proposedContent: bigContent }],
+    };
+    const currentFiles = { 'policy.json': { content: '', hash: 'base_policy' } };
+    const result = validateProposal(bigProposal, currentFiles);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('exceeds 256 KiB');
+  });
+});
