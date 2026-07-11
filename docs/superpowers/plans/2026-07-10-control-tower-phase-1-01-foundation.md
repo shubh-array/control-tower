@@ -1483,7 +1483,7 @@ git commit -m "feat: add author login validation and normalization"
 **Files:**
 - Create: `src/config/protected-paths.ts`
 
-- [ ] **Step 1: Create src/config/protected-paths.ts**
+- [x] **Step 1: Create src/config/protected-paths.ts**
 
 ```typescript
 import { CanonicalPathMatcher, type PatternSource } from "../paths/matcher.js";
@@ -1520,7 +1520,7 @@ export function buildProtectedPathMatcher(
 export { APP_DEFAULT_PROTECTED_PATHS };
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/config/protected-paths.ts
