@@ -3296,7 +3296,7 @@ git commit -m "feat(discovery): add ticket identifier extraction from PR metadat
 
 > **Prerequisite:** Plan 01 `runMigrations` must have created `discovery_checkpoints` (`id`, `host`, `checkpoint`, `freshness_at`, `healthy`, `updated_at`). This task only reads/upserts — it does **not** CREATE TABLE.
 
-- [ ] **Step 1: Write the checkpoint store**
+- [x] **Step 1: Write the checkpoint store**
 
 ```typescript
 // src/discovery/checkpoints.ts
@@ -3372,12 +3372,12 @@ export class CheckpointStore {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/discovery/checkpoints.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/discovery/checkpoints.ts
