@@ -1130,7 +1130,7 @@ git commit -m "feat: add pathMatchesAny for policy glob arrays"
 - Create: `src/config/types.ts`
 - Create: `src/config/schemas.ts`
 
-- [ ] **Step 1: Create src/config/types.ts**
+- [x] **Step 1: Create src/config/types.ts**
 
 ```typescript
 export interface OrganizationConfig {
@@ -1227,7 +1227,7 @@ export interface LocalConfig {
 }
 ```
 
-- [ ] **Step 2: Create src/config/schemas.ts**
+- [x] **Step 2: Create src/config/schemas.ts**
 
 ```typescript
 import { z } from "zod";
@@ -1331,7 +1331,7 @@ export const localConfigSchema = z.object({
 }).strict();
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/config/types.ts src/config/schemas.ts
