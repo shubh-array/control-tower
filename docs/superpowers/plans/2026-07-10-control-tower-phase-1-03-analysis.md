@@ -227,7 +227,7 @@ Integration tests live in `tests/integration/analysis-pipeline.test.ts`.
 - Create: `src/orchestrator/job-state.ts`
 - Create: `src/orchestrator/run-state.ts`
 
-- [ ] **Step 1: Create attention state types**
+- [x] **Step 1: Create attention state types**
 
 ```typescript
 // src/orchestrator/attention-state.ts
@@ -251,7 +251,7 @@ export function isTerminalAttention(state: AttentionState): boolean {
 }
 ```
 
-- [ ] **Step 2: Create job state types**
+- [x] **Step 2: Create job state types**
 
 ```typescript
 // src/orchestrator/job-state.ts
@@ -309,7 +309,7 @@ export const ALLOWED_JOB_TRANSITIONS: ReadonlyMap<JobState, ReadonlySet<JobState
 ]);
 ```
 
-- [ ] **Step 3: Create run state types**
+- [x] **Step 3: Create run state types**
 
 ```typescript
 // src/orchestrator/run-state.ts
@@ -362,7 +362,7 @@ export const ALLOWED_ADVISOR_TRANSITIONS: ReadonlyMap<AdvisorRunState, ReadonlyS
 ]);
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/orchestrator/attention-state.ts src/orchestrator/job-state.ts src/orchestrator/run-state.ts
@@ -377,7 +377,7 @@ git commit -m "feat(orchestrator): add attention, job, and run state type defini
 - Create: `src/orchestrator/transitions.ts`
 - Test: `tests/orchestrator/transitions.test.ts`
 
-- [ ] **Step 1: Write failing tests for transition validation**
+- [x] **Step 1: Write failing tests for transition validation**
 
 ```typescript
 // tests/orchestrator/transitions.test.ts
@@ -545,12 +545,12 @@ describe('transitionRun', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/orchestrator/transitions.test.ts`
 Expected: FAIL — module `../../src/orchestrator/transitions.js` not found
 
-- [ ] **Step 3: Implement transition engine**
+- [x] **Step 3: Implement transition engine**
 
 ```typescript
 // src/orchestrator/transitions.ts
@@ -709,12 +709,12 @@ export function transitionAdvisorRun(db: Database, req: AdvisorTransitionRequest
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/orchestrator/transitions.test.ts`
 Expected: PASS (all 8 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/transitions.ts tests/orchestrator/transitions.test.ts
@@ -730,7 +730,7 @@ git commit -m "feat(orchestrator): compare-and-set transition engine for job and
 - Create: `src/orchestrator/run-identity.ts`
 - Test: `tests/orchestrator/job-identity.test.ts`
 
-- [ ] **Step 1: Write failing tests for job identity**
+- [x] **Step 1: Write failing tests for job identity**
 
 The critical invariant: **job identity excludes harness, model, context, and provenance hashes**. It is computed from pre-context facts only.
 
@@ -854,12 +854,12 @@ describe('computeRunId', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/orchestrator/job-identity.test.ts`
 Expected: FAIL — modules not found
 
-- [ ] **Step 3: Implement job identity**
+- [x] **Step 3: Implement job identity**
 
 ```typescript
 // src/orchestrator/job-identity.ts
@@ -918,7 +918,7 @@ export function computeJobIdentity(input: JobIdentityInput): string {
 }
 ```
 
-- [ ] **Step 4: Implement run identity**
+- [x] **Step 4: Implement run identity**
 
 ```typescript
 // src/orchestrator/run-identity.ts
@@ -954,12 +954,12 @@ export function computeRunId(
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run tests/orchestrator/job-identity.test.ts`
 Expected: PASS (all 9 tests)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/orchestrator/job-identity.ts src/orchestrator/run-identity.ts tests/orchestrator/job-identity.test.ts
@@ -974,7 +974,7 @@ git commit -m "feat(orchestrator): job identity (pre-context only) and run-input
 - Create: `src/orchestrator/recovery.ts`
 - Test: `tests/orchestrator/recovery.test.ts`
 
-- [ ] **Step 1: Write failing tests for recovery logic**
+- [x] **Step 1: Write failing tests for recovery logic**
 
 ```typescript
 // tests/orchestrator/recovery.test.ts
@@ -1063,12 +1063,12 @@ describe('recoverOrphanedStates', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/orchestrator/recovery.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement recovery**
+- [x] **Step 3: Implement recovery**
 
 ```typescript
 // src/orchestrator/recovery.ts
@@ -1171,12 +1171,12 @@ export function recoverOrphanedStates(db: Database): RecoveryResult {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/orchestrator/recovery.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/recovery.ts tests/orchestrator/recovery.test.ts
@@ -1190,7 +1190,7 @@ git commit -m "feat(orchestrator): restart recovery for orphaned agent/advisor/p
 **Files:**
 - Create: `src/orchestrator/scheduler.ts`
 
-- [ ] **Step 1: Implement fair queue scheduler**
+- [x] **Step 1: Implement fair queue scheduler**
 
 ```typescript
 // src/orchestrator/scheduler.ts
@@ -1274,7 +1274,7 @@ export function selectNextJobs(
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/orchestrator/scheduler.ts
@@ -1289,7 +1289,7 @@ git commit -m "feat(orchestrator): fair queue scheduler with concurrency limit a
 - Create: `src/attention/candidates.ts`
 - Test: `tests/attention/candidates.test.ts`
 
-- [ ] **Step 1: Write failing tests for candidate selection**
+- [x] **Step 1: Write failing tests for candidate selection**
 
 Critical invariant: **advice never enqueues analysis**. Candidate selection uses the complete All Tracked tuple with eligible tiers preceding unranked.
 
@@ -1401,12 +1401,12 @@ describe('selectCandidates', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/attention/candidates.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement candidate selection**
+- [x] **Step 3: Implement candidate selection**
 
 ```typescript
 // src/attention/candidates.ts
@@ -1509,12 +1509,12 @@ export function selectCandidates(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/attention/candidates.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/attention/candidates.ts tests/attention/candidates.test.ts
@@ -1528,7 +1528,7 @@ git commit -m "feat(attention): deterministic candidate selection with eligibili
 **Files:**
 - Create: `src/attention/staleness.ts`
 
-- [ ] **Step 1: Implement per-PR staleness identity**
+- [x] **Step 1: Implement per-PR staleness identity**
 
 ```typescript
 // src/attention/staleness.ts
@@ -1607,7 +1607,7 @@ export function computeMetadataSnapshotHash(candidate: {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/attention/staleness.ts
@@ -1622,7 +1622,7 @@ git commit -m "feat(attention): per-PR and batch staleness identity computation"
 - Create: `src/attention/advisor-order.ts`
 - Test: `tests/attention/advisor-order.test.ts`
 
-- [ ] **Step 1: Write failing tests for advisor order**
+- [x] **Step 1: Write failing tests for advisor order**
 
 ```typescript
 // tests/attention/advisor-order.test.ts
@@ -1707,12 +1707,12 @@ describe('computeAdvisorOrder', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/attention/advisor-order.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement advisor order**
+- [x] **Step 3: Implement advisor order**
 
 ```typescript
 // src/attention/advisor-order.ts
@@ -1780,12 +1780,12 @@ export function computeAdvisorOrder(items: AdvisorOrderItem[]): AdvisorOrderItem
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/attention/advisor-order.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/attention/advisor-order.ts tests/attention/advisor-order.test.ts
@@ -1800,7 +1800,7 @@ git commit -m "feat(attention): global advisor order with relevance/risk ordinal
 - Create: `src/attention/validate-output.ts`
 - Test: `tests/attention/validate-output.test.ts`
 
-- [ ] **Step 1: Write failing tests for attention output validation**
+- [x] **Step 1: Write failing tests for attention output validation**
 
 ```typescript
 // tests/attention/validate-output.test.ts
@@ -1923,12 +1923,12 @@ describe('validateAttentionOutput', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/attention/validate-output.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement attention output validation**
+- [x] **Step 3: Implement attention output validation**
 
 ```typescript
 // src/attention/validate-output.ts
@@ -2038,12 +2038,12 @@ export function validateAttentionOutput(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/attention/validate-output.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/attention/validate-output.ts tests/attention/validate-output.test.ts
@@ -2057,7 +2057,7 @@ git commit -m "feat(attention): strict output schema validation with forbidden r
 **Files:**
 - Create: `src/attention/run.ts`
 
-- [ ] **Step 1: Implement attention run orchestration**
+- [x] **Step 1: Implement attention run orchestration**
 
 ```typescript
 // src/attention/run.ts
@@ -2131,7 +2131,7 @@ export function validateAttentionRunResult(
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/attention/run.ts
@@ -2146,7 +2146,7 @@ git commit -m "feat(attention): run orchestration with metadata-only directory a
 - Create: `src/source/fetch-boundary.ts`
 - Test: `tests/source/fetch-boundary.test.ts`
 
-- [ ] **Step 1: Write failing tests for fetch boundary credential isolation**
+- [x] **Step 1: Write failing tests for fetch boundary credential isolation**
 
 Critical invariant: **fetch env has SSH_AUTH_SOCK; materialize env does not**.
 
@@ -2220,12 +2220,12 @@ describe('buildMirrorPath', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/source/fetch-boundary.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement fetch boundary**
+- [x] **Step 3: Implement fetch boundary**
 
 ```typescript
 // src/source/fetch-boundary.ts
@@ -2285,12 +2285,12 @@ export function buildVerifyArgs(expectedSha: string, ctRef: string): string[] {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/source/fetch-boundary.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/source/fetch-boundary.ts tests/source/fetch-boundary.test.ts
@@ -2306,7 +2306,7 @@ git commit -m "feat(source): authenticated fetch boundary with SSH isolation and
 - Create: `src/source/cleanup.ts`
 - Test: `tests/source/materialize.test.ts`
 
-- [ ] **Step 1: Write failing tests for materialization environment**
+- [x] **Step 1: Write failing tests for materialization environment**
 
 Critical invariant: **materialize env has NO SSH, NO credential helper, NO network**.
 
@@ -2426,12 +2426,12 @@ describe('buildSourceManifest', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/source/materialize.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement materialization**
+- [x] **Step 3: Implement materialization**
 
 ```typescript
 // src/source/materialize.ts
@@ -2569,7 +2569,7 @@ export function worktreeSourcePath(dataDirectory: string, jobId: string): string
 }
 ```
 
-- [ ] **Step 4: Implement cleanup**
+- [x] **Step 4: Implement cleanup**
 
 ```typescript
 // src/source/cleanup.ts
@@ -2631,12 +2631,12 @@ export async function cleanupAbandonedPairs(
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run tests/source/materialize.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/source/materialize.ts src/source/cleanup.ts tests/source/materialize.test.ts
@@ -2651,7 +2651,7 @@ git commit -m "feat(source): credential-free materialization with protected-path
 - Create: `src/source/remote-evidence.ts`
 - Test: `tests/source/remote-evidence.test.ts`
 
-- [ ] **Step 1: Write failing tests for remote-evidence-only**
+- [x] **Step 1: Write failing tests for remote-evidence-only**
 
 Critical invariant: **remote-evidence-only produces no `--add-dir`, no file provenance, no mirror, no source view**.
 
@@ -2705,12 +2705,12 @@ describe('isRemoteEvidenceOnly', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/source/remote-evidence.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement remote-evidence-only path**
+- [x] **Step 3: Implement remote-evidence-only path**
 
 ```typescript
 // src/source/remote-evidence.ts
@@ -2748,12 +2748,12 @@ export function isRemoteEvidenceOnly(repo: {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/source/remote-evidence.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/source/remote-evidence.ts tests/source/remote-evidence.test.ts
@@ -2768,7 +2768,7 @@ git commit -m "feat(source): remote-evidence-only path with missing source-tree 
 - Create: `src/context/harness-manifest.ts`
 - Test: `tests/context/harness-manifest.test.ts`
 
-- [ ] **Step 1: Write failing tests for harness manifest**
+- [x] **Step 1: Write failing tests for harness manifest**
 
 Critical invariant: **manifest layers 4, 5, and 7 are empty for attention**.
 
@@ -2907,12 +2907,12 @@ describe('buildHarnessManifest', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/context/harness-manifest.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement harness manifest builder**
+- [x] **Step 3: Implement harness manifest builder**
 
 ```typescript
 // src/context/harness-manifest.ts
@@ -3065,12 +3065,12 @@ function computeManifestHash(entries: ManifestEntry[]): string {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/context/harness-manifest.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/context/harness-manifest.ts tests/context/harness-manifest.test.ts
@@ -3085,7 +3085,7 @@ git commit -m "feat(context): nine-layer harness manifest with deterministic ord
 - Create: `src/context/provenance.ts`
 - Test: `tests/context/provenance.test.ts`
 
-- [ ] **Step 1: Write failing tests for provenance catalog**
+- [x] **Step 1: Write failing tests for provenance catalog**
 
 ```typescript
 // tests/context/provenance.test.ts
@@ -3199,12 +3199,12 @@ describe('validateProvenanceRef', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/context/provenance.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement provenance catalog**
+- [x] **Step 3: Implement provenance catalog**
 
 ```typescript
 // src/context/provenance.ts
@@ -3348,12 +3348,12 @@ export function validateProvenanceRef(ref: string, catalog: Map<string, Provenan
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/context/provenance.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/context/provenance.ts tests/context/provenance.test.ts
@@ -3368,7 +3368,7 @@ git commit -m "feat(context): application-created provenance catalog with pv_ ID
 - Create: `src/context/coverage.ts`
 - Create: `src/context/prepare.ts`
 
-- [ ] **Step 1: Implement coverage object**
+- [x] **Step 1: Implement coverage object**
 
 ```typescript
 // src/context/coverage.ts
@@ -3433,7 +3433,7 @@ export function hashCoverage(coverage: CoverageObject): string {
 }
 ```
 
-- [ ] **Step 2: Implement context preparation**
+- [x] **Step 2: Implement context preparation**
 
 ```typescript
 // src/context/prepare.ts
@@ -3550,7 +3550,7 @@ export function buildContextRefs(
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/context/coverage.ts src/context/prepare.ts
@@ -3564,7 +3564,7 @@ git commit -m "feat(context): coverage builder and create-once context preparati
 **Files:**
 - Create: `src/context/seal.ts`
 
-- [ ] **Step 1: Implement run sealing**
+- [x] **Step 1: Implement run sealing**
 
 ```typescript
 // src/context/seal.ts
@@ -3621,7 +3621,7 @@ export async function isSealed(runDir: string): Promise<boolean> {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/context/seal.ts
@@ -3637,7 +3637,7 @@ git commit -m "feat(context): terminal.json seal with create-once write and recu
 - Create: `src/cursor/ndjson.ts`
 - Test: `tests/cursor/ndjson.test.ts`
 
-- [ ] **Step 1: Write failing tests for NDJSON parser**
+- [x] **Step 1: Write failing tests for NDJSON parser**
 
 Critical invariant: **model mismatch between init event and configured role fails the run**.
 
@@ -3727,12 +3727,12 @@ describe('extractResultFromTerminal', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/cursor/ndjson.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement Cursor CLI argv builder**
+- [x] **Step 3: Implement Cursor CLI argv builder**
 
 ```typescript
 // src/cursor/argv.ts
@@ -3778,7 +3778,7 @@ export function buildCursorEnvironment(homePath: string): Record<string, string>
 }
 ```
 
-- [ ] **Step 4: Implement NDJSON parser**
+- [x] **Step 4: Implement NDJSON parser**
 
 ```typescript
 // src/cursor/ndjson.ts
@@ -3886,12 +3886,12 @@ export function parseNdjsonStream(raw: string): NdjsonEvent[] {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run tests/cursor/ndjson.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/cursor/argv.ts src/cursor/ndjson.ts tests/cursor/ndjson.test.ts
@@ -3907,7 +3907,7 @@ git commit -m "feat(cursor): CLI argv builder and NDJSON stream parser with mode
 - Create: `src/cursor/pool.ts`
 - Test: `tests/cursor/adapter.fixtures.test.ts`
 
-- [ ] **Step 1: Write failing fixture tests for the adapter**
+- [x] **Step 1: Write failing fixture tests for the adapter**
 
 ```typescript
 // tests/cursor/adapter.fixtures.test.ts
@@ -3979,12 +3979,12 @@ describe('stream truncation', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/cursor/adapter.fixtures.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement adapter**
+- [x] **Step 3: Implement adapter**
 
 ```typescript
 // src/cursor/adapter.ts
@@ -4154,7 +4154,7 @@ async function collectOutput(
 }
 ```
 
-- [ ] **Step 4: Implement worker pool**
+- [x] **Step 4: Implement worker pool**
 
 ```typescript
 // src/cursor/pool.ts
@@ -4211,12 +4211,12 @@ export class WorkerPool<T> {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run tests/cursor/adapter.fixtures.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/cursor/adapter.ts src/cursor/pool.ts tests/cursor/adapter.fixtures.test.ts
@@ -4231,7 +4231,7 @@ git commit -m "feat(cursor): CLI adapter with SIGTERM/SIGKILL timeout and 1-2 wo
 - Create: `src/cursor/validate-review.ts`
 - Test: `tests/cursor/validate-review.test.ts`
 
-- [ ] **Step 1: Write failing tests for review output validation**
+- [x] **Step 1: Write failing tests for review output validation**
 
 ```typescript
 // tests/cursor/validate-review.test.ts
@@ -4415,12 +4415,12 @@ describe('validateReviewOutput', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/cursor/validate-review.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement review output validator**
+- [x] **Step 3: Implement review output validator**
 
 ```typescript
 // src/cursor/validate-review.ts
@@ -4607,12 +4607,12 @@ export function validateReviewOutput(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/cursor/validate-review.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/cursor/validate-review.ts tests/cursor/validate-review.test.ts
