@@ -740,7 +740,7 @@ git commit -m "feat(discovery): add rate limit tracker"
 - Create: `tests/fixtures/gh/pr-view-detail.json`
 - Create: `tests/github/adapter.fixtures.test.ts`
 
-- [ ] **Step 1: Create gh fixture files**
+- [x] **Step 1: Create gh fixture files**
 
 ```json
 // tests/fixtures/gh/search-review-requested.json
@@ -876,7 +876,7 @@ git commit -m "feat(discovery): add rate limit tracker"
 }
 ```
 
-- [ ] **Step 2: Write the adapter fixture tests**
+- [x] **Step 2: Write the adapter fixture tests**
 
 ```typescript
 // tests/github/adapter.fixtures.test.ts
@@ -947,12 +947,12 @@ describe('GitHubAdapter fixture parsing', () => {
 });
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `npx vitest run tests/github/adapter.fixtures.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 4: Write the adapter implementation**
+- [x] **Step 4: Write the adapter implementation**
 
 ```typescript
 // src/github/adapter.ts
@@ -1048,12 +1048,12 @@ export class GitHubAdapter {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run tests/github/adapter.fixtures.test.ts`
 Expected: all 5 tests PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/github/adapter.ts tests/github/adapter.fixtures.test.ts tests/fixtures/gh/

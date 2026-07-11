@@ -1,0 +1,55 @@
+{
+  "number": 42,
+  "title": "Refactor API client",
+  "body": "This PR refactors the API client layer.\n\nLinear: ENG-1234",
+  "url": "https://github.com/Powered-By-Array/pba-webapp/pull/42",
+  "state": "OPEN",
+  "isDraft": false,
+  "author": { "login": "bob" },
+  "headRefOid": "def456abc123def456abc123def456abc123def4",
+  "baseRefOid": "111222333444555666777888999aaabbbcccddde",
+  "headRefName": "refactor-api",
+  "baseRefName": "main",
+  "labels": [],
+  "additions": 80,
+  "deletions": 45,
+  "createdAt": "2026-07-05T08:00:00Z",
+  "updatedAt": "2026-07-09T11:00:00Z",
+  "reviewRequests": [],
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "name": "CI / build",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/runs/1"
+    }
+  ],
+  "files": [
+    { "path": "src/api-clients/base.ts", "additions": 40, "deletions": 20 },
+    { "path": "src/api-clients/auth.ts", "additions": 40, "deletions": 25 }
+  ],
+  "reviews": [
+    {
+      "author": { "login": "carol" },
+      "state": "COMMENTED",
+      "body": "Looks good overall",
+      "submittedAt": "2026-07-09T10:00:00Z"
+    }
+  ],
+  "comments": [
+    {
+      "author": { "login": "bob" },
+      "body": "Ready for review",
+      "createdAt": "2026-07-09T09:00:00Z",
+      "url": "https://github.com/Powered-By-Array/pba-webapp/pull/42#issuecomment-1"
+    }
+  ],
+  "commits": [
+    {
+      "oid": "def456abc123def456abc123def456abc123def4",
+      "messageHeadline": "refactor: extract base client",
+      "authors": [{ "login": "bob" }]
+    }
+  ]
+}
