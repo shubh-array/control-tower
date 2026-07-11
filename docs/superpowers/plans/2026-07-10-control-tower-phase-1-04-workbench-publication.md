@@ -1025,7 +1025,7 @@ git commit -m "feat(publisher): operation planner with draftSummaryUse and per-o
 - Create: `src/publisher/guards.ts`
 - Test: `tests/publisher/guards.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/publisher/guards.test.ts
@@ -1175,12 +1175,12 @@ describe("validatePublishGuards", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/publisher/guards.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement publisher guards**
+- [x] **Step 3: Implement publisher guards**
 
 ```typescript
 // src/publisher/guards.ts
@@ -1298,12 +1298,12 @@ export function validatePublishGuards(input: GuardInput): GuardResult {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/publisher/guards.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/publisher/guards.ts tests/publisher/guards.test.ts
@@ -1319,7 +1319,7 @@ git commit -m "feat(publisher): pre-publish guard validation with all spec-requi
 - Create: `src/publisher/approvals.ts`
 - Test: `tests/publisher/publish.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/publisher/publish.test.ts
@@ -1434,12 +1434,12 @@ describe("executeOperation", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/publisher/publish.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement approval store**
+- [x] **Step 3: Implement approval store**
 
 ```typescript
 // src/publisher/approvals.ts
@@ -1484,7 +1484,7 @@ export class ApprovalStore {
 }
 ```
 
-- [ ] **Step 4: Implement publisher execute**
+- [x] **Step 4: Implement publisher execute**
 
 ```typescript
 // src/publisher/publish.ts
@@ -1552,12 +1552,12 @@ export async function executeOperation(
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/publisher/publish.test.ts`
 Expected: all PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/publisher/approvals.ts src/publisher/publish.ts tests/publisher/publish.test.ts
@@ -1571,7 +1571,7 @@ git commit -m "feat(publisher): approval store with TTL + publish executor with 
 **Files:**
 - Create: `src/cli/publication.ts`
 
-- [ ] **Step 1: Implement publication enable/disable CLI**
+- [x] **Step 1: Implement publication enable/disable CLI**
 
 ```typescript
 // src/cli/publication.ts
@@ -1632,7 +1632,7 @@ export async function disablePublication(
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/cli/publication.ts
@@ -1647,7 +1647,7 @@ git commit -m "feat(cli): pnpm ct publication enable/disable commands"
 - Create: `client/src/lib/sanitize.ts`
 - Test: `tests/client/sanitize.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/client/sanitize.test.ts
@@ -1731,12 +1731,12 @@ describe("isSafeUrl", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/client/sanitize.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement sanitizer schema**
+- [x] **Step 3: Implement sanitizer schema**
 
 ```typescript
 // client/src/lib/sanitize.ts
@@ -1814,12 +1814,12 @@ export function toRehypeSanitizeSchema() {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/client/sanitize.test.ts`
 Expected: all PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add client/src/lib/sanitize.ts tests/client/sanitize.test.ts
@@ -1833,7 +1833,7 @@ git commit -m "feat(client): sanitizer schema with safe URL scheme allowlist"
 **Files:**
 - Test: `tests/client/xss.fixtures.test.ts`
 
-- [ ] **Step 1: Write XSS fixture tests**
+- [x] **Step 1: Write XSS fixture tests**
 
 ```typescript
 // tests/client/xss.fixtures.test.ts
@@ -1932,12 +1932,12 @@ describe("XSS fixtures — untrusted content never controls markup", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/client/xss.fixtures.test.ts`
 Expected: all PASS (these validate the sanitizer schema and isSafeUrl from Task 9)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/client/xss.fixtures.test.ts
