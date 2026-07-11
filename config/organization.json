@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "github": {
+    "host": "github.com",
+    "organizations": ["Powered-By-Array"],
+    "pollIntervalSeconds": 300
+  },
+  "ticketExtractors": [
+    {
+      "id": "linear-key",
+      "sources": ["title", "body", "branch"],
+      "pattern": "\\b[A-Z][A-Z0-9]+-[0-9]+\\b"
+    }
+  ],
+  "security": {
+    "protectedPaths": [
+      "**/.env",
+      "**/.env.*",
+      "**/.cursor/mcp.json",
+      "**/appsettings.secrets.json",
+      "**/appsettings.Local.json",
+      "**/*.pem",
+      "**/*.key",
+      "**/*.pfx",
+      "**/deploy.*.parameters.json",
+      "**/deploy.*.parameters.jsonc"
+    ]
+  },
+  "reviewDefaults": {
+    "jobTimeoutSeconds": 1200,
+    "retentionDays": 30,
+    "maxStorageBytes": 10737418240
+  },
+  "repositories": [
+    {
+      "id": "pba-webapp",
+      "github": "Powered-By-Array/pba-webapp",
+      "defaultBranch": "main",
+      "resourceClass": "medium"
+    },
+    {
+      "id": "pba-agents",
+      "github": "Powered-By-Array/pba-agents",
+      "defaultBranch": "main",
+      "resourceClass": "medium"
+    },
+    {
+      "id": "pba-microservices",
+      "github": "Powered-By-Array/pba-microservices",
+      "defaultBranch": "dev",
+      "resourceClass": "heavy"
+    },
+    {
+      "id": "pba-infra",
+      "github": "Powered-By-Array/pba-infra",
+      "defaultBranch": "dev",
+      "resourceClass": "light"
+    }
+  ]
+}

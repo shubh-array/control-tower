@@ -11,7 +11,7 @@ import {
 
 describe("loadOrganizationConfig", () => {
   // Task 12 provides config/organization.json
-  it.skip("loads valid organization.json", () => {
+  it("loads valid organization.json", () => {
     const cfg = loadOrganizationConfig(
       join(process.cwd(), "config/organization.json"),
     );

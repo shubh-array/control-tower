@@ -1878,7 +1878,7 @@ git commit -m "feat: add immutable layer-1 safety and output contract stubs"
 - Create: `config/harnesses/pr-review/domains/frontend.md`
 - Create: `config/harnesses/pr-review/domains/infrastructure.md`
 
-- [ ] **Step 1: Create config/organization.json**
+- [x] **Step 1: Create config/organization.json**
 
 ```json
 {
@@ -1943,7 +1943,7 @@ git commit -m "feat: add immutable layer-1 safety and output contract stubs"
 }
 ```
 
-- [ ] **Step 2: Create harness files**
+- [x] **Step 2: Create harness files**
 
 Create `config/harnesses/pr-attention/prompt.md`:
 
@@ -2067,7 +2067,7 @@ When reviewing infrastructure changes, pay special attention to:
 - Environment parity between staging and production
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add config/

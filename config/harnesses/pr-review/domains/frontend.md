@@ -1,0 +1,11 @@
+# Frontend Domain Guidance
+
+When reviewing frontend changes, assess through source, diff, test code, and CI inspection only. Do NOT execute builds, tests, browsers, or repository commands.
+
+Pay special attention to:
+- Component API changes (prop additions, removals, type changes)
+- State management patterns and potential render loops
+- Accessibility attributes and semantic HTML
+- API client changes and error boundary coverage
+- Test coverage for interactive behaviors
+- Bundle-size impact from new dependencies
