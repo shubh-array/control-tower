@@ -110,11 +110,19 @@ const DRAFT_READY_STATES = new Set([
   "publishing",
 ]);
 
-export function loadDraftDetail(
+export interface DraftBundle {
+  detail: DraftDetail;
+  operations: ExternalOperation[];
+  runInputHash: string;
+  headSha: string;
+  acceptedRunId: string;
+}
+
+export function loadDraftBundle(
   db: Database.Database,
   jobId: string,
   ctx: DraftLoadContext,
-): DraftDetail | null {
+): DraftBundle | null {
   const job = db
     .prepare(
       `SELECT id, repository_key, pr_number, head_sha, state, accepted_run_id
@@ -166,7 +174,7 @@ export function loadDraftDetail(
       ? { draftSummaryUse: "not_published", operations: [] }
       : toOperationPlanSummary(fullPlan.operations, fullPlan.draftSummaryUse);
 
-  return {
+  const detail: DraftDetail = {
     jobId,
     runId: run.id,
     summary: output.summary,
@@ -196,6 +204,22 @@ export function loadDraftDetail(
     validatedProvenance,
     operationPlan,
   };
+
+  return {
+    detail,
+    operations: fullPlan.operations,
+    runInputHash: run.run_input_hash,
+    headSha: job.head_sha,
+    acceptedRunId: run.id,
+  };
+}
+
+export function loadDraftDetail(
+  db: Database.Database,
+  jobId: string,
+  ctx: DraftLoadContext,
+): DraftDetail | null {
+  return loadDraftBundle(db, jobId, ctx)?.detail ?? null;
 }
 
 export function loadDraftOperations(
@@ -203,53 +227,11 @@ export function loadDraftOperations(
   jobId: string,
   ctx: DraftLoadContext,
 ): { operations: ExternalOperation[]; runInputHash: string; headSha: string } | null {
-  const job = db
-    .prepare(
-      `SELECT repository_key, pr_number, head_sha, state, accepted_run_id
-       FROM jobs WHERE id = ?`,
-    )
-    .get(jobId) as
-    | {
-        repository_key: string;
-        pr_number: number;
-        head_sha: string;
-        state: string;
-        accepted_run_id: string | null;
-      }
-    | undefined;
-
-  if (!job?.accepted_run_id || !DRAFT_READY_STATES.has(job.state)) {
-    return null;
-  }
-
-  const run = db
-    .prepare(`SELECT id, run_input_hash FROM runs WHERE id = ?`)
-    .get(job.accepted_run_id) as { id: string; run_input_hash: string } | undefined;
-  if (!run) return null;
-
-  const layout = computeRunDirectoryLayout(
-    ctx.dataDirectory,
-    jobId,
-    run.id,
-  );
-  const output = readJsonFile<ReviewOutput>(layout.outputPath);
-  if (!output) return null;
-
-  const planInput = buildPlanInput(output, {
-    principalLogin: ctx.principalLogin,
-    repository: resolveRepositoryDisplay(db, job.repository_key),
-    prNumber: job.pr_number,
-    headSha: job.head_sha,
-    acceptedRunId: run.id,
-    runInputHash: run.run_input_hash,
-  });
-
-  if (planInput.disposition === "needs_human") return null;
-
-  const plan = createOperationPlan(planInput);
+  const bundle = loadDraftBundle(db, jobId, ctx);
+  if (!bundle || bundle.operations.length === 0) return null;
   return {
-    operations: plan.operations,
-    runInputHash: run.run_input_hash,
-    headSha: job.head_sha,
+    operations: bundle.operations,
+    runInputHash: bundle.runInputHash,
+    headSha: bundle.headSha,
   };
 }

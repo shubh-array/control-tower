@@ -3,6 +3,7 @@ import {
   createOperationPlan,
   type PlanInput,
 } from "../../src/publisher/operation-plan.js";
+import { computeOperationHash } from "../../src/publisher/operation-hash.js";
 
 const baseDraft = {
   summaryBody: "LGTM with minor suggestions",
@@ -12,7 +13,13 @@ const baseDraft = {
     {
       title: "Unused import",
       draftComment: "Remove unused import",
-      location: { path: "src/a.ts", side: "RIGHT" as const, line: 5, startSide: null, startLine: null },
+      location: {
+        path: "src/a.ts",
+        side: "RIGHT" as const,
+        line: 5,
+        startSide: null,
+        startLine: null,
+      },
       observationProvenanceIds: ["pv_c"],
     },
   ],
@@ -122,5 +129,19 @@ describe("createOperationPlan", () => {
     const plan = createOperationPlan(baseInput);
     const keys = plan.operations.map((o) => o.idempotencyKey);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("identical PlanInput yields identical operation hashes across plans", () => {
+    const first = createOperationPlan(baseInput);
+    const second = createOperationPlan(baseInput);
+    expect(first.operations.length).toBe(second.operations.length);
+    for (let i = 0; i < first.operations.length; i++) {
+      expect(computeOperationHash(first.operations[i]!)).toBe(
+        computeOperationHash(second.operations[i]!),
+      );
+      expect(first.operations[i]!.idempotencyKey).toBe(
+        second.operations[i]!.idempotencyKey,
+      );
+    }
   });
 });

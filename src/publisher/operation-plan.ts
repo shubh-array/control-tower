@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import type {
   ExternalOperation,
   DraftSummaryUse,
@@ -38,8 +38,50 @@ export interface OperationPlan {
   operations: ExternalOperation[];
 }
 
-function makeIdempotencyKey(prefix: string): string {
-  return `${prefix}-${randomBytes(16).toString("hex")}`;
+function serializeTarget(target: InlineTarget | null): string {
+  return target
+    ? `${target.path}:${target.side}:${target.line}:${target.startSide ?? "null"}:${target.startLine ?? "null"}`
+    : "null";
+}
+
+function makeIdempotencyKey(
+  prefix: string,
+  fields: {
+    type: string;
+    event: string | null;
+    principalLogin: string;
+    repository: string;
+    prNumber: number;
+    target: InlineTarget | null;
+    bodyHash: string | null;
+    disposition: string;
+    draftSummaryUse: string;
+    summaryBodyHash: string | null;
+    headSha: string;
+    acceptedRunId: string;
+    runInputHash: string;
+    coverageHash: string;
+  },
+): string {
+  const parts = [
+    prefix,
+    fields.type,
+    fields.event ?? "null",
+    fields.principalLogin,
+    fields.repository,
+    String(fields.prNumber),
+    serializeTarget(fields.target),
+    fields.bodyHash ?? "null",
+    fields.disposition,
+    fields.draftSummaryUse,
+    fields.summaryBodyHash ?? "null",
+    fields.headSha,
+    fields.acceptedRunId,
+    fields.runInputHash,
+    fields.coverageHash,
+  ];
+  const hash = createHash("sha256").update(parts.join("\n")).digest("hex");
+  return `${prefix}-${hash}`;
 }
 
 function buildCommon(
@@ -61,17 +103,36 @@ function buildInlineOps(
   input: PlanInput,
   common: ReturnType<typeof buildCommon>,
 ): ExternalOperation[] {
-  return input.draft.findings.map((f) => ({
-    ...common,
-    type: "inline_comment" as const,
-    event: null,
-    target: f.location,
-    bodyHash: createHash("sha256").update(f.draftComment).digest("hex"),
-    provenanceIds: f.observationProvenanceIds,
-    idempotencyKey: makeIdempotencyKey("inline"),
-    draftSummaryUse: "not_published" as const,
-    summaryBodyHash: null,
-  }));
+  return input.draft.findings.map((f) => {
+    const bodyHash = createHash("sha256").update(f.draftComment).digest("hex");
+    const draftSummaryUse = "not_published" as const;
+    return {
+      ...common,
+      type: "inline_comment" as const,
+      event: null,
+      target: f.location,
+      bodyHash,
+      provenanceIds: f.observationProvenanceIds,
+      idempotencyKey: makeIdempotencyKey("inline", {
+        type: "inline_comment",
+        event: null,
+        principalLogin: common.principalLogin,
+        repository: common.repository,
+        prNumber: common.prNumber,
+        target: f.location,
+        bodyHash,
+        disposition: common.disposition,
+        draftSummaryUse,
+        summaryBodyHash: null,
+        headSha: common.headSha,
+        acceptedRunId: common.acceptedRunId,
+        runInputHash: common.runInputHash,
+        coverageHash: common.coverageHash,
+      }),
+      draftSummaryUse,
+      summaryBodyHash: null,
+    };
+  });
 }
 
 export function createOperationPlan(input: PlanInput): OperationPlan {
@@ -90,6 +151,7 @@ export function createOperationPlan(input: PlanInput): OperationPlan {
         ? ("comment_review" as const)
         : ("request_changes_review" as const);
 
+    const draftSummaryUse = "review_body" as const;
     ops.push({
       ...common,
       type: reviewType,
@@ -97,8 +159,23 @@ export function createOperationPlan(input: PlanInput): OperationPlan {
       target: null,
       bodyHash: input.draft.summaryBodyHash,
       provenanceIds: input.draft.summaryProvenanceIds,
-      idempotencyKey: makeIdempotencyKey("review"),
-      draftSummaryUse: "review_body",
+      idempotencyKey: makeIdempotencyKey("review", {
+        type: reviewType,
+        event,
+        principalLogin: common.principalLogin,
+        repository: common.repository,
+        prNumber: common.prNumber,
+        target: null,
+        bodyHash: input.draft.summaryBodyHash,
+        disposition: common.disposition,
+        draftSummaryUse,
+        summaryBodyHash: input.draft.summaryBodyHash,
+        headSha: common.headSha,
+        acceptedRunId: common.acceptedRunId,
+        runInputHash: common.runInputHash,
+        coverageHash: common.coverageHash,
+      }),
+      draftSummaryUse,
       summaryBodyHash: input.draft.summaryBodyHash,
     });
 
@@ -120,7 +197,22 @@ export function createOperationPlan(input: PlanInput): OperationPlan {
     target: null,
     bodyHash: null,
     provenanceIds: [],
-    idempotencyKey: makeIdempotencyKey("approve"),
+    idempotencyKey: makeIdempotencyKey("approve", {
+      type: "approve_review",
+      event: "APPROVE",
+      principalLogin: common.principalLogin,
+      repository: common.repository,
+      prNumber: common.prNumber,
+      target: null,
+      bodyHash: null,
+      disposition: common.disposition,
+      draftSummaryUse: summaryUse,
+      summaryBodyHash: publishSummary ? input.draft.summaryBodyHash : null,
+      headSha: common.headSha,
+      acceptedRunId: common.acceptedRunId,
+      runInputHash: common.runInputHash,
+      coverageHash: common.coverageHash,
+    }),
     draftSummaryUse: summaryUse,
     summaryBodyHash: publishSummary ? input.draft.summaryBodyHash : null,
   });
@@ -133,7 +225,22 @@ export function createOperationPlan(input: PlanInput): OperationPlan {
       target: null,
       bodyHash: input.draft.summaryBodyHash,
       provenanceIds: input.draft.summaryProvenanceIds,
-      idempotencyKey: makeIdempotencyKey("summary"),
+      idempotencyKey: makeIdempotencyKey("summary", {
+        type: "summary_comment",
+        event: null,
+        principalLogin: common.principalLogin,
+        repository: common.repository,
+        prNumber: common.prNumber,
+        target: null,
+        bodyHash: input.draft.summaryBodyHash,
+        disposition: common.disposition,
+        draftSummaryUse: summaryUse,
+        summaryBodyHash: input.draft.summaryBodyHash,
+        headSha: common.headSha,
+        acceptedRunId: common.acceptedRunId,
+        runInputHash: common.runInputHash,
+        coverageHash: common.coverageHash,
+      }),
       draftSummaryUse: summaryUse,
       summaryBodyHash: input.draft.summaryBodyHash,
     });

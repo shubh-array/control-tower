@@ -35,7 +35,7 @@ import { GuardInputStore } from "../publisher/guard-store.js";
 import { PublisherService } from "../publisher/publisher-service.js";
 import { createGhPublishAdapter } from "../github/gh-publish-adapter.js";
 import { registerDraftOperations } from "../publisher/register-draft.js";
-import { loadDraftDetail, loadDraftOperations } from "../orchestrator/draft-loader.js";
+import { loadDraftBundle } from "../orchestrator/draft-loader.js";
 import { loadJobDetail } from "../api/projections/job.js";
 import {
   projectAllTracked,
@@ -167,25 +167,20 @@ function buildFacadeDeps(
     principalLogin: context.configuredOperator,
   };
 
-  const registerOpsForJob = (jobId: string) => {
-    const loaded = loadDraftOperations(db, jobId, draftCtx);
-    if (!loaded) return;
-    const job = db
-      .prepare(`SELECT accepted_run_id FROM jobs WHERE id = ?`)
-      .get(jobId) as { accepted_run_id: string } | undefined;
-    if (!job?.accepted_run_id) return;
+  const registerOpsFromBundle = (bundle: NonNullable<ReturnType<typeof loadDraftBundle>>) => {
+    if (bundle.operations.length === 0) return;
     registerDraftOperations(
       context.guardStore,
       context.publisher,
-      loaded.operations,
+      bundle.operations,
       {
         publicationMode: context.publicationMode,
         authenticatedLogin: context.authenticatedLogin,
         configuredOperator: context.configuredOperator,
-        currentHeadSha: loaded.headSha,
-        reviewedHeadSha: loaded.headSha,
-        acceptedRunId: job.accepted_run_id,
-        approvedRunInputHash: loaded.runInputHash,
+        currentHeadSha: bundle.headSha,
+        reviewedHeadSha: bundle.headSha,
+        acceptedRunId: bundle.acceptedRunId,
+        approvedRunInputHash: bundle.runInputHash,
       },
     );
   };
@@ -195,11 +190,10 @@ function buildFacadeDeps(
     getFocusQueue: () => workGraph.getFocusQueue(),
     getJob: (id: string) => loadJobDetail(db, id),
     getDraft: (jobId: string) => {
-      const draft = loadDraftDetail(db, jobId, draftCtx);
-      if (draft) {
-        registerOpsForJob(jobId);
-      }
-      return draft;
+      const bundle = loadDraftBundle(db, jobId, draftCtx);
+      if (!bundle) return null;
+      registerOpsFromBundle(bundle);
+      return bundle.detail;
     },
     getAuditTrail: (jobId: string) => {
       const rows = db
