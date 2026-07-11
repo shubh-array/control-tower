@@ -746,7 +746,7 @@ git commit -m "feat: implement CanonicalPathMatcher with content-hashed compilat
 **Files:**
 - Create: `tests/paths/matcher.test.ts`
 
-- [ ] **Step 1: Write the test file**
+- [x] **Step 1: Write the test file**
 
 Create `tests/paths/matcher.test.ts`:
 
@@ -1036,12 +1036,12 @@ describe("CanonicalPathMatcher", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `pnpm test tests/paths/matcher.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/paths/matcher.test.ts
