@@ -1,12 +1,19 @@
-import type { GhExecOptions } from "./gh-process.js";
+import {
+  execGhStdoutStream,
+  GhProcessError,
+  type GhExecOptions,
+} from "./gh-process.js";
+import { StreamingDiffFilter } from "./diff-filter.js";
 import type {
+  DiffFilterResult,
   GhPrListItem,
   GhPrViewResult,
   GhSearchPrItem,
 } from "./types.js";
 
 type ExecGhJsonFn = <T>(args: string[], options: GhExecOptions) => Promise<T>;
-type ExecGhTextFn = (args: string[], options: GhExecOptions) => Promise<string>;
+type CanonicalizeFn = (rawPath: string) => string | null;
+type IsProtectedFn = (canonicalPath: string) => boolean;
 
 const SEARCH_PR_FIELDS = [
   "number",
@@ -59,7 +66,6 @@ export class GitHubAdapter {
   constructor(
     private readonly host: string,
     private readonly execJson: ExecGhJsonFn,
-    private readonly execText: ExecGhTextFn,
   ) {}
 
   private opts(): GhExecOptions {
@@ -124,10 +130,36 @@ export class GitHubAdapter {
     );
   }
 
-  async getPrDiff(ownerRepo: string, prNumber: number): Promise<string> {
-    return this.execText(
+  async getFilteredPrDiff(
+    ownerRepo: string,
+    prNumber: number,
+    canonicalize: CanonicalizeFn,
+    isProtected: IsProtectedFn,
+  ): Promise<DiffFilterResult> {
+    const filter = new StreamingDiffFilter(canonicalize, isProtected);
+    const exitCode = await execGhStdoutStream(
       ["pr", "diff", String(prNumber), "--repo", ownerRepo],
       this.opts(),
+      (chunk) => filter.pushChunk(chunk),
+    );
+
+    if (exitCode !== 0) {
+      throw new GhProcessError(
+        ["pr", "diff", String(prNumber), "--repo", ownerRepo],
+        exitCode,
+        `gh exited with code ${exitCode}`,
+      );
+    }
+
+    return filter.finish();
+  }
+
+  /**
+   * @deprecated Use getFilteredPrDiff to avoid buffering protected diff content.
+   */
+  async getPrDiff(_ownerRepo: string, _prNumber: number): Promise<string> {
+    throw new Error(
+      "getPrDiff is deprecated: use getFilteredPrDiff to avoid buffering protected diff content",
     );
   }
 }

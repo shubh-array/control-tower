@@ -22,23 +22,42 @@ export class GhProcessError extends Error {
   }
 }
 
-export async function execGh(
+function spawnGh(
   args: string[],
   options: GhExecOptions,
-): Promise<GhExecResult> {
+): ReturnType<typeof spawn> {
   const env = buildGhEnv(process.env as Record<string, string | undefined>, {
     host: options.host,
   });
 
-  return new Promise<GhExecResult>((resolve, reject) => {
-    const proc = spawn("gh", args, {
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+  const proc = spawn("gh", args, {
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
-    let stdout = "";
-    proc.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf-8");
+  proc.stderr.on("data", () => {
+    // Discard stderr chunks to avoid pipe stall without retaining content.
+  });
+
+  return proc;
+}
+
+export async function execGh(
+  args: string[],
+  options: GhExecOptions,
+): Promise<GhExecResult> {
+  return new Promise<GhExecResult>((resolve, reject) => {
+    const proc = spawnGh(args, options);
+
+    const stdoutStream = proc.stdout;
+    if (!stdoutStream) {
+      reject(new Error("gh stdout stream unavailable"));
+      return;
+    }
+
+    let output = "";
+    stdoutStream.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf-8");
     });
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -52,7 +71,48 @@ export async function execGh(
       if (timer) {
         clearTimeout(timer);
       }
-      resolve({ stdout, exitCode: code ?? 1 });
+      resolve({ stdout: output, exitCode: code ?? 1 });
+    });
+
+    proc.on("error", (err) => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      reject(err);
+    });
+  });
+}
+
+export async function execGhStdoutStream(
+  args: string[],
+  options: GhExecOptions,
+  onStdoutChunk: (chunk: string) => void,
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const proc = spawnGh(args, options);
+
+    const stdoutStream = proc.stdout;
+    if (!stdoutStream) {
+      reject(new Error("gh stdout stream unavailable"));
+      return;
+    }
+
+    stdoutStream.on("data", (chunk: Buffer) => {
+      onStdoutChunk(chunk.toString("utf-8"));
+    });
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (options.timeoutMs) {
+      timer = setTimeout(() => {
+        proc.kill("SIGTERM");
+      }, options.timeoutMs);
+    }
+
+    proc.on("close", (code) => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      resolve(code ?? 1);
     });
 
     proc.on("error", (err) => {

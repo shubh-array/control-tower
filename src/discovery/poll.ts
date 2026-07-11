@@ -19,11 +19,28 @@ export interface DiscoveryDeps {
     repositoryId: string,
     explicitRequest: boolean,
   ) => DiscoveredPr;
+  upsertRepository: (repo: {
+    id: string;
+    github: string;
+    host: string;
+    defaultBranch?: string;
+    resourceClass?: string;
+  }) => void;
   upsertPr: (pr: DiscoveredPr) => number;
   evaluatePolicy: (pr: DiscoveredPr) => PolicyDecision;
+  persistDecision?: (
+    prId: number,
+    pr: DiscoveredPr,
+    decision: PolicyDecision,
+  ) => void;
   checkpoint: {
     getLastPollTime: (host: string) => string | null;
     setLastPollTime: (host: string) => void;
+  };
+  /** Production should wrap with ResilientPoller or pass rateLimit here. */
+  rateLimit?: {
+    isAvailable: () => boolean;
+    refresh?: () => Promise<void>;
   };
   config: {
     host: string;
@@ -41,6 +58,14 @@ export interface PollResult {
   discoveredCount: number;
   host: HostHealth | null;
   decisions: Array<{ prId: number; decision: PolicyDecision }>;
+}
+
+interface SeenEntry {
+  raw: unknown;
+  repositoryId: string;
+  github: string;
+  explicitRequest: boolean;
+  prNumber: number;
 }
 
 export class DiscoveryPoller {
@@ -61,10 +86,22 @@ export class DiscoveryPoller {
       };
     }
 
-    const seen = new Map<
-      string,
-      { raw: unknown; repositoryId: string; explicitRequest: boolean }
-    >();
+    if (this.deps.rateLimit && !this.deps.rateLimit.isAvailable()) {
+      if (this.deps.rateLimit.refresh) {
+        await this.deps.rateLimit.refresh();
+      }
+      if (!this.deps.rateLimit.isAvailable()) {
+        return {
+          skipped: true,
+          reason: "GitHub rate limit exhausted — skipping discovery poll",
+          discoveredCount: 0,
+          host: health,
+          decisions: [],
+        };
+      }
+    }
+
+    const seen = new Map<string, SeenEntry>();
 
     const explicitResults = await this.deps.searchReviewRequested(
       this.deps.config.operatorLogin,
@@ -79,7 +116,13 @@ export class DiscoveryPoller {
       const repoId =
         repoConfig?.id ??
         `github:${this.deps.config.host}/${pr.repository.nameWithOwner}`;
-      seen.set(key, { raw: pr, repositoryId: repoId, explicitRequest: true });
+      seen.set(key, {
+        raw: pr,
+        repositoryId: repoId,
+        github: pr.repository.nameWithOwner,
+        explicitRequest: true,
+        prNumber: pr.number,
+      });
     }
 
     for (const repo of this.deps.config.repositories) {
@@ -94,7 +137,9 @@ export class DiscoveryPoller {
           seen.set(key, {
             raw: pr,
             repositoryId: repo.id,
+            github: repo.github,
             explicitRequest: false,
+            prNumber: pr.number,
           });
         }
       }
@@ -103,8 +148,20 @@ export class DiscoveryPoller {
     const decisions: Array<{ prId: number; decision: PolicyDecision }> = [];
 
     for (const [, entry] of seen) {
+      this.deps.upsertRepository({
+        id: entry.repositoryId,
+        github: entry.github,
+        host: this.deps.config.host,
+      });
+
+      let raw = entry.raw;
+      const enriched = await this.deps.enrichPr(entry.github, entry.prNumber);
+      if (enriched !== null) {
+        raw = enriched;
+      }
+
       const discovered = this.deps.normalizePr(
-        entry.raw,
+        raw,
         entry.repositoryId,
         entry.explicitRequest,
       );
@@ -112,6 +169,10 @@ export class DiscoveryPoller {
       const prId = this.deps.upsertPr(discovered);
       const decision = this.deps.evaluatePolicy(discovered);
       decisions.push({ prId, decision });
+
+      if (this.deps.persistDecision) {
+        this.deps.persistDecision(prId, discovered, decision);
+      }
     }
 
     this.deps.checkpoint.setLastPollTime(this.deps.config.host);

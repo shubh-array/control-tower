@@ -12,17 +12,20 @@ vi.mock("node:child_process", () => ({
 import {
   GhProcessError,
   execGhJson,
+  execGhStdoutStream,
   execGhText,
 } from "../../src/github/gh-process.js";
 
 interface MockProcess extends EventEmitter {
   stdout: EventEmitter;
+  stderr: EventEmitter;
   kill: ReturnType<typeof vi.fn>;
 }
 
 function createMockProcess(): MockProcess {
   const proc = new EventEmitter() as MockProcess;
   proc.stdout = new EventEmitter();
+  proc.stderr = new EventEmitter();
   proc.kill = vi.fn();
   return proc;
 }
@@ -54,6 +57,41 @@ describe("gh-process", () => {
         stdio: ["ignore", "pipe", "pipe"],
       }),
     );
+  });
+
+  it("drains stderr without retaining to avoid pipe stall", async () => {
+    const proc = createMockProcess();
+    spawnMock.mockReturnValue(proc);
+
+    const promise = execGhText(["api", "user"], { host: "github.com" });
+
+    proc.stderr.emit("data", Buffer.from("warning: something\n"));
+    proc.stderr.emit("data", Buffer.from("more stderr output\n"));
+    proc.stdout.emit("data", Buffer.from("ok\n"));
+    proc.emit("close", 0);
+
+    await expect(promise).resolves.toBe("ok");
+  });
+
+  it("streams stdout chunks via execGhStdoutStream without buffering full output", async () => {
+    const proc = createMockProcess();
+    spawnMock.mockReturnValue(proc);
+
+    const chunks: string[] = [];
+    const promise = execGhStdoutStream(
+      ["pr", "diff", "1"],
+      { host: "github.com" },
+      (chunk) => chunks.push(chunk),
+    );
+
+    proc.stdout.emit("data", Buffer.from("diff --git "));
+    proc.stdout.emit("data", Buffer.from("a/foo b/foo\n"));
+    proc.stderr.emit("data", Buffer.from("stderr discarded\n"));
+    proc.emit("close", 0);
+
+    const exitCode = await promise;
+    expect(exitCode).toBe(0);
+    expect(chunks).toEqual(["diff --git ", "a/foo b/foo\n"]);
   });
 
   it("throws GhProcessError when gh exits non-zero", async () => {

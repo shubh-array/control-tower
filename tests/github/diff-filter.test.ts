@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { filterDiff } from "../../src/github/diff-filter.js";
+import {
+  StreamingDiffFilter,
+  filterDiff,
+} from "../../src/github/diff-filter.js";
 
 function loadDiff(name: string): string {
   return readFileSync(new URL(`../fixtures/diffs/${name}`, import.meta.url), "utf-8");
@@ -118,5 +121,35 @@ describe("filterDiff", () => {
     expect(result.failed).toBe(false);
     expect(result.files).toHaveLength(0);
     expect(result.omitted).toHaveLength(0);
+  });
+});
+
+describe("StreamingDiffFilter", () => {
+  it("matches filterDiff results when fed line-by-line", () => {
+    const diff = loadDiff("mixed.diff");
+    const batch = filterDiff(diff, stubCanonicalize, stubIsProtected);
+
+    const stream = new StreamingDiffFilter(stubCanonicalize, stubIsProtected);
+    for (const line of diff.split("\n")) {
+      stream.pushLine(line);
+    }
+    const streamed = stream.finish();
+
+    expect(streamed).toEqual(batch);
+  });
+
+  it("does not retain protected patch content across file blocks", () => {
+    const diff = loadDiff("protected-env.diff");
+    const stream = new StreamingDiffFilter(stubCanonicalize, stubIsProtected);
+
+    for (const line of diff.split("\n")) {
+      stream.pushLine(line);
+    }
+    const result = stream.finish();
+
+    expect(result.failed).toBe(false);
+    expect(result.files).toHaveLength(0);
+    expect(result.omitted).toHaveLength(1);
+    expect(result.omitted[0]?.path).toBe(".env");
   });
 });

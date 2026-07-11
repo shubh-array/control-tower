@@ -11,7 +11,7 @@ describe("GitHubAdapter fixture parsing", () => {
   it("parses search-review-requested fixture", async () => {
     const fixture = loadFixture("search-review-requested.json");
     const mockExec = vi.fn().mockResolvedValue(fixture);
-    const adapter = new GitHubAdapter("github.com", mockExec, vi.fn());
+    const adapter = new GitHubAdapter("github.com", mockExec);
 
     const results = await adapter.searchReviewRequested("shubh-array", [
       "Powered-By-Array",
@@ -29,7 +29,7 @@ describe("GitHubAdapter fixture parsing", () => {
 
   it("passes exact login to --review-requested, never @me", async () => {
     const mockExec = vi.fn().mockResolvedValue([]);
-    const adapter = new GitHubAdapter("github.com", mockExec, vi.fn());
+    const adapter = new GitHubAdapter("github.com", mockExec);
 
     await adapter.searchReviewRequested("shubh-array", ["Powered-By-Array"]);
 
@@ -44,7 +44,7 @@ describe("GitHubAdapter fixture parsing", () => {
   it("parses pr-list-repo fixture", async () => {
     const fixture = loadFixture("pr-list-repo.json");
     const mockExec = vi.fn().mockResolvedValue(fixture);
-    const adapter = new GitHubAdapter("github.com", mockExec, vi.fn());
+    const adapter = new GitHubAdapter("github.com", mockExec);
 
     const results = await adapter.listRepoPrs("Powered-By-Array/pba-webapp");
 
@@ -60,7 +60,7 @@ describe("GitHubAdapter fixture parsing", () => {
   it("parses pr-view-detail fixture", async () => {
     const fixture = loadFixture("pr-view-detail.json");
     const mockExec = vi.fn().mockResolvedValue(fixture);
-    const adapter = new GitHubAdapter("github.com", mockExec, vi.fn());
+    const adapter = new GitHubAdapter("github.com", mockExec);
 
     const result = await adapter.viewPr("Powered-By-Array/pba-webapp", 42);
 
@@ -72,7 +72,7 @@ describe("GitHubAdapter fixture parsing", () => {
 
   it("sets GH_HOST via options for all commands", async () => {
     const mockExec = vi.fn().mockResolvedValue([]);
-    const adapter = new GitHubAdapter("github.example.com", mockExec, vi.fn());
+    const adapter = new GitHubAdapter("github.example.com", mockExec);
 
     await adapter.searchReviewRequested("user", ["org"]);
 

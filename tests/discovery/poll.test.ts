@@ -51,6 +51,7 @@ function makeDeps(overrides?: Partial<DiscoveryDeps>): DiscoveryDeps {
       comments: [],
       explicitRequest: false,
     } satisfies DiscoveredPr),
+    upsertRepository: vi.fn(),
     upsertPr: vi.fn().mockReturnValue(1),
     evaluatePolicy: vi.fn().mockReturnValue({
       eligible: true,
@@ -161,5 +162,100 @@ describe("DiscoveryPoller", () => {
     await poller.poll();
 
     expect(deps.upsertPr).toHaveBeenCalledOnce();
+  });
+
+  it("upserts repository before PR for FK safety", async () => {
+    const prItem = {
+      number: 42,
+      repository: { nameWithOwner: "Powered-By-Array/pba-webapp" },
+    };
+    const deps = makeDeps({
+      searchReviewRequested: vi.fn().mockResolvedValue([prItem]),
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    await poller.poll();
+
+    expect(deps.upsertRepository).toHaveBeenCalledWith({
+      id: "pba-webapp",
+      github: "Powered-By-Array/pba-webapp",
+      host: "github.com",
+    });
+    expect(deps.upsertRepository).toHaveBeenCalledBefore(
+      deps.upsertPr as ReturnType<typeof vi.fn>,
+    );
+  });
+
+  it("skips polling when rate limit is exhausted", async () => {
+    const deps = makeDeps({
+      rateLimit: {
+        isAvailable: vi.fn().mockReturnValue(false),
+      },
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    const result = await poller.poll();
+
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toMatch(/rate.?limit/i);
+    expect(deps.searchReviewRequested).not.toHaveBeenCalled();
+    expect(deps.listRepoPrs).not.toHaveBeenCalled();
+  });
+
+  it("calls enrichPr before normalize when enrich returns data", async () => {
+    const prItem = {
+      number: 42,
+      repository: { nameWithOwner: "Powered-By-Array/pba-webapp" },
+    };
+    const enriched = { ...prItem, title: "Enriched" };
+    const deps = makeDeps({
+      searchReviewRequested: vi.fn().mockResolvedValue([prItem]),
+      enrichPr: vi.fn().mockResolvedValue(enriched),
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    await poller.poll();
+
+    expect(deps.enrichPr).toHaveBeenCalledWith(
+      "Powered-By-Array/pba-webapp",
+      42,
+    );
+    expect(deps.normalizePr).toHaveBeenCalledWith(
+      enriched,
+      "pba-webapp",
+      true,
+    );
+  });
+
+  it("calls persistDecision when provided", async () => {
+    const prItem = {
+      number: 42,
+      repository: { nameWithOwner: "Powered-By-Array/pba-webapp" },
+    };
+    const decision = {
+      eligible: true,
+      eligibilityReasons: [],
+      exclusionReasons: [],
+      authorOnly: false,
+      priorityStatus: "p3" as const,
+      prioritySortOrdinal: 3,
+      priorityReasons: [],
+      allPriorityReasons: [],
+      selectedPriorityReason: null,
+      analysisMode: "on_demand" as const,
+      autoAnalyzeReasons: [],
+      selectedDomains: [],
+      allDomainReasons: [],
+    };
+    const deps = makeDeps({
+      searchReviewRequested: vi.fn().mockResolvedValue([prItem]),
+      evaluatePolicy: vi.fn().mockReturnValue(decision),
+      persistDecision: vi.fn(),
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    await poller.poll();
+
+    expect(deps.persistDecision).toHaveBeenCalledWith(1, expect.any(Object), decision);
   });
 });

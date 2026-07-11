@@ -1,6 +1,12 @@
 import type { HostHealth, GhSearchPrItem, GhPrListItem } from "../github/types.js";
 import type { RateLimitTracker } from "../github/rate-limit.js";
 import type { GhExecOptions } from "../github/gh-process.js";
+import {
+  DiscoveryPoller,
+  type DiscoveryDeps,
+} from "./poll.js";
+import type { PolicyDecision } from "../policy/evaluate.js";
+import { toDiscoveredPr } from "../normalize/from-gh.js";
 
 type ExecGhJsonFn = <T>(args: string[], options: GhExecOptions) => Promise<T>;
 
@@ -30,6 +36,13 @@ export interface ResilientPollDeps {
     orgs: string[],
   ) => Promise<GhSearchPrItem[]>;
   listRepoPrs: (ownerRepo: string) => Promise<GhPrListItem[]>;
+  upsertRepository: (repo: {
+    id: string;
+    github: string;
+    host: string;
+    defaultBranch?: string;
+    resourceClass?: string;
+  }) => void;
   upsertPr: (
     raw: unknown,
     repositoryId: string,
@@ -81,8 +94,11 @@ function isRateLimitError(err: unknown): boolean {
 
 export class ResilientPoller {
   private failureAttempt = 0;
+  private readonly discoveryPoller: DiscoveryPoller;
 
-  constructor(private readonly deps: ResilientPollDeps) {}
+  constructor(private readonly deps: ResilientPollDeps) {
+    this.discoveryPoller = new DiscoveryPoller(this.buildDiscoveryDeps());
+  }
 
   async poll(): Promise<PollResult> {
     const knownPrCount = this.deps.countKnownPrs();
@@ -116,50 +132,19 @@ export class ResilientPoller {
     }
 
     try {
-      const seen = new Map<
-        string,
-        { raw: unknown; repositoryId: string; explicitRequest: boolean }
-      >();
-
-      const explicit = await this.deps.searchReviewRequested(
-        this.deps.config.operatorLogin,
-        this.deps.config.organizations,
-      );
-      for (const pr of explicit) {
-        const key = `${pr.repository.nameWithOwner}#${pr.number}`;
-        const repo = this.deps.config.repositories.find(
-          (r) => r.github === pr.repository.nameWithOwner,
-        );
-        const repositoryId =
-          repo?.id ??
-          `github:${this.deps.config.host}/${pr.repository.nameWithOwner}`;
-        seen.set(key, { raw: pr, repositoryId, explicitRequest: true });
-      }
-
-      for (const repo of this.deps.config.repositories) {
-        if (!this.deps.config.activeRepositoryIds.includes(repo.id)) {
-          continue;
+      const discoveryResult = await this.discoveryPoller.poll();
+      if (discoveryResult.skipped) {
+        if (discoveryResult.reason?.match(/rate.?limit/i)) {
+          this.backoffAndSchedule();
         }
-        const prs = await this.deps.listRepoPrs(repo.github);
-        for (const pr of prs) {
-          const key = `${repo.github}#${pr.number}`;
-          if (!seen.has(key)) {
-            seen.set(key, {
-              raw: pr,
-              repositoryId: repo.id,
-              explicitRequest: false,
-            });
-          }
-        }
-      }
-
-      for (const [, entry] of seen) {
-        const prId = this.deps.upsertPr(
-          entry.raw,
-          entry.repositoryId,
-          entry.explicitRequest,
-        );
-        this.deps.evaluateAndEnqueue(prId, entry.raw, entry.explicitRequest);
+        return {
+          coverageComplete: false,
+          freshnessAt: lastFreshness,
+          hostHealthy: discoveryResult.host?.healthy ?? true,
+          knownPrCount,
+          discoveredCount: 0,
+          reason: discoveryResult.reason,
+        };
       }
 
       const now = new Date().toISOString();
@@ -171,7 +156,7 @@ export class ResilientPoller {
         freshnessAt: now,
         hostHealthy: true,
         knownPrCount: this.deps.countKnownPrs(),
-        discoveredCount: seen.size,
+        discoveredCount: discoveryResult.discoveredCount,
       };
     } catch (err) {
       if (isRateLimitError(err) && this.deps.execGhJson) {
@@ -193,6 +178,66 @@ export class ResilientPoller {
             : "GitHub unavailable — preserving last-known state",
       };
     }
+  }
+
+  private buildDiscoveryDeps(): DiscoveryDeps {
+    return {
+      verifyIdentity: async () => {
+        const health = await this.deps.verifyIdentity();
+        return health;
+      },
+      searchReviewRequested: this.deps.searchReviewRequested,
+      listRepoPrs: this.deps.listRepoPrs,
+      enrichPr: async () => null,
+      normalizePr: (raw, repositoryId, explicitRequest) =>
+        toDiscoveredPr(
+          raw as GhSearchPrItem | GhPrListItem,
+          repositoryId,
+          explicitRequest,
+        ),
+      upsertRepository: this.deps.upsertRepository,
+      upsertPr: (discovered) => {
+        const prId = this.deps.upsertPr(
+          discovered,
+          discovered.repositoryId,
+          discovered.explicitRequest,
+        );
+        this.deps.evaluateAndEnqueue(
+          prId,
+          discovered,
+          discovered.explicitRequest,
+        );
+        return prId;
+      },
+      evaluatePolicy: () => ({}) as PolicyDecision,
+      checkpoint: {
+        getLastPollTime: this.deps.getFreshnessAt,
+        setLastPollTime: (host) => {
+          this.deps.setFreshnessAt(host, new Date().toISOString());
+        },
+      },
+      rateLimit: {
+        isAvailable: () =>
+          this.deps.rateLimits.isAvailable("search") &&
+          this.deps.rateLimits.isAvailable("core"),
+        refresh: this.deps.execGhJson
+          ? async () => {
+              await this.deps.rateLimits.refresh(
+                this.deps.config.host,
+                this.deps.execGhJson!,
+              );
+            }
+          : undefined,
+      },
+      config: {
+        host: this.deps.config.host,
+        organizations: this.deps.config.organizations,
+        operatorLogin: this.deps.config.operatorLogin,
+        activeRepositoryIds: this.deps.config.activeRepositoryIds,
+        repositories: this.deps.config.repositories,
+        pollIntervalSeconds: 300,
+      },
+    };
   }
 
   private backoffAndSchedule(): void {
