@@ -4889,7 +4889,7 @@ describe('WorkGraph', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (module not found)**
+- [x] **Step 2: Run tests — expect FAIL (module not found)**
 
 Run: `npx vitest run tests/orchestrator/work-graph.test.ts`
 Expected: FAIL — Cannot find module
@@ -5012,12 +5012,12 @@ export class WorkGraph {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `npx vitest run tests/orchestrator/work-graph.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/work-graph.ts tests/orchestrator/work-graph.test.ts
@@ -5032,7 +5032,7 @@ git commit -m "feat(orchestrator): work graph with getAllTracked and getFocusQue
 - Create: `src/orchestrator/enqueue.ts`
 - Test: `tests/orchestrator/enqueue.test.ts`
 
-- [ ] **Step 1: Write failing tests for job enqueue logic**
+- [x] **Step 1: Write failing tests for job enqueue logic**
 
 Critical invariants: auto-enqueues when `analysisMode === 'auto'`; author-only does not enqueue unless `analysisMode` already reflects an independent priority rule; head SHA / policy_hash / sourceMode change supersedes old job.
 
@@ -5260,12 +5260,12 @@ describe('enqueueFromPolicyDecision', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (module not found)**
+- [x] **Step 2: Run tests — expect FAIL (module not found)**
 
 Run: `npx vitest run tests/orchestrator/enqueue.test.ts`
 Expected: FAIL — Cannot find module
 
-- [ ] **Step 3: Implement enqueue logic**
+- [x] **Step 3: Implement enqueue logic**
 
 ```typescript
 // src/orchestrator/enqueue.ts
