@@ -86,7 +86,7 @@ tests/cli/init.test.ts                # init command tests (§8.2)
 - Create: `tsconfig.build.json`
 - Create: `vitest.config.ts`
 
-- [ ] **Step 1: Create package.json**
+- [x] **Step 1: Create package.json**
 
 ```json
 {
@@ -118,7 +118,7 @@ tests/cli/init.test.ts                # init command tests (§8.2)
 }
 ```
 
-- [ ] **Step 2: Create tsconfig.json**
+- [x] **Step 2: Create tsconfig.json**
 
 ```json
 {
@@ -148,7 +148,7 @@ tests/cli/init.test.ts                # init command tests (§8.2)
 }
 ```
 
-- [ ] **Step 3: Create tsconfig.build.json**
+- [x] **Step 3: Create tsconfig.build.json**
 
 ```json
 {
@@ -162,7 +162,7 @@ tests/cli/init.test.ts                # init command tests (§8.2)
 }
 ```
 
-- [ ] **Step 4: Create vitest.config.ts**
+- [x] **Step 4: Create vitest.config.ts**
 
 ```typescript
 import { defineConfig } from "vitest/config";
@@ -176,17 +176,17 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: Install dependencies**
+- [x] **Step 5: Install dependencies**
 
 Run: `pnpm install`
 Expected: lockfile generated, zero errors
 
-- [ ] **Step 6: Verify TypeScript compiles**
+- [x] **Step 6: Verify TypeScript compiles**
 
 Run: `pnpm typecheck`
 Expected: exits 0, no errors
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml tsconfig.json tsconfig.build.json vitest.config.ts
