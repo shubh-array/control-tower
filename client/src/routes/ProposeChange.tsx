@@ -134,6 +134,32 @@ export function ProposeChange() {
               {validation.errors.map((e, i) => <li key={i}>{e}</li>)}
             </ul>
           )}
+          {validation.previews && validation.previews.length > 0 && (
+            <div className="mt-4 space-y-4">
+              <h3 className="text-md font-semibold">Line-by-line preview</h3>
+              {validation.previews.map((preview) => (
+                <div key={preview.targetPath} className="border rounded p-3 bg-gray-50">
+                  <p className="font-mono text-sm mb-2">{preview.targetPath}</p>
+                  <pre className="text-xs bg-white border p-2 overflow-x-auto max-h-60">
+                    {preview.lines.map((line, i) => (
+                      <div
+                        key={`${preview.targetPath}-${i}`}
+                        className={
+                          line.type === 'added'
+                            ? 'text-green-700 bg-green-50'
+                            : line.type === 'removed'
+                              ? 'text-red-700 bg-red-50 line-through'
+                              : 'text-gray-700'
+                        }
+                      >
+                        {`${String(line.lineNumber).padStart(4, ' ')} ${line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '} ${line.content}`}
+                      </div>
+                    ))}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
           {validation.valid && (
             <button onClick={adoptProposal} className="mt-2 px-4 py-2 bg-orange-600 text-white rounded">
               Adopt (single-use)

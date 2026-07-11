@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { adoptProposal } from '../../src/proposals/adopt.js';
+import { adoptProposal, resetAdoptionState } from '../../src/proposals/adopt.js';
 import { sha256Hex } from '../../src/util/hash.js';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -103,5 +103,29 @@ describe('adoptProposal', () => {
     const second = adoptProposal(opts);
     expect(second.adopted).toBe(false);
     expect(second.errors[0]).toContain('already adopted');
+  });
+
+  it('persists single-use adoption across process-local reset', () => {
+    const dataDirectory = mkdtempSync(join(tmpdir(), 'ct-adopt-persist-'));
+    const currentContent = '{"version":1}';
+    const proposedContent = '{"version":2}';
+    const opts = {
+      profileDir,
+      dataDirectory,
+      proposalId: 'prop_005',
+      proposalVersion: 1,
+      targets: [{
+        path: 'policy.json',
+        baseContentHash: sha256Hex(currentContent),
+        proposedContent,
+        contentHash: sha256Hex(proposedContent),
+      }],
+    };
+    expect(adoptProposal(opts).adopted).toBe(true);
+    resetAdoptionState();
+    const second = adoptProposal(opts);
+    expect(second.adopted).toBe(false);
+    expect(second.errors[0]).toContain('already adopted');
+    rmSync(dataDirectory, { recursive: true, force: true });
   });
 });

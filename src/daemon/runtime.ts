@@ -11,7 +11,7 @@ import type { ProposalStore } from "../api/routes/proposals.js";
 import type { ProfileChangeProposal } from "../proposals/types.js";
 import Database from "better-sqlite3";
 import { SignalRecorder as SignalRecorderImpl } from "../learning/record.js";
-import { InMemoryProposalStore } from "../proposals/store.js";
+import { FilesystemProposalStore } from "../proposals/store.js";
 
 export interface RuntimeConfig {
   port: number;
@@ -41,8 +41,10 @@ export interface RuntimePublishContext {
   signalRecorder: SignalRecorder;
   proposalStore: ProposalStore;
   profileDirectory: string;
+  dataDirectory: string;
   getProfileFiles: () => Record<string, { content: string; hash: string }>;
   startProposal: (signalRunIds: string[]) => Promise<ProfileChangeProposal>;
+  recordPublishedDisposition?: (operationHash: string) => void;
 }
 
 export interface RuntimeHandle {
@@ -80,18 +82,20 @@ function createStubLearningDeps(): {
   signalRecorder: SignalRecorder;
   proposalStore: ProposalStore;
   profileDirectory: string;
+  dataDirectory: string;
   getProfileFiles: () => Record<string, { content: string; hash: string }>;
   startProposal: (signalRunIds: string[]) => Promise<ProfileChangeProposal>;
 } {
   const db = new Database(":memory:");
   const signalRecorder = new SignalRecorderImpl(db);
   signalRecorder.initialize();
-  const proposalStore = new InMemoryProposalStore();
+  const proposalStore = new FilesystemProposalStore("/tmp/ct-stub-data");
 
   return {
     signalRecorder,
     proposalStore,
     profileDirectory: "/tmp/ct-stub-profile",
+    dataDirectory: "/tmp/ct-stub-data",
     getProfileFiles: () => ({}),
     startProposal: async () => {
       throw new Error("Proposal orchestration not configured");
@@ -127,13 +131,19 @@ function buildServerDeps(
     requestAnalyze: (input) => facade.requestAnalyze(input),
     requestRetry: (jobId) => facade.requestRetry(jobId),
     getGuardInput,
-    executePublish: (opHash, body) =>
-      publishContext.publisher.executeOperation(opHash, body),
+    executePublish: async (opHash, body) => {
+      const result = await publishContext.publisher.executeOperation(opHash, body);
+      if (result.status === "completed") {
+        publishContext.recordPublishedDisposition?.(opHash);
+      }
+      return result;
+    },
     clientDistPath: publishContext.clientDistPath,
     signalRecorder: publishContext.signalRecorder,
     proposalRoutes: {
       store: publishContext.proposalStore,
       profileDir: publishContext.profileDirectory,
+      dataDirectory: publishContext.dataDirectory,
       getCurrentFiles: publishContext.getProfileFiles,
       startProposal: publishContext.startProposal,
     },

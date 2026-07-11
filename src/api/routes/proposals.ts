@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { ActionTokenStore } from "../action-token.js";
 import { validateProposal } from "../../proposals/validate.js";
 import { adoptProposal } from "../../proposals/adopt.js";
+import { generatePreview, type ProposalPreview } from "../../proposals/preview.js";
 import { sha256Hex } from "../../util/hash.js";
 import type { ProfileChangeProposal } from "../../proposals/types.js";
 
@@ -15,6 +16,7 @@ export interface ProposalRoutesDeps {
   actionTokens: ActionTokenStore;
   store: ProposalStore;
   profileDir: string;
+  dataDirectory: string;
   getCurrentFiles: () => Record<string, { content: string; hash: string }>;
   startProposal: (signalRunIds: string[]) => Promise<ProfileChangeProposal>;
 }
@@ -66,11 +68,20 @@ export function proposalRoutes(deps: ProposalRoutesDeps) {
 
     const currentFiles = deps.getCurrentFiles();
     const result = validateProposal(proposal, currentFiles);
+    const previews: ProposalPreview[] = proposal.targets.map((target) => {
+      const current = currentFiles[target.path];
+      return generatePreview(
+        proposal.id,
+        target.path,
+        current?.content ?? "",
+        target.proposedContent,
+      );
+    });
     if (result.valid) {
       proposal.status = "previewed";
       deps.store.save(proposal);
     }
-    return c.json(result);
+    return c.json({ ...result, previews });
   });
 
   app.post("/api/proposals/:id/adopt", async (c) => {
@@ -89,6 +100,7 @@ export function proposalRoutes(deps: ProposalRoutesDeps) {
 
     const result = adoptProposal({
       profileDir: deps.profileDir,
+      dataDirectory: deps.dataDirectory,
       proposalId: proposal.id,
       proposalVersion: proposal.version,
       targets: proposal.targets.map((t) => ({

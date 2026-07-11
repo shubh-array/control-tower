@@ -12,9 +12,18 @@ import { computeRunDirectoryLayout } from "../context/prepare.js";
 import type { CoverageObject } from "../context/coverage.js";
 import { validateReviewOutput } from "../cursor/validate-review.js";
 import { sealRun as sealRunDir } from "../context/seal.js";
+import type { SignalRecorder } from "../learning/record.js";
+import { createSignalHooks } from "../learning/signal-hooks.js";
+import {
+  computeQueueWaitMs,
+  createPipelineTimingMetrics,
+  loadPrimaryReviewRunMeta,
+} from "../learning/pipeline-signals.js";
 
 export interface PipelineRunnerContext {
   dataDirectory: string;
+  signalRecorder?: SignalRecorder;
+  modelSpecHash?: string;
 }
 
 export function loadPipelineJob(
@@ -58,13 +67,33 @@ export function loadPipelineJob(
 export function buildPipelineDeps(
   db: Database.Database,
   ctx: PipelineRunnerContext,
+  jobId: string,
 ): PipelineDeps {
   const transitions: PipelineDeps["transitions"] = [];
   const runTransitions: PipelineDeps["runTransitions"] = [];
+  const pipelineStartedAt = Date.now();
+  const timing = createPipelineTimingMetrics();
+  timing.queueWaitMs = computeQueueWaitMs(db, jobId, pipelineStartedAt);
+  const modelSpecHash = ctx.modelSpecHash ?? "primary-review-default";
+  const activeRunId = { value: "" };
+  const signalHooks = ctx.signalRecorder
+    ? createSignalHooks({
+        recorder: ctx.signalRecorder,
+        getRunMeta: () =>
+          loadPrimaryReviewRunMeta(
+            db,
+            jobId,
+            activeRunId.value || "pending",
+            modelSpecHash,
+          ),
+      })
+    : undefined;
 
   return {
     transitions,
     runTransitions,
+    signalHooks,
+    getTimingMetrics: () => timing,
     transitionJob(jobId, from, to) {
       const row = db
         .prepare(`SELECT state, version FROM jobs WHERE id = ?`)
@@ -103,6 +132,7 @@ export function buildPipelineDeps(
             .get(jobId) as { n: number | null }
         ).n ?? 0;
       const runId = randomUUID();
+      activeRunId.value = runId;
       const runInputHash = `pipeline-${jobId}-${maxAttempt + 1}`;
       db.prepare(
         `INSERT INTO runs (id, job_id, attempt_number, run_input_hash, state, version, started_at)
@@ -120,6 +150,7 @@ export function buildPipelineDeps(
       return { runId, version: 1 };
     },
     prepareContext(jobId, runId) {
+      const contextStart = Date.now();
       const layout = computeRunDirectoryLayout(ctx.dataDirectory, jobId, runId);
       const coverage = {
         mode: "remote-evidence-only" as const,
@@ -129,6 +160,7 @@ export function buildPipelineDeps(
         omittedSourceEntries: [] as Array<{ path: string; reason: string }>,
         missingCoverage: ["source_tree"],
       };
+      timing.contextPrepMs += Date.now() - contextStart;
       return {
         runDir: layout.runDir,
         manifest: { layers: 9 },
@@ -139,6 +171,7 @@ export function buildPipelineDeps(
       throw new Error("materialize_failed");
     },
     runAgent(_runId, _runDir) {
+      const agentStart = Date.now();
       const coverage = {
         mode: "remote-evidence-only" as const,
         sourceTreeInspected: false,
@@ -147,29 +180,32 @@ export function buildPipelineDeps(
         omittedSourceEntries: [] as Array<{ path: string; reason: string }>,
         missingCoverage: ["source_tree"],
       };
-      return {
-        rawOutput: JSON.stringify({
-          schemaVersion: 1,
-          coverage,
-          summary: { intent: "pending", implementation: "pending" },
-          observations: [
-            {
-              type: "observation",
-              statement: "Automated stub pending full agent wiring.",
-              provenanceRefs: [],
-              fileReferences: [],
-            },
-          ],
-          checks: [],
-          findings: [],
-          unknowns: ["full_agent_wiring"],
-          recommendedDisposition: "needs_human",
-          draftSummary: {
-            body: "Pipeline agent not fully wired — needs human review.",
-            observationIndexes: [0],
+      const rawOutput = JSON.stringify({
+        schemaVersion: 1,
+        coverage,
+        summary: { intent: "pending", implementation: "pending" },
+        observations: [
+          {
+            type: "observation",
+            statement: "Automated stub pending full agent wiring.",
             provenanceRefs: [],
+            fileReferences: [],
           },
-        }),
+        ],
+        checks: [],
+        findings: [],
+        unknowns: ["full_agent_wiring"],
+        recommendedDisposition: "needs_human",
+        draftSummary: {
+          body: "Pipeline agent not fully wired — needs human review.",
+          observationIndexes: [0],
+          provenanceRefs: [],
+        },
+      });
+      timing.agentDurationMs += Date.now() - agentStart;
+      timing.cursorUsage = { inputTokens: 0, outputTokens: 0 };
+      return {
+        rawOutput,
         exitCode: 0,
         modelId: "stub",
       };
@@ -242,6 +278,6 @@ export async function runPipelineForJob(
 ): Promise<void> {
   const job = loadPipelineJob(db, jobId);
   if (!job) return;
-  const deps = buildPipelineDeps(db, ctx);
+  const deps = buildPipelineDeps(db, ctx, jobId);
   await executePipeline(deps, job);
 }

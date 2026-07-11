@@ -47,7 +47,14 @@ import type { RuntimeDeps, RuntimeConfig } from "./runtime.js";
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { SignalRecorder } from "../learning/record.js";
-import { InMemoryProposalStore } from "../proposals/store.js";
+import { FilesystemProposalStore } from "../proposals/store.js";
+import { sha256Hex } from "../util/hash.js";
+import {
+  createAttentionSignalHooks,
+  createPrimaryReviewSignalHooks,
+  mapAdvisorToAttentionOutcome,
+  mapOperationTypeToDisposition,
+} from "../learning/pipeline-signals.js";
 import { startProposalFromSignals } from "../proposals/start.js";
 import {
   defaultProposalEvaluator,
@@ -68,8 +75,9 @@ export interface BootstrapContext {
   authenticatedLogin: string;
   clientDistPath: string;
   signalRecorder: SignalRecorder;
-  proposalStore: InMemoryProposalStore;
+  proposalStore: FilesystemProposalStore;
   profileDirectory: string;
+  dataDirectory: string;
   appRoot: string;
 }
 
@@ -289,7 +297,41 @@ function buildFacadeDeps(
       return result.jobId ?? randomUUID();
     },
     enqueueRetry: (jobId: string) => createRetryAttempt(db, jobId),
-    scheduleAdvice: () => {},
+    scheduleAdvice: (repositoryKey, prNumber) => {
+      const att = db
+        .prepare(
+          `SELECT id, advisor_relevance, advisor_risk, advisor_recommended_action
+           FROM attention_items
+           WHERE repository_key = ? AND pr_number = ?`,
+        )
+        .get(repositoryKey, prNumber) as
+        | {
+            id: string;
+            advisor_relevance: string | null;
+            advisor_risk: string | null;
+            advisor_recommended_action: string | null;
+          }
+        | undefined;
+      if (!att) return;
+
+      const attentionModelSpec =
+        _local.cursor.modelRoles.attention?.modelId ?? "attention-default";
+      const hooks = createAttentionSignalHooks(
+        db,
+        context.signalRecorder,
+        repositoryKey,
+        prNumber,
+        att.id,
+        sha256Hex(attentionModelSpec),
+      );
+      hooks.onAttentionOutcome(
+        mapAdvisorToAttentionOutcome({
+          advisorRelevance: att.advisor_relevance,
+          advisorRisk: att.advisor_risk,
+          advisorRecommendedAction: att.advisor_recommended_action,
+        }),
+      );
+    },
     getHealthStatus: () => {
       const activeJobs =
         (
@@ -366,7 +408,7 @@ export function createBootstrap(input: BootstrapInput): {
   );
 
   const signalRecorder = new SignalRecorder(db);
-  const proposalStore = new InMemoryProposalStore();
+  const proposalStore = new FilesystemProposalStore(local.dataDirectory);
 
   const context: BootstrapContext = {
     db,
@@ -379,6 +421,7 @@ export function createBootstrap(input: BootstrapInput): {
     signalRecorder,
     proposalStore,
     profileDirectory: local.profileDirectory,
+    dataDirectory: local.dataDirectory,
     appRoot: input.appRoot,
   };
 
@@ -556,16 +599,26 @@ export function createBootstrap(input: BootstrapInput): {
     },
     runSchedulerTick() {
       reloadLocalConfig();
+      const currentLocal = lastValidLocal;
       const decision = selectNextJobs(db, {
-        maxConcurrentAgents: local.cursor.maxConcurrentAgents,
+        maxConcurrentAgents: currentLocal.cursor.maxConcurrentAgents,
         debounceMs: 2_000,
       });
       for (const jobId of decision.jobsToStart) {
-        void runPipelineForJob(db, { dataDirectory: local.dataDirectory }, jobId).catch(
-          (err) => {
-            console.error(`Pipeline failed for job ${jobId}:`, err);
+        void runPipelineForJob(
+          db,
+          {
+            dataDirectory: currentLocal.dataDirectory,
+            signalRecorder: context.signalRecorder,
+            modelSpecHash: sha256Hex(
+              currentLocal.cursor.modelRoles.primaryReview?.modelId ??
+                "primary-review-default",
+            ),
           },
-        );
+          jobId,
+        ).catch((err) => {
+          console.error(`Pipeline failed for job ${jobId}:`, err);
+        });
       }
       return decision;
     },
@@ -586,6 +639,7 @@ export function createBootstrap(input: BootstrapInput): {
       signalRecorder: context.signalRecorder,
       proposalStore: context.proposalStore,
       profileDirectory: context.profileDirectory,
+      dataDirectory: context.dataDirectory,
       getProfileFiles: () => loadProfileFiles(context.profileDirectory),
       startProposal: (signalRunIds) => {
         const modelSpec =
@@ -642,6 +696,43 @@ export function createBootstrap(input: BootstrapInput): {
         projectFocusQueue(db, workGraph.getFocusQueue()),
       getJobDetail: (id) => loadJobDetail(db, id),
       getDraftDetail: (jobId) => facadeDeps.getDraft(jobId),
+      recordPublishedDisposition: (operationHash) => {
+        const guardCtx = context.guardStore.getContext(operationHash);
+        if (!guardCtx) return;
+        const jobRow = db
+          .prepare(
+            `SELECT j.id, j.policy_hash, j.source_mode, r.id as run_id, r.run_input_hash
+             FROM jobs j
+             JOIN runs r ON r.id = j.accepted_run_id
+             WHERE j.id = (
+               SELECT job_id FROM runs WHERE id = ?
+             )`,
+          )
+          .get(guardCtx.approvedRunId) as
+          | {
+              id: string;
+              policy_hash: string;
+              source_mode: "registered-source" | "remote-evidence-only";
+              run_id: string;
+              run_input_hash: string;
+            }
+          | undefined;
+        if (!jobRow) return;
+
+        const hooks = createPrimaryReviewSignalHooks(
+          db,
+          context.signalRecorder,
+          jobRow.id,
+          jobRow.run_id,
+          sha256Hex(
+            lastValidLocal.cursor.modelRoles.primaryReview?.modelId ??
+              "primary-review-default",
+          ),
+        );
+        hooks.onDisposition(
+          mapOperationTypeToDisposition(guardCtx.operationType),
+        );
+      },
     },
   };
 

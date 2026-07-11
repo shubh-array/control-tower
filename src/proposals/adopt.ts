@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sha256Hex } from '../util/hash.js';
 
@@ -14,6 +14,8 @@ interface AdoptionRequest {
   proposalId: string;
   proposalVersion: number;
   targets: AdoptionTarget[];
+  /** When set, adoption single-use state is persisted under data/proposals/adopted/ */
+  dataDirectory?: string;
 }
 
 interface AdoptionResult {
@@ -24,11 +26,51 @@ interface AdoptionResult {
 
 const adoptedProposals = new Set<string>();
 
-export function adoptProposal(request: AdoptionRequest): AdoptionResult {
-  const proposalKey = `${request.proposalId}:${request.proposalVersion}`;
+function proposalKey(proposalId: string, proposalVersion: number): string {
+  return `${proposalId}:${proposalVersion}`;
+}
 
-  if (adoptedProposals.has(proposalKey)) {
-    return { adopted: false, errors: [`Proposal "${proposalKey}" already adopted — single-use only`] };
+function adoptedDir(dataDirectory: string): string {
+  const dir = join(dataDirectory, 'proposals', 'adopted');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function adoptedMarkerPath(dataDirectory: string, key: string): string {
+  return join(adoptedDir(dataDirectory), `${key.replace(/:/g, '_')}.json`);
+}
+
+function isAdoptedPersisted(dataDirectory: string, key: string): boolean {
+  return existsSync(adoptedMarkerPath(dataDirectory, key));
+}
+
+function markAdoptedPersisted(
+  dataDirectory: string,
+  key: string,
+  adoptedAt: string,
+): void {
+  writeFileSync(
+    adoptedMarkerPath(dataDirectory, key),
+    JSON.stringify({ proposalKey: key, adoptedAt }, null, 2),
+    'utf-8',
+  );
+}
+
+function hasBeenAdopted(request: AdoptionRequest): boolean {
+  const key = proposalKey(request.proposalId, request.proposalVersion);
+  if (adoptedProposals.has(key)) return true;
+  if (request.dataDirectory && isAdoptedPersisted(request.dataDirectory, key)) {
+    adoptedProposals.add(key);
+    return true;
+  }
+  return false;
+}
+
+export function adoptProposal(request: AdoptionRequest): AdoptionResult {
+  const key = proposalKey(request.proposalId, request.proposalVersion);
+
+  if (hasBeenAdopted(request)) {
+    return { adopted: false, errors: [`Proposal "${key}" already adopted — single-use only`] };
   }
 
   const errors: string[] = [];
@@ -59,8 +101,12 @@ export function adoptProposal(request: AdoptionRequest): AdoptionResult {
     writeFileSync(fullPath, content, 'utf-8');
   }
 
-  adoptedProposals.add(proposalKey);
-  return { adopted: true, errors: [], adoptedAt: new Date().toISOString() };
+  const adoptedAt = new Date().toISOString();
+  adoptedProposals.add(key);
+  if (request.dataDirectory) {
+    markAdoptedPersisted(request.dataDirectory, key, adoptedAt);
+  }
+  return { adopted: true, errors: [], adoptedAt };
 }
 
 export function resetAdoptionState(): void {

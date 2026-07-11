@@ -299,6 +299,21 @@ export interface ProposalDetail {
 export interface ProposalValidationResult {
   valid: boolean;
   errors: string[];
+  previews?: ProposalPreview[];
+}
+
+export interface ProposalPreviewLine {
+  type: "unchanged" | "added" | "removed";
+  lineNumber: number;
+  content: string;
+}
+
+export interface ProposalPreview {
+  proposalId: string;
+  targetPath: string;
+  baseHash: string;
+  proposedHash: string;
+  lines: ProposalPreviewLine[];
 }
 
 export interface ProposalAdoptionResult {

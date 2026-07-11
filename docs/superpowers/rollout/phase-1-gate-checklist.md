@@ -66,3 +66,10 @@
 
 - [ ] Pipeline `sealRun` awaits disk seal before `updatePointers` sets `accepted_run_id` — **fixed** in `pipeline-runner.ts` / `pipeline.ts`
 - [ ] Pipeline agent wiring: `buildPipelineDeps.runAgent` remains a stub pending full Cursor adapter integration
+
+## Plan 05 Residuals (Phase 1 final review)
+
+- [ ] Signal hooks wired into production pipeline seal, failure, disposition, and attention paths — **fixed** in `pipeline.ts`, `pipeline-runner.ts`, `bootstrap.ts`
+- [ ] Proposals persisted under `data/proposals/` with durable single-use adoption markers — **fixed** in `proposals/store.ts`, `proposals/adopt.ts`
+- [ ] Line-by-line proposal preview exposed via validate API and `ProposeChange.tsx` — **fixed** in `api/routes/proposals.ts`, `client/src/routes/ProposeChange.tsx`
+- [ ] **Stage 2+ gate:** Proposal agent remains a stub (`bootstrap.ts` `cursorAdapter`) — replace with real Cursor `profile-proposal` adapter before live profile-change rollout
