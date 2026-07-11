@@ -1058,7 +1058,7 @@ git commit -m "test: comprehensive CanonicalPathMatcher test fixtures"
 
 Policy evaluators need to match a canonical path against an arbitrary pattern array without changing `CanonicalPathMatcher.matches(path)` (compiled-only).
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 import { describe, it, expect } from "vitest";
@@ -1080,12 +1080,12 @@ describe("pathMatchesAny", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test tests/paths/match-patterns.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```typescript
 // src/paths/match-patterns.ts
@@ -1110,12 +1110,12 @@ export function pathMatchesAny(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm test tests/paths/match-patterns.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/paths/match-patterns.ts tests/paths/match-patterns.test.ts
