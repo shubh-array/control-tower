@@ -4150,17 +4150,17 @@ git commit -m "feat(discovery): §12 GitHub unavailability, rate-limit, and iden
 
 **Files:** (none new — run all tests)
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 Run: `npx vitest run tests/github/ tests/policy/ tests/discovery/`
 Expected: ALL tests PASS
 
-- [ ] **Step 2: Verify TypeScript compilation**
+- [x] **Step 2: Verify TypeScript compilation**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A
