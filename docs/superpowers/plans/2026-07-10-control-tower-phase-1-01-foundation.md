@@ -2960,7 +2960,7 @@ git commit -m "feat: add minimal loopback daemon with health endpoint"
 
 Uses injectable `ProcessRunner` for all shell exec (fake gh/agent in tests).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/cli/doctor.test.ts`:
 
@@ -3370,12 +3370,12 @@ describe("runDoctor (integration with fake deps)", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm test tests/cli/doctor.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement doctor.ts**
+- [x] **Step 3: Implement doctor.ts**
 
 Create `src/cli/doctor.ts`:
 
@@ -3803,12 +3803,12 @@ export async function runDoctor(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm test tests/cli/doctor.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/cli/doctor.ts tests/cli/doctor.test.ts

@@ -6,6 +6,7 @@ export interface DaemonOptions {
 }
 
 export function createDaemon(opts: DaemonOptions): Server {
+  void opts;
   const server = createServer((req, res) => {
     if (req.url === "/health" && req.method === "GET") {
       res.writeHead(200, { "Content-Type": "application/json" });
