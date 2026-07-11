@@ -1,0 +1,20 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #111827;
+  background: #fff;
+}
+
+button {
+  font: inherit;
+}
+
+table {
+  font-size: 0.875rem;
+}
