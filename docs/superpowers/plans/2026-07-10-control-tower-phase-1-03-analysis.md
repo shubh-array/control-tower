@@ -5574,12 +5574,12 @@ describe('executePipeline', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (module not found)**
+- [x] **Step 2: Run tests — expect FAIL (module not found)**
 
 Run: `npx vitest run tests/orchestrator/pipeline.test.ts`
 Expected: FAIL — Cannot find module
 
-- [ ] **Step 3: Implement pipeline**
+- [x] **Step 3: Implement pipeline**
 
 ```typescript
 // src/orchestrator/pipeline.ts
@@ -5696,12 +5696,12 @@ export async function executePipeline(
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `npx vitest run tests/orchestrator/pipeline.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/pipeline.ts tests/orchestrator/pipeline.test.ts
@@ -5716,7 +5716,7 @@ git commit -m "feat(orchestrator): pipeline executor with injected deps and full
 - Create: `src/orchestrator/facade.ts`
 - Test: `tests/orchestrator/facade.test.ts`
 
-- [ ] **Step 1: Write failing tests for OrchestratorFacade**
+- [x] **Step 1: Write failing tests for OrchestratorFacade**
 
 ```typescript
 // tests/orchestrator/facade.test.ts
