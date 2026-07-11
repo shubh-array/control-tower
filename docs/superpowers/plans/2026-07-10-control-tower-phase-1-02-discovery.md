@@ -410,7 +410,7 @@ git commit -m "feat(discovery): add GitHub API types and policy reason records"
 **Files:**
 - Create: `src/github/gh-process.ts`
 
-- [ ] **Step 1: Write the gh process runner**
+- [x] **Step 1: Write the gh process runner**
 
 ```typescript
 // src/github/gh-process.ts
@@ -497,12 +497,12 @@ export async function execGhText(
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/github/gh-process.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/github/gh-process.ts
