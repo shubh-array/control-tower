@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { openDatabase } from "../../src/store/db.js";
 import { runMigrations } from "../../src/store/migrate.js";
-import { upsertPr, upsertRepository } from "../../src/normalize/upsert.js";
+import {
+  upsertDiscoveredPr,
+  upsertPr,
+  upsertRepository,
+} from "../../src/normalize/upsert.js";
 import type { DiscoveredPr } from "../../src/github/types.js";
 
 function minimalPr(repositoryId: string, overrides: Partial<DiscoveredPr> = {}): DiscoveredPr {
@@ -78,5 +82,48 @@ describe("upsert FK safety", () => {
     expect(JSON.parse(row.labels_json)).toHaveLength(50);
     expect(JSON.parse(row.labels_json)[0]).toBe("label-0");
     expect(JSON.parse(row.labels_json)[49]).toBe("label-49");
+  });
+
+  it("dedupes duplicate check names from statusCheckRollup", () => {
+    const db = openDatabase(":memory:");
+    runMigrations(db);
+
+    upsertRepository(db, {
+      id: "test-repo",
+      github: "Org/repo",
+      host: "github.com",
+      defaultBranch: "main",
+      resourceClass: "medium",
+    });
+
+    upsertDiscoveredPr(
+      db,
+      minimalPr("test-repo", {
+        checks: [
+          {
+            __typename: "CheckRun",
+            name: "CI",
+            status: "COMPLETED",
+            conclusion: "FAILURE",
+            detailsUrl: "https://example.com/1",
+          },
+          {
+            __typename: "CheckRun",
+            name: "CI",
+            status: "COMPLETED",
+            conclusion: "SUCCESS",
+            detailsUrl: "https://example.com/2",
+          },
+        ],
+      }),
+    );
+
+    const rows = db
+      .prepare("SELECT name, conclusion, details_url FROM pr_checks")
+      .all() as Array<{ name: string; conclusion: string; details_url: string }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.name).toBe("CI");
+    expect(rows[0]!.conclusion).toBe("SUCCESS");
+    expect(rows[0]!.details_url).toBe("https://example.com/2");
   });
 });

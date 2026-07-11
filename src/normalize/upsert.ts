@@ -156,7 +156,14 @@ export function upsertPrChecks(
     `,
   );
 
+  // GitHub statusCheckRollup can repeat the same check name across contexts.
+  const byName = new Map<string, GhCheckRun>();
   for (const check of checks) {
+    if (!check.name) continue;
+    byName.set(check.name, check);
+  }
+
+  for (const check of byName.values()) {
     insertCheck.run(
       prId,
       check.name,
@@ -231,12 +238,12 @@ export function upsertReviewRequests(
     `,
   );
 
+  const seen = new Set<string>();
   for (const request of requests) {
-    insertRequest.run(
-      prId,
-      normalizeLogin(request.login),
-      request.requestedAt ?? null,
-    );
+    const login = normalizeLogin(request.login);
+    if (!login || seen.has(login)) continue;
+    seen.add(login);
+    insertRequest.run(prId, login, request.requestedAt ?? null);
   }
 }
 
