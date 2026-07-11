@@ -5928,12 +5928,12 @@ describe('OrchestratorFacade', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (module not found)**
+- [x] **Step 2: Run tests — expect FAIL (module not found)**
 
 Run: `npx vitest run tests/orchestrator/facade.test.ts`
 Expected: FAIL — Cannot find module
 
-- [ ] **Step 3: Implement facade**
+- [x] **Step 3: Implement facade**
 
 ```typescript
 // src/orchestrator/facade.ts
@@ -6044,12 +6044,12 @@ export function createOrchestratorFacade(deps: FacadeDeps): OrchestratorFacade {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `npx vitest run tests/orchestrator/facade.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestrator/facade.ts tests/orchestrator/facade.test.ts
@@ -6064,7 +6064,7 @@ git commit -m "feat(orchestrator): OrchestratorFacade with analyze/retry/advice 
 - Create: `src/daemon/runtime.ts`
 - Test: `tests/daemon/runtime.test.ts`
 
-- [ ] **Step 1: Write failing tests for daemon runtime**
+- [x] **Step 1: Write failing tests for daemon runtime**
 
 ```typescript
 // tests/daemon/runtime.test.ts
