@@ -31,8 +31,12 @@ export function createApiServer(deps: ServerDeps) {
   app.use("*", loopbackGuard);
   app.use("*", cspMiddleware);
 
-  app.get("/", (c) => {
+  const issueSession = (c: { header: (name: string, value: string) => void }) => {
     c.header("set-cookie", createSessionCookie(sessionSecret));
+  };
+
+  app.get("/", (c) => {
+    issueSession(c);
     return c.redirect("/index.html");
   });
 
@@ -52,11 +56,15 @@ export function createApiServer(deps: ServerDeps) {
 
   app.route("/", healthRoutes(deps));
   app.route("/", queueRoutes(deps));
-  app.route("/", jobsRoutes({
-    getJob: deps.getJob,
-    requestAnalyze: deps.requestAnalyze,
-    requestRetry: deps.requestRetry,
-  }));
+  app.route(
+    "/",
+    jobsRoutes({
+      actionTokens,
+      getJob: deps.getJob,
+      requestAnalyze: deps.requestAnalyze,
+      requestRetry: deps.requestRetry,
+    }),
+  );
   app.route("/", draftsRoutes(deps));
   app.route(
     "/",
@@ -72,6 +80,14 @@ export function createApiServer(deps: ServerDeps) {
     }),
   );
   app.route("/", auditRoutes(deps));
+
+  app.use("/*", async (c, next) => {
+    const cookie = c.req.header("cookie");
+    if (!cookie?.includes("ct_session=")) {
+      issueSession(c);
+    }
+    await next();
+  });
 
   app.use("/*", serveStatic({ root: deps.clientDistPath }));
 

@@ -33,6 +33,16 @@ import {
 import type { DiscoveredPr } from "../github/types.js";
 import { GuardInputStore } from "../publisher/guard-store.js";
 import { PublisherService } from "../publisher/publisher-service.js";
+import { createGhPublishAdapter } from "../github/gh-publish-adapter.js";
+import { registerDraftOperations } from "../publisher/register-draft.js";
+import { loadDraftDetail, loadDraftOperations } from "../orchestrator/draft-loader.js";
+import { loadJobDetail } from "../api/projections/job.js";
+import {
+  projectAllTracked,
+  projectFocusQueue,
+} from "../api/projections/queue.js";
+import { createRetryAttempt } from "../orchestrator/retry.js";
+import { runPipelineForJob } from "../orchestrator/pipeline-runner.js";
 import type { RuntimeDeps, RuntimeConfig } from "./runtime.js";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -148,29 +158,49 @@ function buildFacadeDeps(
   profile: ProfileConfig,
   org: OrganizationConfig,
   _local: LocalConfig,
+  context: BootstrapContext,
+  dataDirectory: string,
 ): FacadeDeps {
   const enqueuedJobs: Array<{ repositoryKey: string; prNumber: number }> = [];
+  const draftCtx = {
+    dataDirectory,
+    principalLogin: context.configuredOperator,
+  };
+
+  const registerOpsForJob = (jobId: string) => {
+    const loaded = loadDraftOperations(db, jobId, draftCtx);
+    if (!loaded) return;
+    const job = db
+      .prepare(`SELECT accepted_run_id FROM jobs WHERE id = ?`)
+      .get(jobId) as { accepted_run_id: string } | undefined;
+    if (!job?.accepted_run_id) return;
+    registerDraftOperations(
+      context.guardStore,
+      context.publisher,
+      loaded.operations,
+      {
+        publicationMode: context.publicationMode,
+        authenticatedLogin: context.authenticatedLogin,
+        configuredOperator: context.configuredOperator,
+        currentHeadSha: loaded.headSha,
+        reviewedHeadSha: loaded.headSha,
+        acceptedRunId: job.accepted_run_id,
+        approvedRunInputHash: loaded.runInputHash,
+      },
+    );
+  };
 
   return {
     getAllTracked: () => workGraph.getAllTracked(),
     getFocusQueue: () => workGraph.getFocusQueue(),
-    getJob: (id: string) => {
-      const row = db
-        .prepare(
-          `SELECT id, state, repository_key, pr_number FROM jobs WHERE id = ?`,
-        )
-        .get(id) as
-        | { id: string; state: string; repository_key: string; pr_number: number }
-        | undefined;
-      if (!row) return null;
-      return {
-        id: row.id,
-        state: row.state,
-        repositoryKey: row.repository_key,
-        prNumber: row.pr_number,
-      };
+    getJob: (id: string) => loadJobDetail(db, id),
+    getDraft: (jobId: string) => {
+      const draft = loadDraftDetail(db, jobId, draftCtx);
+      if (draft) {
+        registerOpsForJob(jobId);
+      }
+      return draft;
     },
-    getDraft: () => null,
     getAuditTrail: (jobId: string) => {
       const rows = db
         .prepare(
@@ -251,7 +281,7 @@ function buildFacadeDeps(
 
       return result.jobId ?? randomUUID();
     },
-    enqueueRetry: (jobId: string) => `retry-${jobId}`,
+    enqueueRetry: (jobId: string) => createRetryAttempt(db, jobId),
     scheduleAdvice: () => {},
     getHealthStatus: () => {
       const activeJobs =
@@ -314,15 +344,58 @@ export function createBootstrap(input: BootstrapInput): {
   const checkpoints = new CheckpointStore(db);
   const enqueueDeps = buildEnqueueDeps(db);
   const workGraph = new WorkGraph(db);
-  const facadeDeps = buildFacadeDeps(db, workGraph, enqueueDeps, policy, profile, org, local);
   const guardStore = new GuardInputStore();
   let authenticatedLogin = operatorLogin;
 
   const publisher = new PublisherService({
-    ghAdapter: async () => ({ ok: false, error: "Publisher not configured" }),
+    ghAdapter: createGhPublishAdapter(host),
     authenticatedLogin: operatorLogin,
     configuredOperator: operatorLogin,
   });
+
+  const clientDistPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../client/dist",
+  );
+
+  const context: BootstrapContext = {
+    db,
+    guardStore,
+    publisher,
+    publicationMode: local.publication.mode,
+    configuredOperator: operatorLogin,
+    authenticatedLogin,
+    clientDistPath,
+  };
+
+  let lastValidLocal: LocalConfig = local;
+
+  const reloadLocalConfig = (): LocalConfig => {
+    try {
+      const reloaded = loadLocalConfig(input.localConfigPath);
+      lastValidLocal = reloaded;
+      context.publicationMode = reloaded.publication.mode;
+      return reloaded;
+    } catch (err) {
+      console.error(
+        `Config reload failed (${err instanceof Error ? err.message : String(err)}), retaining last-valid config`,
+      );
+      context.publicationMode = lastValidLocal.publication.mode;
+      return lastValidLocal;
+    }
+  };
+
+  const facadeDeps = buildFacadeDeps(
+    db,
+    workGraph,
+    enqueueDeps,
+    policy,
+    profile,
+    org,
+    local,
+    context,
+    local.dataDirectory,
+  );
 
   const persistDecision = createPersistDecision(
     db,
@@ -338,21 +411,6 @@ export function createBootstrap(input: BootstrapInput): {
     repositories: org.repositories.map((r) => ({ id: r.id, github: r.github })),
     baseBackoffMs: 5_000,
     maxBackoffMs: 300_000,
-  };
-
-  const clientDistPath = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    "../../client/dist",
-  );
-
-  const context: BootstrapContext = {
-    db,
-    guardStore,
-    publisher,
-    publicationMode: local.publication.mode,
-    configuredOperator: operatorLogin,
-    authenticatedLogin,
-    clientDistPath,
   };
 
   const config: RuntimeConfig = {
@@ -482,18 +540,41 @@ export function createBootstrap(input: BootstrapInput): {
       };
     },
     runSchedulerTick() {
-      return selectNextJobs(db, {
+      reloadLocalConfig();
+      const decision = selectNextJobs(db, {
         maxConcurrentAgents: local.cursor.maxConcurrentAgents,
         debounceMs: 2_000,
       });
+      for (const jobId of decision.jobsToStart) {
+        void runPipelineForJob(db, { dataDirectory: local.dataDirectory }, jobId).catch(
+          (err) => {
+            console.error(`Pipeline failed for job ${jobId}:`, err);
+          },
+        );
+      }
+      return decision;
     },
     runAttentionBatch() {
-      // Attention advisor batch — no-op when disabled.
+      if (!policy.attentionAdvisor?.enabled) return;
+      // Advisor batch invocation deferred; focus queue supports client-side advisor ordering.
     },
     createFacade() {
       return createOrchestratorFacade(facadeDeps);
     },
-    publishContext: context,
+    publishContext: {
+      guardStore: context.guardStore,
+      publisher: context.publisher,
+      clientDistPath: context.clientDistPath,
+      publicationMode: context.publicationMode,
+      configuredOperator: context.configuredOperator,
+      authenticatedLogin: context.authenticatedLogin,
+      getAllTrackedRows: () =>
+        projectAllTracked(db, workGraph.getAllTracked()),
+      getFocusQueueRows: () =>
+        projectFocusQueue(db, workGraph.getFocusQueue()),
+      getJobDetail: (id) => loadJobDetail(db, id),
+      getDraftDetail: (jobId) => facadeDeps.getDraft(jobId),
+    },
   };
 
   return { config, deps, context };

@@ -7,6 +7,7 @@ import { runDoctor, type DoctorConfig } from "./doctor.js";
 import { runInit } from "./init.js";
 import { probePortAvailable } from "./port.js";
 import { startCommand, stopCommand, statusCommand } from "./daemon-control.js";
+import { enablePublication, disablePublication } from "./publication.js";
 import {
   loadLocalConfig,
   loadOrganizationConfig,
@@ -266,6 +267,65 @@ program
     const localConfig = loadLocalConfig(localConfigPath);
     const msg = statusCommand(localConfig.dataDirectory);
     console.log(msg);
+  });
+
+const publicationCmd = program
+  .command("publication")
+  .description("Manage gated publication mode");
+
+publicationCmd
+  .command("enable")
+  .description("Enable gated publication (requires doctor pass + confirmation)")
+  .action(async () => {
+    const localConfigPath =
+      process.env.CONTROL_TOWER_CONFIG ??
+      join(homedir(), ".control-tower", "config.json");
+
+    if (!existsSync(localConfigPath)) {
+      console.error("Run `pnpm ct init` first");
+      process.exit(1);
+    }
+
+    const readline = await import("node:readline/promises");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    const ok = await enablePublication({
+      configPath: localConfigPath,
+      runDoctor: async () => {
+        const hasFailure = await runDoctorWorkflow(localConfigPath);
+        return { healthy: !hasFailure, issues: hasFailure ? ["doctor failed"] : [] };
+      },
+      confirm: async (message) => {
+        const answer = await rl.question(message + " ");
+        rl.close();
+        return answer.trim().toLowerCase() === "y";
+      },
+      log: (message) => console.log(message),
+    });
+
+    if (!ok) process.exit(1);
+  });
+
+publicationCmd
+  .command("disable")
+  .description("Disable publication (shadow mode)")
+  .action(async () => {
+    const localConfigPath =
+      process.env.CONTROL_TOWER_CONFIG ??
+      join(homedir(), ".control-tower", "config.json");
+
+    if (!existsSync(localConfigPath)) {
+      console.error("Run `pnpm ct init` first");
+      process.exit(1);
+    }
+
+    await disablePublication({
+      configPath: localConfigPath,
+      log: (message) => console.log(message),
+    });
   });
 
 program.parse();

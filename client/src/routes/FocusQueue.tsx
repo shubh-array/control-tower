@@ -1,10 +1,61 @@
 // client/src/routes/FocusQueue.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api, type FocusQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
 import { AdvisorBadge } from "../components/AdvisorBadge.js";
 
 type ViewOrder = "deterministic" | "advisor";
+
+const RELEVANCE_ORDINAL: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  unknown: 4,
+};
+
+const RISK_ORDINAL: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  unknown: 4,
+};
+
+function sortAdvisorOrder(items: FocusQueueRow[]): FocusQueueRow[] {
+  const advised = items.filter((i) => i.advisorResult !== null);
+  const nonAdvised = items.filter((i) => i.advisorResult === null);
+
+  const compareDeterministic = (a: FocusQueueRow, b: FocusQueueRow) => {
+    const pri =
+      (a.priority === "p0" ? 0 : a.priority === "p1" ? 1 : a.priority === "p2" ? 2 : 3) -
+      (b.priority === "p0" ? 0 : b.priority === "p1" ? 1 : b.priority === "p2" ? 2 : 3);
+    if (pri !== 0) return pri;
+    return a.updatedAt.localeCompare(b.updatedAt);
+  };
+
+  advised.sort((a, b) => {
+    const ar = a.advisorResult!;
+    const br = b.advisorResult!;
+    const relA = RELEVANCE_ORDINAL[ar.relevance] ?? 4;
+    const relB = RELEVANCE_ORDINAL[br.relevance] ?? 4;
+    if (relA !== relB) return relA - relB;
+    const riskA = RISK_ORDINAL[ar.risk] ?? 4;
+    const riskB = RISK_ORDINAL[br.risk] ?? 4;
+    if (riskA !== riskB) return riskA - riskB;
+    return compareDeterministic(a, b);
+  });
+
+  nonAdvised.sort(compareDeterministic);
+  return [...advised, ...nonAdvised];
+}
+
+function applyViewOrder(
+  items: FocusQueueRow[],
+  viewOrder: ViewOrder,
+): FocusQueueRow[] {
+  return viewOrder === "advisor" ? sortAdvisorOrder(items) : items;
+}
 
 function QueueLane({
   title,
@@ -89,6 +140,15 @@ export function FocusQueue({
 
   if (loading) return <p>Loading queue…</p>;
 
+  const displayQueue = useMemo(
+    () => ({
+      now: applyViewOrder(queue.now, viewOrder),
+      next: applyViewOrder(queue.next, viewOrder),
+      monitor: applyViewOrder(queue.monitor, viewOrder),
+    }),
+    [queue, viewOrder],
+  );
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -107,17 +167,17 @@ export function FocusQueue({
       </div>
       <QueueLane
         title="Now"
-        items={queue.now}
+        items={displayQueue.now}
         onSelect={onSelectItem}
       />
       <QueueLane
         title="Next"
-        items={queue.next}
+        items={displayQueue.next}
         onSelect={onSelectItem}
       />
       <QueueLane
         title="Monitor"
-        items={queue.monitor}
+        items={displayQueue.monitor}
         onSelect={onSelectItem}
       />
     </div>

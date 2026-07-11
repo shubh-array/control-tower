@@ -5,6 +5,7 @@ import type { ApprovalStore } from "../publisher/approvals.js";
 import type { OrchestratorFacade } from "../orchestrator/facade.js";
 import { GuardInputStore } from "../publisher/guard-store.js";
 import { PublisherService } from "../publisher/publisher-service.js";
+import type { FocusQueueRow, TrackedQueueRow } from "../api/contracts.js";
 
 export interface RuntimeConfig {
   port: number;
@@ -15,6 +16,7 @@ export interface RuntimeConfig {
   apiServerEnabled?: boolean;
 }
 
+
 export interface RuntimePublishContext {
   guardStore: GuardInputStore;
   publisher: PublisherService;
@@ -22,6 +24,14 @@ export interface RuntimePublishContext {
   publicationMode: "shadow" | "gated";
   configuredOperator: string;
   authenticatedLogin: string;
+  getAllTrackedRows: () => TrackedQueueRow[];
+  getFocusQueueRows: () => {
+    now: FocusQueueRow[];
+    next: FocusQueueRow[];
+    monitor: FocusQueueRow[];
+  };
+  getJobDetail: (id: string) => import("../api/contracts.js").JobDetail | null;
+  getDraftDetail: (jobId: string) => import("../api/contracts.js").DraftDetail | null;
 }
 
 export interface RuntimeHandle {
@@ -75,10 +85,10 @@ function buildServerDeps(
         issues,
       };
     },
-    getAllTracked: () => facade.getAllTracked(),
-    getFocusQueue: () => facade.getFocusQueue(),
-    getJob: (id) => facade.getJob(id),
-    getDraft: (jobId) => facade.getDraft(jobId),
+    getAllTracked: () => publishContext.getAllTrackedRows(),
+    getFocusQueue: () => publishContext.getFocusQueueRows(),
+    getJob: (id) => publishContext.getJobDetail(id),
+    getDraft: (jobId) => publishContext.getDraftDetail(jobId),
     getAuditTrail: (jobId) => facade.getAuditTrail(jobId),
     requestAnalyze: (input) => facade.requestAnalyze(input),
     requestRetry: (jobId) => facade.requestRetry(jobId),
@@ -140,6 +150,62 @@ export async function startRuntime(
     publicationMode: "shadow",
     configuredOperator: "",
     authenticatedLogin: "",
+    getAllTrackedRows: () => facade.getAllTracked().map((item) => ({
+      jobId: null,
+      repository: item.repositoryKey,
+      prNumber: item.prNumber,
+      title: item.title,
+      author: item.author,
+      headSha: item.headSha,
+      eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],
+      exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
+      priority: item.policy.priorityStatus,
+      priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
+      domains: item.policy.selectedDomains.map((d) => d.domain),
+      attentionState: "monitoring",
+      jobState: null,
+      advisorResult: null,
+      discoveredAt: item.updatedAt ?? new Date().toISOString(),
+      updatedAt: item.updatedAt ?? new Date().toISOString(),
+    })),
+    getFocusQueueRows: () => {
+      const q = facade.getFocusQueue();
+      const map = (items: typeof q.now) =>
+        items.map((item) => ({
+          jobId: null,
+          repository: item.repositoryKey,
+          prNumber: item.prNumber,
+          title: item.title,
+          author: item.author,
+          headSha: item.headSha,
+          eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],
+          exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
+          priority: item.policy.priorityStatus,
+          priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
+          domains: item.policy.selectedDomains.map((d) => d.domain),
+          attentionState: "monitoring",
+          jobState: null,
+          advisorResult: null,
+          discoveredAt: item.updatedAt ?? new Date().toISOString(),
+          updatedAt: item.updatedAt ?? new Date().toISOString(),
+        }));
+      return { now: map(q.now), next: map(q.next), monitor: map(q.monitor) };
+    },
+    getJobDetail: (id) => {
+      const job = facade.getJob(id);
+      if (!job) return null;
+      return {
+        jobId: job.jobId,
+        repository: job.repository,
+        prNumber: job.prNumber,
+        headSha: job.headSha,
+        state: job.state,
+        sourceMode: job.sourceMode,
+        runs: job.runs,
+        acceptedRunId: job.acceptedRunId,
+      };
+    },
+    getDraftDetail: (jobId) => facade.getDraft(jobId),
   };
 
   let getGuardInput: ServerDeps["getGuardInput"] = () => null;

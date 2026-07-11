@@ -78,21 +78,26 @@ export const api = {
     return request<AuditEntry[]>(`/api/audit/${encodeURIComponent(jobId)}`);
   },
 
-  requestAnalyze(input: {
+  async requestAnalyze(input: {
     repositoryKey: string;
     prNumber: number;
     sourceMode?: "registered-source" | "remote-evidence-only";
   }) {
+    const actionToken = await this.createActionToken();
     return request<{ jobId: string }>("/api/jobs/analyze", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, actionToken }),
     });
   },
 
-  requestRetry(jobId: string) {
+  async requestRetry(jobId: string) {
+    const actionToken = await this.createActionToken();
     return request<{ runId: string }>(
       `/api/jobs/${encodeURIComponent(jobId)}/retry`,
-      { method: "POST" },
+      {
+        method: "POST",
+        body: JSON.stringify({ actionToken }),
+      },
     );
   },
 };
