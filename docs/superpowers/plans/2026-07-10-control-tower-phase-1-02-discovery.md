@@ -1555,7 +1555,7 @@ git commit -m "feat(discovery): add canonical path normalization for file lists"
 
 > **Prerequisite:** Callers must run Plan 01 `runMigrations` (from `src/store/migrate.ts`) on an `openDatabase` handle before any upsert. This task does **not** CREATE TABLE — Plan 01 owns `repositories`, `prs`, `pr_files`, `pr_checks`, `pr_reviews`, `pr_comments`, and `review_requests`.
 
-- [ ] **Step 1: Write the normalizer upsert against Plan 01 schema**
+- [x] **Step 1: Write the normalizer upsert against Plan 01 schema**
 
 ```typescript
 // src/normalize/upsert.ts
@@ -1753,12 +1753,12 @@ export function upsertDiscoveredPr(
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/normalize/upsert.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/normalize/upsert.ts
