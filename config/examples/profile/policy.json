@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "attentionAdvisor": {
+    "enabled": true,
+    "maxCandidatesPerInvocation": 50,
+    "timeoutSeconds": 90
+  },
+  "autoAnalyze": {
+    "explicitReviewRequests": true,
+    "priorityTiers": ["p0", "p1"]
+  },
+  "repositories": {
+    "pba-webapp": {
+      "eligiblePaths": ["src/**"],
+      "eligibleAuthors": [],
+      "domainRules": [
+        { "domain": "frontend", "paths": ["src/**"], "priority": 100 }
+      ],
+      "priorityRules": [
+        { "paths": ["src/api-clients/**", "src/lib/auth/**"], "tier": "p1" }
+      ]
+    },
+    "pba-agents": {
+      "eligiblePaths": ["sdk/**", "services/**"],
+      "eligibleAuthors": [],
+      "domainRules": [
+        { "domain": "backend", "paths": ["sdk/**", "services/**"], "priority": 100 }
+      ],
+      "priorityRules": [
+        { "paths": ["sdk/src/auth/**", "services/shared/**"], "tier": "p1" }
+      ]
+    },
+    "pba-microservices": {
+      "eligiblePaths": ["services/**", "packages/**"],
+      "eligibleAuthors": [],
+      "domainRules": [
+        { "domain": "backend", "paths": ["services/**", "packages/**"], "priority": 100 }
+      ],
+      "priorityRules": []
+    },
+    "pba-infra": {
+      "eligiblePaths": ["payg-array-apps/**", "array-internal-apps/**"],
+      "eligibleAuthors": [],
+      "domainRules": [
+        {
+          "domain": "infrastructure",
+          "paths": ["payg-array-apps/**", "array-internal-apps/**"],
+          "priority": 100
+        }
+      ],
+      "priorityRules": []
+    }
+  }
+}

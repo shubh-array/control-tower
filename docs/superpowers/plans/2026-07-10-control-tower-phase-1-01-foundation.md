@@ -2084,7 +2084,7 @@ git commit -m "feat: add organization catalog, harness prompts, skills, and doma
 - Create: `config/examples/profile/persona.md`
 - Create: `config/examples/local-config.json`
 
-- [ ] **Step 1: Create example profile files**
+- [x] **Step 1: Create example profile files**
 
 Create `config/examples/profile/profile.json`:
 
@@ -2206,7 +2206,7 @@ Create `config/examples/local-config.json`:
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add config/examples/

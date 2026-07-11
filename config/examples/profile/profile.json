@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "profileId": "my-profile",
+  "githubLogin": "my-github-login",
+  "activeRepositoryIds": [
+    "pba-webapp",
+    "pba-agents",
+    "pba-microservices",
+    "pba-infra"
+  ]
+}

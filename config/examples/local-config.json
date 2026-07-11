@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "profileDirectory": "~/.control-tower/profile",
+  "dataDirectory": "~/.control-tower/data",
+  "workspaceRoots": [],
+  "repositoryPaths": {},
+  "cursor": {
+    "binary": "agent",
+    "modelRoles": {
+      "attention": {
+        "modelId": "composer-2.5-fast"
+      },
+      "primaryReview": {
+        "modelId": "composer-2.5-fast"
+      }
+    },
+    "maxConcurrentAgents": 1
+  },
+  "worktrees": {
+    "maxMaterialized": 4
+  },
+  "publication": {
+    "mode": "shadow"
+  },
+  "daemon": {
+    "port": 9120
+  }
+}
