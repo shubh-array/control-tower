@@ -2967,7 +2967,7 @@ git commit -m "feat(discovery): add policy composition combining eligibility/pri
 - Create: `src/policy/queue-order.ts`
 - Create: `tests/policy/queue-order.test.ts`
 
-- [ ] **Step 1: Write the queue ordering test**
+- [x] **Step 1: Write the queue ordering test**
 
 ```typescript
 // tests/policy/queue-order.test.ts
@@ -3124,12 +3124,12 @@ describe('toQueueTuple', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/policy/queue-order.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the queue ordering implementation**
+- [x] **Step 3: Write the queue ordering implementation**
 
 ```typescript
 // src/policy/queue-order.ts
@@ -3207,12 +3207,12 @@ export function isFocusQueueEligible(item: QueueSortInput): boolean {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/policy/queue-order.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/policy/queue-order.ts tests/policy/queue-order.test.ts
