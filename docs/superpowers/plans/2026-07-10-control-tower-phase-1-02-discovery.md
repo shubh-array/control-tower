@@ -3392,7 +3392,7 @@ git commit -m "feat(discovery): add checkpoint store for resumable polling"
 - Create: `src/discovery/poll.ts`
 - Create: `tests/discovery/poll.test.ts`
 
-- [ ] **Step 1: Write the poll loop test**
+- [x] **Step 1: Write the poll loop test**
 
 ```typescript
 // tests/discovery/poll.test.ts
@@ -3540,12 +3540,12 @@ describe('DiscoveryPoller', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/discovery/poll.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the poll loop implementation**
+- [x] **Step 3: Write the poll loop implementation**
 
 ```typescript
 // src/discovery/poll.ts
@@ -3673,12 +3673,12 @@ export class DiscoveryPoller {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/discovery/poll.test.ts`
 Expected: all 7 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/discovery/poll.ts tests/discovery/poll.test.ts
