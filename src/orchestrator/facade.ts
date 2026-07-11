@@ -1,17 +1,7 @@
 import type { AllTrackedItem } from '../policy/evaluate.js';
+import type { DraftDetail, JobDetail } from '../api/contracts.js';
 
-export interface JobDetail {
-  id: string;
-  state: string;
-  repositoryKey: string;
-  prNumber: number;
-}
-
-export interface DraftDetail {
-  jobId: string;
-  body: string;
-  findings: unknown[];
-}
+export type { JobDetail, DraftDetail };
 
 export interface HealthStatus {
   activeJobs: number;

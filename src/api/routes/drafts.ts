@@ -1,7 +1,8 @@
 import { Hono } from "hono";
+import type { DraftDetail } from "../contracts.js";
 
 export interface DraftsDeps {
-  getDraft: (jobId: string) => unknown | null;
+  getDraft: (jobId: string) => DraftDetail | null;
 }
 
 export function draftsRoutes(deps: DraftsDeps) {

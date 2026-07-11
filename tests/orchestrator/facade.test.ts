@@ -4,8 +4,8 @@ import {
   createOrchestratorFacade,
   type FacadeDeps,
 } from '../../src/orchestrator/facade.js';
-import type { AllTrackedItem } from '../../src/policy/evaluate.js';
-import type { PolicyDecision } from '../../src/policy/evaluate.js';
+import type { AllTrackedItem, PolicyDecision } from '../../src/policy/evaluate.js';
+import type { DraftDetail, JobDetail } from '../../src/api/contracts.js';
 
 function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
   return {
@@ -50,18 +50,9 @@ function makeTrackedItem(overrides: Partial<AllTrackedItem> = {}): AllTrackedIte
   };
 }
 
-interface MockJob {
-  id: string;
-  state: string;
-  repositoryKey: string;
-  prNumber: number;
-}
+interface MockJob extends JobDetail {}
 
-interface MockDraft {
-  jobId: string;
-  body: string;
-  findings: unknown[];
-}
+interface MockDraft extends DraftDetail {}
 
 interface MockAuditEvent {
   jobId: string;

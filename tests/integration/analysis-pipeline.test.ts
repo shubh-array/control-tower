@@ -4,6 +4,7 @@ import type { PolicyDecision } from '../../src/policy/evaluate.js';
 import { enqueueFromPolicyDecision, type EnqueueDeps, type EnqueueInput } from '../../src/orchestrator/enqueue.js';
 import { executePipeline, type PipelineDeps, type PipelineJob } from '../../src/orchestrator/pipeline.js';
 import { createOrchestratorFacade, type FacadeDeps } from '../../src/orchestrator/facade.js';
+import type { DraftDetail, JobDetail } from '../../src/api/contracts.js';
 import { startRuntime, stopRuntime, type RuntimeConfig, type RuntimeDeps } from '../../src/daemon/runtime.js';
 
 function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
@@ -123,18 +124,43 @@ describe('Integration: pipeline fake → draft_ready → facade.getDraft returns
     expect(pipelineResult.success).toBe(true);
     expect(pipelineResult.finalState).toBe('draft_ready');
 
-    const drafts = new Map<string, { jobId: string; body: string; findings: unknown[] }>();
-    drafts.set('job-1', {
+    const stubDraft: DraftDetail = {
       jobId: 'job-1',
-      body: 'LGTM',
+      runId: 'run-1',
+      summary: { intent: 'test', implementation: 'test' },
+      draftSummary: { body: 'LGTM', observationIndexes: [0], provenanceRefs: [] },
       findings: [],
-    });
+      observations: [],
+      checks: [],
+      coverage: {
+        mode: 'remote-evidence-only',
+        sourceTreeInspected: false,
+        diffFiltered: true,
+        omittedProtectedPaths: [],
+        missingCoverage: [],
+      },
+      unknowns: [],
+      recommendedDisposition: 'approve',
+      validatedProvenance: [],
+      operationPlan: null,
+    };
+
+    const stubJob: JobDetail = {
+      jobId: 'job-1',
+      repository: 'org/pba-webapp',
+      prNumber: 42,
+      headSha: 'a'.repeat(40),
+      state: 'draft_ready',
+      sourceMode: 'registered-source',
+      runs: [],
+      acceptedRunId: 'run-1',
+    };
 
     const facadeDeps: FacadeDeps = {
       getAllTracked: () => [],
       getFocusQueue: () => ({ now: [], next: [], monitor: [] }),
-      getJob: (id) => (id === 'job-1' ? { id: 'job-1', state: 'draft_ready', repositoryKey: 'pba-webapp', prNumber: 42 } : null),
-      getDraft: (jobId) => drafts.get(jobId) ?? null,
+      getJob: (id) => (id === 'job-1' ? stubJob : null),
+      getDraft: (jobId) => (jobId === 'job-1' ? stubDraft : null),
       getAuditTrail: () => [],
       enqueueAnalysis: () => 'job-new',
       enqueueRetry: () => 'retry-1',
@@ -147,7 +173,7 @@ describe('Integration: pipeline fake → draft_ready → facade.getDraft returns
 
     const draftResult = facade.getDraft('job-1');
     expect(draftResult).not.toBeNull();
-    expect(draftResult!.body).toBe('LGTM');
+    expect(draftResult!.draftSummary.body).toBe('LGTM');
     expect(draftResult!.jobId).toBe('job-1');
   });
 });

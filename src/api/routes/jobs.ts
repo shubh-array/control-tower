@@ -1,7 +1,10 @@
 import { Hono } from "hono";
+import type { ActionTokenStore } from "../action-token.js";
+import type { JobDetail } from "../contracts.js";
 
 export interface JobsDeps {
-  getJob: (id: string) => unknown | null;
+  actionTokens: ActionTokenStore;
+  getJob: (id: string) => JobDetail | null;
   requestAnalyze: (input: {
     repositoryKey: string;
     prNumber: number;
@@ -23,12 +26,22 @@ export function jobsRoutes(deps: JobsDeps) {
       repositoryKey: string;
       prNumber: number;
       sourceMode?: "registered-source" | "remote-evidence-only";
+      actionToken: string;
     }>();
+
+    if (!deps.actionTokens.consume(body.actionToken)) {
+      return c.json({ error: "Invalid or expired action token" }, 403);
+    }
+
     const jobId = deps.requestAnalyze(body);
     return c.json({ jobId });
   });
 
-  app.post("/api/jobs/:id/retry", (c) => {
+  app.post("/api/jobs/:id/retry", async (c) => {
+    const body = await c.req.json<{ actionToken: string }>();
+    if (!deps.actionTokens.consume(body.actionToken)) {
+      return c.json({ error: "Invalid or expired action token" }, 403);
+    }
     const newRunId = deps.requestRetry(c.req.param("id"));
     return c.json({ runId: newRunId });
   });

@@ -1,8 +1,13 @@
 import { Hono } from "hono";
+import type { FocusQueueRow, TrackedQueueRow } from "../contracts.js";
 
 export interface QueueDeps {
-  getAllTracked: () => unknown[];
-  getFocusQueue: () => { now: unknown[]; next: unknown[]; monitor: unknown[] };
+  getAllTracked: () => TrackedQueueRow[];
+  getFocusQueue: () => {
+    now: FocusQueueRow[];
+    next: FocusQueueRow[];
+    monitor: FocusQueueRow[];
+  };
 }
 
 export function queueRoutes(deps: QueueDeps) {
