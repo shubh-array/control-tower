@@ -4731,7 +4731,7 @@ git commit -m "feat(cursor): fail-closed beforeReadFile hook template for protec
 - Create: `src/orchestrator/work-graph.ts`
 - Test: `tests/orchestrator/work-graph.test.ts`
 
-- [ ] **Step 1: Write failing tests for work graph projection and focus queue**
+- [x] **Step 1: Write failing tests for work graph projection and focus queue**
 
 Critical invariants: `getAllTracked()` includes ineligible items. `getFocusQueue()` excludes any item with `prioritySortOrdinal >= 4` (i.e. `unranked`).
 
@@ -4894,7 +4894,7 @@ describe('WorkGraph', () => {
 Run: `npx vitest run tests/orchestrator/work-graph.test.ts`
 Expected: FAIL — Cannot find module
 
-- [ ] **Step 3: Implement work graph**
+- [x] **Step 3: Implement work graph**
 
 ```typescript
 // src/orchestrator/work-graph.ts

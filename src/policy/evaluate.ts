@@ -48,6 +48,33 @@ export interface PolicyDecision {
   allDomainReasons: DomainMatchReason[];
 }
 
+export interface CheckSummaryEntry {
+  name: string;
+  status: string;
+  conclusion: string | null;
+}
+
+export interface AllTrackedItem {
+  repositoryKey: string;
+  prNumber: number;
+  headSha: string;
+  baseSha: string;
+  title: string;
+  author: string;
+  draft: boolean;
+  labels: string[];
+  additions: number;
+  deletions: number;
+  changedFiles: string[];
+  reviewRequested: boolean;
+  checkSummary: CheckSummaryEntry[];
+  updatedAt: string | null;
+  explicitRequestTimestamp: string | null;
+  policy: PolicyDecision;
+  sourceMode: "registered-source" | "remote-evidence-only";
+  bodyTruncated: string;
+}
+
 export function evaluatePolicy(input: PolicyInput): PolicyDecision {
   const repositoryPolicy = input.repositoryPolicy;
   const isActive = input.activeRepositoryIds.includes(input.pr.repositoryId);
