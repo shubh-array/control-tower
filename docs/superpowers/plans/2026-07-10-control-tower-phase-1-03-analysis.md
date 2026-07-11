@@ -6190,12 +6190,12 @@ describe('startRuntime', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (module not found)**
+- [x] **Step 2: Run tests — expect FAIL (module not found)**
 
 Run: `npx vitest run tests/daemon/runtime.test.ts`
 Expected: FAIL — Cannot find module
 
-- [ ] **Step 3: Implement daemon runtime**
+- [x] **Step 3: Implement daemon runtime**
 
 ```typescript
 // src/daemon/runtime.ts
@@ -6284,12 +6284,12 @@ export async function stopRuntime(handle: RuntimeHandle): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `npx vitest run tests/daemon/runtime.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/daemon/runtime.ts tests/daemon/runtime.test.ts
@@ -6303,7 +6303,7 @@ git commit -m "feat(daemon): runtime lifecycle with migrate, recovery, poller, s
 **Files:**
 - Create: `tests/integration/analysis-pipeline.test.ts`
 
-- [ ] **Step 1: Write integration tests covering poll→policy→enqueue→pipeline→facade flow**
+- [x] **Step 1: Write integration tests covering poll→policy→enqueue→pipeline→facade flow**
 
 ```typescript
 // tests/integration/analysis-pipeline.test.ts
@@ -6522,17 +6522,17 @@ describe('Integration: restart recovery then catch-up', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL (modules not found)**
+- [x] **Step 2: Run tests — expect FAIL (modules not found)**
 
 Run: `npx vitest run tests/integration/analysis-pipeline.test.ts`
 Expected: FAIL — Cannot find modules (until Tasks 22–26 are implemented)
 
-- [ ] **Step 3: After Tasks 22–26 are implemented, re-run — expect PASS**
+- [x] **Step 3: After Tasks 22–26 are implemented, re-run — expect PASS**
 
 Run: `npx vitest run tests/integration/analysis-pipeline.test.ts`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/integration/analysis-pipeline.test.ts
