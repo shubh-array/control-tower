@@ -248,7 +248,7 @@ git commit -m "feat: add canonical JSON serializer and SHA-256 helpers"
 - Create: `src/paths/canonical-path.ts`
 - Create: `tests/paths/canonical-path.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/paths/canonical-path.test.ts`:
 
@@ -358,12 +358,12 @@ describe("validateCanonicalPath", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm test tests/paths/canonical-path.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement canonical-path.ts**
+- [x] **Step 3: Implement canonical-path.ts**
 
 Create `src/paths/canonical-path.ts`:
 
@@ -430,12 +430,12 @@ export function validateCanonicalPath(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm test tests/paths/canonical-path.test.ts`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/paths/canonical-path.ts tests/paths/canonical-path.test.ts
