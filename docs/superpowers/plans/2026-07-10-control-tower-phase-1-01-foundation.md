@@ -2876,7 +2876,7 @@ git commit -m "feat: add child-environment builders for Cursor, gh, git-fetch, g
 **Files:**
 - Create: `src/daemon/server.ts`
 
-- [ ] **Step 1: Create src/daemon/server.ts**
+- [x] **Step 1: Create src/daemon/server.ts**
 
 ```typescript
 import { createServer, type Server } from "node:http";
@@ -2930,7 +2930,7 @@ export function stopDaemon(server: Server): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/daemon/server.ts
