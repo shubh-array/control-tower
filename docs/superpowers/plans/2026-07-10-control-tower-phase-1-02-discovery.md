@@ -3226,7 +3226,7 @@ git commit -m "feat(discovery): add queue ordering with complete All Tracked tup
 **Files:**
 - Create: `src/tickets/extract.ts`
 
-- [ ] **Step 1: Write the ticket extractor**
+- [x] **Step 1: Write the ticket extractor**
 
 ```typescript
 // src/tickets/extract.ts
@@ -3275,12 +3275,12 @@ export function extractTickets(
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `npx tsc --noEmit src/tickets/extract.ts`
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tickets/extract.ts
