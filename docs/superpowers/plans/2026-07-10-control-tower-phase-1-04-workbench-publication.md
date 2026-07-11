@@ -3273,7 +3273,7 @@ git commit -m "feat(client): Vite React app shell with Focus Queue, All Tracked,
 - Create: `src/api/routes/drafts.ts`
 - Create: `src/api/routes/audit.ts`
 
-- [ ] **Step 1: Implement health route**
+- [x] **Step 1: Implement health route**
 
 ```typescript
 // src/api/routes/health.ts
@@ -3292,7 +3292,7 @@ export function healthRoutes(deps: HealthDeps) {
 }
 ```
 
-- [ ] **Step 2: Implement queue route**
+- [x] **Step 2: Implement queue route**
 
 ```typescript
 // src/api/routes/queue.ts
@@ -3315,7 +3315,7 @@ export function queueRoutes(deps: QueueDeps) {
 }
 ```
 
-- [ ] **Step 3: Implement jobs route**
+- [x] **Step 3: Implement jobs route**
 
 ```typescript
 // src/api/routes/jobs.ts
@@ -3358,7 +3358,7 @@ export function jobsRoutes(deps: JobsDeps) {
 }
 ```
 
-- [ ] **Step 4: Implement drafts route**
+- [x] **Step 4: Implement drafts route**
 
 ```typescript
 // src/api/routes/drafts.ts
@@ -3379,7 +3379,7 @@ export function draftsRoutes(deps: DraftsDeps) {
 }
 ```
 
-- [ ] **Step 5: Implement audit route**
+- [x] **Step 5: Implement audit route**
 
 ```typescript
 // src/api/routes/audit.ts
@@ -3398,7 +3398,7 @@ export function auditRoutes(deps: AuditDeps) {
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/api/routes/health.ts src/api/routes/queue.ts src/api/routes/jobs.ts src/api/routes/drafts.ts src/api/routes/audit.ts
@@ -3413,7 +3413,7 @@ git commit -m "feat(api): read-only JSON routes for health, queue, jobs, drafts,
 - Create: `src/api/routes/approvals.ts`
 - Create: `src/api/routes/publication.ts`
 
-- [ ] **Step 1: Implement approvals route**
+- [x] **Step 1: Implement approvals route**
 
 ```typescript
 // src/api/routes/approvals.ts
@@ -3448,7 +3448,7 @@ export function approvalsRoutes(deps: ApprovalsDeps) {
 }
 ```
 
-- [ ] **Step 2: Implement publication route**
+- [x] **Step 2: Implement publication route**
 
 ```typescript
 // src/api/routes/publication.ts
@@ -3506,7 +3506,7 @@ export function publicationRoutes(deps: PublicationDeps) {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/api/routes/approvals.ts src/api/routes/publication.ts
@@ -3520,7 +3520,7 @@ git commit -m "feat(api): approval and publication endpoints with guard validati
 **Files:**
 - Create: `src/api/server.ts`
 
-- [ ] **Step 1: Implement API server**
+- [x] **Step 1: Implement API server**
 
 ```typescript
 // src/api/server.ts
@@ -3622,7 +3622,7 @@ export function createApiServer(deps: ServerDeps) {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/api/server.ts
@@ -3643,7 +3643,7 @@ git commit -m "feat(api): Hono server mounting all routes, session auth, static 
 > a second HTTP listener. The facade is the single typed boundary between the workbench
 > server and the orchestrator — no invented `orchestrator.getX` helpers.
 
-- [ ] **Step 1: Import facade and wire API server into runtime lifecycle**
+- [x] **Step 1: Import facade and wire API server into runtime lifecycle**
 
 Modify `src/daemon/runtime.ts` (Plan 03's runtime) to start the API server after creating the facade:
 
@@ -3683,12 +3683,12 @@ async function stop(): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Verify the daemon starts and serves the UI**
+- [x] **Step 2: Verify the daemon starts and serves the UI**
 
 Run: `pnpm ct start` (or equivalent)
 Expected: Prints `Control Tower UI: http://127.0.0.1:9120` and serves the static client at that URL.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/daemon/runtime.ts
@@ -3709,7 +3709,7 @@ git commit -m "feat(daemon): wire Hono API server + OrchestratorFacade into star
 > - Publication partial failure: retain per-operation completion and the frozen summary-use/idempotency mapping; preview only incomplete operations; require a fresh single-use approval for each incomplete operation before continuing; never reapprove, replay, or remap a completed summary/review body.
 > - Configuration error: retain the last valid runtime configuration; do not partially apply an invalid edit.
 
-- [ ] **Step 1: Write failing tests for partial publish continuation**
+- [x] **Step 1: Write failing tests for partial publish continuation**
 
 ```typescript
 // tests/publisher/continuation.test.ts
@@ -3977,7 +3977,7 @@ describe("continuePublish", () => {
 });
 ```
 
-- [ ] **Step 2: Write failing tests for last-valid runtime config**
+- [x] **Step 2: Write failing tests for last-valid runtime config**
 
 ```typescript
 // tests/config/runtime-config.test.ts
@@ -4079,12 +4079,12 @@ describe("loadRuntimeConfig — last-valid retention", () => {
 });
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/publisher/continuation.test.ts tests/config/runtime-config.test.ts`
 Expected: FAIL — modules not found
 
-- [ ] **Step 4: Implement continuation**
+- [x] **Step 4: Implement continuation**
 
 ```typescript
 // src/publisher/continuation.ts
@@ -4217,7 +4217,7 @@ export async function continuePublish(
 }
 ```
 
-- [ ] **Step 5: Implement last-valid runtime config**
+- [x] **Step 5: Implement last-valid runtime config**
 
 ```typescript
 // src/config/runtime-config.ts
@@ -4306,12 +4306,12 @@ export function loadRuntimeConfig(configPath: string): RuntimeConfigHandle {
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `pnpm vitest run tests/publisher/continuation.test.ts tests/config/runtime-config.test.ts`
 Expected: all PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/publisher/continuation.ts tests/publisher/continuation.test.ts src/config/runtime-config.ts tests/config/runtime-config.test.ts
@@ -4325,19 +4325,19 @@ git commit -m "feat(publisher,config): §12 partial publish continuation and las
 **Files:**
 - Modify: root `package.json` and `client/package.json`
 
-- [ ] **Step 1: Install server-side dependencies**
+- [x] **Step 1: Install server-side dependencies**
 
 ```bash
 pnpm add hono @hono/node-server
 ```
 
-- [ ] **Step 2: Install client-side dependencies**
+- [x] **Step 2: Install client-side dependencies**
 
 ```bash
 cd client && pnpm install
 ```
 
-- [ ] **Step 3: Build client for static serving**
+- [x] **Step 3: Build client for static serving**
 
 ```bash
 cd client && pnpm build
@@ -4345,7 +4345,7 @@ cd client && pnpm build
 
 Expected: `client/dist/` contains `index.html` and bundled JS/CSS with no inline scripts.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml client/package.json client/pnpm-lock.yaml
@@ -4360,7 +4360,7 @@ git commit -m "chore: install hono, react, vite, and sanitizer dependencies"
 - Create: `src/publisher/batch-publish.ts`
 - Create: `tests/publisher/partial-failure.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/publisher/partial-failure.test.ts
@@ -4554,12 +4554,12 @@ describe("Summary body never remapped", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/publisher/partial-failure.test.ts`
 Expected: FAIL — module `../../src/publisher/batch-publish.js` not found
 
-- [ ] **Step 3: Implement batch publisher with per-operation completion map**
+- [x] **Step 3: Implement batch publisher with per-operation completion map**
 
 ```typescript
 // src/publisher/batch-publish.ts
@@ -4637,12 +4637,12 @@ export function getIncompleteOperations(
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `pnpm vitest run tests/publisher/partial-failure.test.ts`
 Expected: all 9 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/publisher/batch-publish.ts tests/publisher/partial-failure.test.ts
@@ -4657,7 +4657,7 @@ git commit -m "feat(publisher): §12 partial publish failure recovery with per-o
 - Create: `src/config/runtime-config.ts`
 - Create: `tests/config/last-valid.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```typescript
 // tests/config/last-valid.test.ts
@@ -4766,12 +4766,12 @@ describe("RuntimeConfigLoader", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run tests/config/last-valid.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement runtime config loader**
+- [x] **Step 3: Implement runtime config loader**
 
 ```typescript
 // src/config/runtime-config.ts
@@ -4812,12 +4812,12 @@ export class RuntimeConfigLoader {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 Run: `pnpm vitest run tests/config/last-valid.test.ts`
 Expected: all 6 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/config/runtime-config.ts tests/config/last-valid.test.ts

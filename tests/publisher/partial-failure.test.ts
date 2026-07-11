@@ -24,7 +24,7 @@ function makeOp(
     target: null,
     bodyHash: type === "approve_review" ? null : `hash-${idemKey}`,
     disposition: "comment",
-    draftSummaryUse: type === "summary_comment" ? "review_body" : "none",
+    draftSummaryUse: type === "summary_comment" ? "review_body" : "not_published",
     summaryBodyHash: type === "summary_comment" ? "summary-hash" : null,
     headSha: "a".repeat(40),
     acceptedRunId: "run-1",
@@ -52,8 +52,8 @@ describe("executeBatchPublish", () => {
 
     expect(result.allComplete).toBe(true);
     expect(result.failedOperations).toHaveLength(0);
-    expect(result.completionMap["op-1"].status).toBe("completed");
-    expect(result.completionMap["op-2"].status).toBe("completed");
+    expect(result.completionMap["op-1"]!.status).toBe("completed");
+    expect(result.completionMap["op-2"]!.status).toBe("completed");
   });
 
   it("continues after partial failure and reports incomplete ops", async () => {
@@ -74,9 +74,9 @@ describe("executeBatchPublish", () => {
 
     expect(result.allComplete).toBe(false);
     expect(result.failedOperations).toEqual(["op-2"]);
-    expect(result.completionMap["op-1"].status).toBe("completed");
-    expect(result.completionMap["op-2"].status).toBe("failed");
-    expect(result.completionMap["op-3"].status).toBe("completed");
+    expect(result.completionMap["op-1"]!.status).toBe("completed");
+    expect(result.completionMap["op-2"]!.status).toBe("failed");
+    expect(result.completionMap["op-3"]!.status).toBe("completed");
   });
 
   it("records thrown errors as failed operations", async () => {
@@ -92,8 +92,8 @@ describe("executeBatchPublish", () => {
     const result = await executeBatchPublish(deps, ops);
 
     expect(result.allComplete).toBe(false);
-    expect(result.completionMap["op-1"].status).toBe("failed");
-    expect(result.completionMap["op-1"].error).toContain("network timeout");
+    expect(result.completionMap["op-1"]!.status).toBe("failed");
+    expect(result.completionMap["op-1"]!.error).toContain("network timeout");
   });
 });
 
@@ -113,7 +113,7 @@ describe("getIncompleteOperations", () => {
     const incomplete = getIncompleteOperations(completionMap, allOps);
 
     expect(incomplete).toHaveLength(1);
-    expect(incomplete[0].operation.idempotencyKey).toBe("op-2");
+    expect(incomplete[0]!.operation.idempotencyKey).toBe("op-2");
   });
 
   it("returns empty array when all complete", () => {
@@ -183,7 +183,7 @@ describe("Summary body never remapped", () => {
     const incomplete = getIncompleteOperations(completionMap, allOps);
 
     expect(incomplete).toHaveLength(1);
-    expect(incomplete[0].body).toBe("Inline note");
-    expect(incomplete[0].body).not.toBe("Summary body");
+    expect(incomplete[0]!.body).toBe("Inline note");
+    expect(incomplete[0]!.body).not.toBe("Summary body");
   });
 });

@@ -62,7 +62,8 @@ function createStore(
       if (!ops) return;
       const idx = ops.findIndex((o) => o.operationHash === operationHash);
       if (idx >= 0) {
-        ops[idx] = { ...ops[idx], status: "completed" };
+        const existing = ops[idx]!;
+        ops[idx] = { ...existing, status: "completed" };
       }
     },
   };
@@ -95,8 +96,8 @@ describe("listIncompleteOperations", () => {
 
     const incomplete = listIncompleteOperations(store, "job-pub-1");
     expect(incomplete).toHaveLength(1);
-    expect(incomplete[0].idempotencyKey).toBe("idem-op2-inline");
-    expect(incomplete[0].type).toBe("inline_comment");
+    expect(incomplete[0]!.idempotencyKey).toBe("idem-op2-inline");
+    expect(incomplete[0]!.type).toBe("inline_comment");
   });
 
   it("never includes a completed summary/review operation", () => {
@@ -166,11 +167,11 @@ describe("continuePublish", () => {
     );
 
     expect(result.attempted).toHaveLength(1);
-    expect(result.attempted[0].idempotencyKey).toBe("idem-op2-inline");
+    expect(result.attempted[0]!.idempotencyKey).toBe("idem-op2-inline");
     expect(result.skippedCompleted).toHaveLength(1);
-    expect(result.skippedCompleted[0].idempotencyKey).toBe("idem-op1-summary");
+    expect(result.skippedCompleted[0]!.idempotencyKey).toBe("idem-op1-summary");
     expect(executeOperation).toHaveBeenCalledOnce();
-    expect(executeOperation.mock.calls[0][0].idempotencyKey).toBe("idem-op2-inline");
+    expect(executeOperation.mock.calls[0]![0].idempotencyKey).toBe("idem-op2-inline");
   });
 
   it("rejects continuation when fresh approval is missing for an incomplete op", async () => {
@@ -222,12 +223,12 @@ describe("continuePublish", () => {
       freshApprovals,
     );
 
-    const executedOp: ExternalOperation = executeOperation.mock.calls[0][0];
+    const executedOp: ExternalOperation = executeOperation.mock.calls[0]![0];
     expect(executedOp.bodyHash).toBe("inline-body-hash-bbb");
     expect(executedOp.bodyHash).not.toBe(completedSummaryHash);
     expect(executedOp.draftSummaryUse).not.toBe("review_body");
-    expect(result.skippedCompleted[0].bodyHash).toBe(completedSummaryHash);
-    expect(result.skippedCompleted[0].draftSummaryUse).toBe("review_body");
+    expect(result.skippedCompleted[0]!.bodyHash).toBe(completedSummaryHash);
+    expect(result.skippedCompleted[0]!.draftSummaryUse).toBe("review_body");
     expect(
       result.attempted.some((op) => op.bodyHash === completedSummaryHash),
     ).toBe(false);

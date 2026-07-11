@@ -11,6 +11,8 @@ export interface RuntimeConfig {
   schedulerIntervalMs: number;
   attentionIntervalMs: number;
   dataDirectory: string;
+  /** When false, skip binding the loopback API server (for unit tests). */
+  apiServerEnabled?: boolean;
 }
 
 export interface RuntimePublishContext {
@@ -150,8 +152,15 @@ export async function startRuntime(
   );
 
   const PORT = config.port;
-  const { url, close: closeApi } = apiServer.start(PORT);
-  console.log(`Control Tower UI: ${url}`);
+  let url = `http://127.0.0.1:${PORT}`;
+  let closeApi = () => {};
+
+  if (config.apiServerEnabled !== false) {
+    const started = apiServer.start(PORT);
+    url = started.url;
+    closeApi = started.close;
+    console.log(`Control Tower UI: ${url}`);
+  }
 
   async function stop(): Promise<void> {
     closeApi();

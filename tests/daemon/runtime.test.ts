@@ -67,6 +67,7 @@ const DEFAULT_CONFIG: RuntimeConfig = {
   schedulerIntervalMs: 5000,
   attentionIntervalMs: 60000,
   dataDirectory: '/tmp/test-data',
+  apiServerEnabled: false,
 };
 
 describe('startRuntime', () => {

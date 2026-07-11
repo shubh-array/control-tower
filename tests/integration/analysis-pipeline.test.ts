@@ -195,6 +195,7 @@ describe('Integration: restart recovery then catch-up', () => {
 
     const config: RuntimeConfig = {
       port: 9120,
+      apiServerEnabled: false,
       schedulerIntervalMs: 100,
       attentionIntervalMs: 100000,
       dataDirectory: '/tmp/test-integration',
