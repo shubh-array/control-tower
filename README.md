@@ -99,7 +99,7 @@ Secrets and absolute paths stay in local machine config. Shared defaults and pro
 5. Confirm Cursor `modelRoles` (`attention`, `primaryReview`) via `pnpm ct doctor`.
 6. Leave `publication.mode` as `"shadow"` until you are ready.
 
-Examples live under `config/examples/`.
+Examples live under `config/examples/`. Full walkthrough with copy-paste examples: [`ONBOARDING.md`](./ONBOARDING.md).
 
 ## Day-to-day UI
 
