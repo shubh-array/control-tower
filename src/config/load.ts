@@ -12,8 +12,6 @@ import type {
   LocalConfig,
 } from "./types.js";
 
-export type TicketExtractor = OrganizationConfig["ticketExtractors"][number];
-
 function readJson(path: string): unknown {
   let raw: string;
   try {

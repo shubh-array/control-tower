@@ -5,8 +5,7 @@ import { homedir } from "node:os";
 export interface InitInteractiveAnswers {
   githubLogin?: string;
   activeRepos?: Record<string, string>;
-  modelRoles?: { primaryReview?: { modelId: string }; attention?: { modelId: string } };
-  attentionAdvisorEnabled?: boolean;
+  modelRoles?: { primaryReview?: { modelId: string } };
   autoAnalyze?: boolean;
 }
 

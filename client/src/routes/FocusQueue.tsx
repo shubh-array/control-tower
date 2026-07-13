@@ -338,7 +338,7 @@ export function FocusQueue({
     >
       <PageHeader
         title="Inbox"
-        subtitle={`${actionableCount} items need attention · ordered by advisor relevance & risk`}
+        subtitle={`${actionableCount} items need attention · ordered by priority and queue tuple`}
       />
       <label className="lane-toggle">
         <input

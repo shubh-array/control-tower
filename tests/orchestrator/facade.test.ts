@@ -91,7 +91,6 @@ function makeFacadeDeps(options: {
     enqueueRetry: (jobId: string) => {
       return `retry-${jobId}`;
     },
-    scheduleAdvice: (_repositoryKey: string, _prNumber: number) => {},
     getHealthStatus: () => ({
       activeJobs: jobs.size,
       queuedJobs: 0,
@@ -164,14 +163,6 @@ describe('OrchestratorFacade', () => {
       const newRunId = facade.requestRetry('job-1');
 
       expect(newRunId).toBe('retry-job-1');
-    });
-  });
-
-  describe('requestAdvice', () => {
-    it('schedules advice without throwing', () => {
-      const deps = makeFacadeDeps();
-      const facade = createOrchestratorFacade(deps);
-      expect(() => facade.requestAdvice('pba-webapp', 42)).not.toThrow();
     });
   });
 

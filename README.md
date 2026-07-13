@@ -20,7 +20,6 @@ Another engineer can onboard different repositories without forking the app.
 | **Coverage** | Authoritative coverage of configured repos and explicit review requests. Agents cannot hide items. |
 | **Inbox** | Eligible-only triage, deterministically ordered by the queue tuple. Users can optionally group it into Now / Next / Monitor lanes. |
 | **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout. It runs locally; registered-source reviews fetch the PR head into a daemon-owned worktree and record a source manifest, while unregistered repos use remote evidence. |
-| **Attention advisor** | Deferred: advisor configuration and harnesses exist, but the daemon does not yet run or persist advisor results. |
 | **Gated publication** | Exact preview + per-operation human approval before GitHub mutations |
 | **Governed learning** | Structured signals and profile-change proposals; nothing silent |
 
@@ -93,7 +92,7 @@ Three non-overlapping layers — there is no generic deep-merge.
 
 | Layer | Location | Contents |
 |-------|----------|----------|
-| **Organization catalog** | `config/organization.json` (in repo) | GitHub host/orgs, repo IDs, protected paths, ticket extractors, review defaults |
+| **Organization catalog** | `config/organization.json` (in repo) | GitHub host/orgs, repo IDs, protected paths, review defaults |
 | **Engineer profile** | `~/.control-tower/profile/` | `profile.json` (`profileId`, login, active repos), `policy.json` (eligibility/priority/domains/auto-analyze), `persona.md` |
 | **Local machine** | `~/.control-tower/config.json` | Absolute paths, workspace roots, repository paths, Cursor binary/model roles/concurrency, worktree limit, data directory, daemon port, `publication.mode` |
 
@@ -105,7 +104,7 @@ Secrets and absolute paths stay in local machine config. Shared defaults and pro
 2. Set `activeRepositoryIds` to the catalog repos you want tracked.
 3. Map repos to local checkouts in `repositoryPaths` for registered-source reviews. Without a path, analysis can still use remote-evidence-only mode.
 4. Tune `eligiblePaths`, `eligibleAuthors`, `priorityRules`, and `domainRules` in `policy.json`.
-5. Confirm Cursor `modelRoles` (`attention`, `primaryReview`) via `pnpm ct doctor`.
+5. Confirm Cursor `modelRoles.primaryReview` via `pnpm ct doctor`.
 6. Leave `publication.mode` as `"shadow"` until you are ready.
 
 Examples live under `config/examples/`. Full walkthrough with copy-paste examples: [`ONBOARDING.md`](./ONBOARDING.md).

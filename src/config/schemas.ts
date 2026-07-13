@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-const ticketExtractorSchema = z.object({
-  id: z.string().min(1),
-  sources: z.array(z.enum(["title", "body", "branch"])).min(1),
-  pattern: z.string().min(1),
-}).strict();
-
 export const organizationSchema = z.object({
   schemaVersion: z.literal(1),
   github: z.object({
@@ -13,7 +7,6 @@ export const organizationSchema = z.object({
     organizations: z.array(z.string().min(1)).min(1),
     pollIntervalSeconds: z.number().int().positive(),
   }).strict(),
-  ticketExtractors: z.array(ticketExtractorSchema),
   security: z.object({
     protectedPaths: z.array(z.string().min(1)),
   }).strict(),
@@ -57,11 +50,6 @@ const repositoryPolicySchema = z.object({
 
 export const policySchema = z.object({
   schemaVersion: z.literal(1),
-  attentionAdvisor: z.object({
-    enabled: z.boolean(),
-    maxCandidatesPerInvocation: z.number().int().positive(),
-    timeoutSeconds: z.number().int().positive(),
-  }).strict(),
   autoAnalyze: z.object({
     explicitReviewRequests: z.boolean(),
     priorityTiers: z.array(z.enum(["p0", "p1", "p2", "p3"])),
@@ -82,7 +70,6 @@ export const localConfigSchema = z.object({
   cursor: z.object({
     binary: z.string().min(1),
     modelRoles: z.object({
-      attention: modelRoleSpecSchema.optional(),
       primaryReview: modelRoleSpecSchema,
     }).strict(),
     maxConcurrentAgents: z.number().int().min(1).max(2),

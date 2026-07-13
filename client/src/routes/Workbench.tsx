@@ -10,7 +10,6 @@ import { SafeMarkdown } from "../components/SafeMarkdown.js";
 import { PrLink } from "../components/PrLink.js";
 import { PriorityIndicator } from "../components/PriorityIndicator.js";
 import { CoverageWarning } from "../components/CoverageWarning.js";
-import { AdvisorNote } from "../components/AdvisorNote.js";
 import { ReviewEvidenceSection } from "../components/ReviewEvidenceSection.js";
 import { ActionButton } from "../components/ActionButton.js";
 import { DataState } from "../components/DataState.js";
@@ -78,7 +77,6 @@ function ReviewChrome({
             </>
           )}
         </p>
-        <AdvisorNote result={item.advisorResult} />
       </div>
     </header>
   );

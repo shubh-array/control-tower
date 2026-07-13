@@ -124,24 +124,6 @@ export interface DiscoveredPr {
   explicitRequestTimestamp?: string;
 }
 
-export interface DiffFilterResult {
-  files: FilteredDiffFile[];
-  omitted: OmittedDiffFile[];
-  failed: boolean;
-  failureReason?: string;
-}
-
-export interface FilteredDiffFile {
-  path: string;
-  patch: string;
-}
-
-export interface OmittedDiffFile {
-  path: string;
-  oldPath?: string;
-  reason: 'protected_path_content';
-}
-
 export interface HostHealth {
   host: string;
   healthy: boolean;

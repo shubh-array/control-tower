@@ -56,12 +56,10 @@ function buildDoctorConfig(localConfigPath: string): DoctorConfig {
 
   const policyPath = join(localConfig.profileDirectory, "policy.json");
   const personaPath = join(localConfig.profileDirectory, "persona.md");
-  let attentionAdvisorEnabled = false;
   const domainGlobs: string[] = [];
   if (existsSync(policyPath)) {
     try {
       const policy = loadPolicyConfig(policyPath);
-      attentionAdvisorEnabled = policy.attentionAdvisor?.enabled ?? false;
       const globSet = new Set<string>();
       for (const repoPolicy of Object.values(policy.repositories)) {
         for (const path of repoPolicy.eligiblePaths) globSet.add(path);
@@ -88,7 +86,6 @@ function buildDoctorConfig(localConfigPath: string): DoctorConfig {
     repositoryPaths: localConfig.repositoryPaths,
     repositoryCatalog: catalogMap,
     modelRoles: localConfig.cursor.modelRoles,
-    attentionAdvisorEnabled,
     profilePath: join(localConfig.profileDirectory, "profile.json"),
     policyPath: existsSync(policyPath) ? policyPath : null,
     personaPath: existsSync(personaPath) ? personaPath : null,

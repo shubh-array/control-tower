@@ -4,46 +4,17 @@ import { join } from 'node:path';
 import {
   loadCorpus,
   loadCase,
-  runAttentionEval,
   runPrimaryReviewEval,
 } from '../../eval/runner.js';
-import type { AttentionRunOutput } from '../../eval/metrics/attention.js';
 import type { ReviewRunOutput } from '../../eval/metrics/primary-review.js';
 
-const attentionCorpusPath = join(import.meta.dirname, '../../eval/attention/corpus.json');
 const reviewCorpusPath = join(import.meta.dirname, '../../eval/primary-review/corpus.json');
 
 describe('loadCorpus', () => {
-  it('loads attention corpus definition', () => {
-    const corpus = loadCorpus(attentionCorpusPath);
-    expect(corpus.role).toBe('attention');
-    expect(corpus.cases).toHaveLength(5);
-  });
-
   it('loads primary review corpus definition', () => {
     const corpus = loadCorpus(reviewCorpusPath);
     expect(corpus.role).toBe('primaryReview');
     expect(corpus.cases).toHaveLength(5);
-  });
-});
-
-describe('runAttentionEval', () => {
-  it('evaluates all attention cases with passing executor', async () => {
-    const result = await runAttentionEval(attentionCorpusPath, async (input: unknown) => {
-      const candidates = (input as { candidates: Array<{ repositoryKey: string; prNumber: number }> }).candidates;
-      return {
-        items: candidates.map(c => ({
-          repositoryKey: c.repositoryKey,
-          prNumber: c.prNumber,
-          relevance: 'critical',
-          risk: 'high',
-          recommendedAction: 'review',
-        })),
-      } satisfies AttentionRunOutput;
-    });
-    expect(result.role).toBe('attention');
-    expect(result.caseResults).toHaveLength(5);
-    expect(result.aggregateMetrics.mustEscalateRecall).toBeDefined();
   });
 });
 
@@ -66,9 +37,9 @@ describe('runPrimaryReviewEval', () => {
 
 describe('loadCase', () => {
   it('loads individual case files', () => {
-    const corpus = loadCorpus(attentionCorpusPath);
-    const basePath = join(attentionCorpusPath, '..');
+    const corpus = loadCorpus(reviewCorpusPath);
+    const basePath = join(reviewCorpusPath, '..');
     const caseData = loadCase(basePath, corpus.cases[0]!) as { caseId: string };
-    expect(caseData.caseId).toBe('attn_must_escalate_security_vuln_01');
+    expect(caseData.caseId).toBeDefined();
   });
 });

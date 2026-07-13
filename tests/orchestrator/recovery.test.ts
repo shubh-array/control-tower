@@ -29,16 +29,6 @@ function insertRun(
   ).run(row.id, jobId, row.state, row.version);
 }
 
-function insertAdvisorRun(
-  db: Database.Database,
-  row: { id: string; state: string; version: number },
-): void {
-  db.prepare(
-    `INSERT INTO advisor_runs (id, identity_hash, attempt_number, state, version)
-     VALUES (?, ?, 1, ?, ?)`,
-  ).run(row.id, `id-${row.id}`, row.state, row.version);
-}
-
 describe("recoverOrphanedStates", () => {
   let db: Database.Database;
 
@@ -73,12 +63,6 @@ describe("recoverOrphanedStates", () => {
     insertRun(db, { id: "r1", state: "running", version: 2 });
     const result = recoverOrphanedStates(db);
     expect(result.failedRuns).toContain("r1");
-  });
-
-  it("fails orphaned advisor runs with daemon_restart", () => {
-    insertAdvisorRun(db, { id: "ar1", state: "running", version: 1 });
-    const result = recoverOrphanedStates(db);
-    expect(result.failedAdvisorRuns).toContain("ar1");
   });
 
   it("does not fail terminal jobs", () => {

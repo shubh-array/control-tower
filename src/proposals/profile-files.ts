@@ -38,9 +38,9 @@ export function loadProfileFiles(
 
 export function loadCorpusCases(
   appRoot: string,
-  role: "attention" | "primaryReview",
+  _role: "primaryReview",
 ): CorpusCase[] {
-  const corpusPath = join(appRoot, "eval", role === "attention" ? "attention" : "primary-review", "corpus.json");
+  const corpusPath = join(appRoot, "eval", "primary-review", "corpus.json");
   const corpus = loadCorpus(corpusPath);
   const basePath = join(corpusPath, "..");
   return corpus.cases.map((casePath) => {

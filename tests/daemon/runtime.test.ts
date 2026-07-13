@@ -72,7 +72,6 @@ function makeFakeRuntimeDeps(options?: {
   recoveryCalled: boolean;
   pollerStarted: boolean;
   schedulerTicks: number;
-  attentionBatches: number;
 } {
   const tracked = options?.tracked ?? [];
   return {
@@ -80,14 +79,13 @@ function makeFakeRuntimeDeps(options?: {
     recoveryCalled: false,
     pollerStarted: false,
     schedulerTicks: 0,
-    attentionBatches: 0,
 
     migrate() {
       this.migrateCalled = true;
     },
     recoverOrphanedStates() {
       this.recoveryCalled = true;
-      return { failedJobs: [], failedRuns: [], failedAdvisorRuns: [], autoRetried: [], failureReasons: new Map(), publishingReconciled: [] };
+      return { failedJobs: [], failedRuns: [], autoRetried: [], failureReasons: new Map(), publishingReconciled: [] };
     },
     startDiscoveryPoller() {
       this.pollerStarted = true;
@@ -96,9 +94,6 @@ function makeFakeRuntimeDeps(options?: {
     runSchedulerTick() {
       this.schedulerTicks++;
       return { jobsToStart: [], reason: 'no_eligible_candidates' };
-    },
-    runAttentionBatch() {
-      this.attentionBatches++;
     },
     createFacade() {
       return {
@@ -116,7 +111,6 @@ function makeFakeRuntimeDeps(options?: {
         getAuditTrail: () => [],
         requestAnalyze: () => 'job-1',
         requestRetry: () => 'run-1',
-        requestAdvice: () => {},
       };
     },
   };
@@ -125,7 +119,6 @@ function makeFakeRuntimeDeps(options?: {
 const DEFAULT_CONFIG: RuntimeConfig = {
   port: 9120,
   schedulerIntervalMs: 5000,
-  attentionIntervalMs: 60000,
   dataDirectory: '/tmp/test-data',
   apiServerEnabled: false,
 };

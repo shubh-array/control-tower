@@ -138,7 +138,6 @@ Edit `~/.control-tower/config.json`.
   "cursor": {
     "binary": "agent",
     "modelRoles": {
-      "attention": { "modelId": "composer-2.5-fast" },
       "primaryReview": { "modelId": "composer-2.5-fast" }
     },
     "maxConcurrentAgents": 1
@@ -165,7 +164,6 @@ Notes:
 Also confirm:
 
 - `cursor.modelRoles.primaryReview.modelId` — always required
-- `cursor.modelRoles.attention.modelId` — required when `policy.json` has `attentionAdvisor.enabled: true`
 - `publication.mode` stays `"shadow"` until you intentionally enable publishing
 
 ---
@@ -236,20 +234,6 @@ Meaning in code:
 - Eligible + priority in `priorityTiers` → auto enqueue (with author-only caveats)
 - Everything else → on-demand (use **Analyze** in Coverage)
 
-### Attention advisor (deferred)
-
-```json
-"attentionAdvisor": {
-  "enabled": true,
-  "maxCandidatesPerInvocation": 50,
-  "timeoutSeconds": 90
-}
-```
-
-The current daemon does not run advisor batches or persist advisor results.
-These settings and harness files are retained for the deferred advisor feature;
-enabling them does not affect current Inbox ordering, coverage, or eligibility.
-
 ### Persona
 
 Edit `~/.control-tower/profile/persona.md` for review tone. Example starter text is copied from `config/examples/profile/persona.md`.
@@ -287,8 +271,7 @@ Then:
 Also in org config:
 
 - `github.host` / `github.organizations` / `github.pollIntervalSeconds`
-- `security.protectedPaths` — configured protection patterns. The current runtime passes these patterns to registered-source preparation, but does not yet wire the planned built-in default union or streaming diff filter.
-- `ticketExtractors` — opaque ticket IDs from title/body/branch
+- `security.protectedPaths` — configured protection patterns passed to registered-source preparation
 - `reviewDefaults` — job timeout, retention, storage cap
 
 ---
@@ -301,7 +284,6 @@ Without touching application code:
 |------|------|
 | Your voice / bar | `~/.control-tower/profile/persona.md` |
 | Primary review prompt/skills | `config/harnesses/pr-review/` |
-| Deferred attention-advisor prompt/skills | `config/harnesses/pr-attention/` (not invoked by the current daemon) |
 | Domain guidance | `config/harnesses/pr-review/domains/*.md` |
 
 ---
@@ -428,7 +410,6 @@ again.
 | Prefer certain authors | `policy.json` → `eligibleAuthors` |
 | Raise urgency for hot paths | `policy.json` → `priorityRules` |
 | Auto-run Cursor more/less | `policy.json` → `autoAnalyze` |
-| Preconfigure the deferred advisor | `policy.json` → `attentionAdvisor` (+ attention model) |
 | Change models | local `config.json` → `cursor.modelRoles` |
 | Change UI port | local `config.json` → `daemon.port` |
 | Prefer local checkout evidence | local `config.json` → `repositoryPaths` |

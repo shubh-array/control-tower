@@ -3,7 +3,6 @@ import type Database from "better-sqlite3";
 export interface RecoveryResult {
   failedJobs: string[];
   failedRuns: string[];
-  failedAdvisorRuns: string[];
   autoRetried: string[];
   failureReasons: Map<string, string>;
   publishingReconciled: string[];
@@ -22,7 +21,6 @@ export function recoverOrphanedStates(db: Database.Database): RecoveryResult {
   const result: RecoveryResult = {
     failedJobs: [],
     failedRuns: [],
-    failedAdvisorRuns: [],
     autoRetried: [],
     failureReasons: new Map(),
     publishingReconciled: [],
@@ -63,18 +61,6 @@ export function recoverOrphanedStates(db: Database.Database): RecoveryResult {
         `UPDATE runs SET state = 'failed', version = version + 1, failure_reason = 'daemon_restart' WHERE id = ? AND version = ?`,
       ).run(run.id, run.version);
       result.failedRuns.push(run.id);
-    }
-
-    const orphanedAdvisorRuns = db
-      .prepare(
-        "SELECT id, version, state FROM advisor_runs WHERE state IN ('running', 'validating')",
-      )
-      .all() as Array<{ id: string; version: number; state: string }>;
-    for (const run of orphanedAdvisorRuns) {
-      db.prepare(
-        `UPDATE advisor_runs SET state = 'failed', version = version + 1, failure_reason = 'daemon_restart' WHERE id = ? AND version = ?`,
-      ).run(run.id, run.version);
-      result.failedAdvisorRuns.push(run.id);
     }
 
     if (hasPublicationOperationsTable(db)) {

@@ -142,7 +142,7 @@ function buildFakeDeps(opts: {
     },
     recoverOrphanedStates() {
       return {
-        failedJobs: [], failedRuns: [], failedAdvisorRuns: [],
+        failedJobs: [], failedRuns: [],
         autoRetried: [], failureReasons: new Map(), publishingReconciled: [],
       };
     },
@@ -158,7 +158,6 @@ function buildFakeDeps(opts: {
       }
       return { jobsToStart, reason: jobsToStart.length > 0 ? 'eligible' : 'none' };
     },
-    runAttentionBatch() {},
     createFacade(): OrchestratorFacade {
       const facadeDeps: FacadeDeps = {
         getAllTracked: () => [],
@@ -220,7 +219,6 @@ function buildFakeDeps(opts: {
           }
           return rid;
         },
-        scheduleAdvice() {},
         enqueuedJobs: [],
       };
       return createOrchestratorFacade(facadeDeps);
@@ -257,7 +255,7 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
     publisher = new FakePublisher();
 
     handle = await startRuntime(
-      { port: 0, schedulerIntervalMs: 60_000, attentionIntervalMs: 60_000, dataDirectory: ':memory:', apiServerEnabled: false },
+      { port: 0, schedulerIntervalMs: 60_000, dataDirectory: ':memory:', apiServerEnabled: false },
       buildFakeDeps({ gh, git, cursor, publisher, db }),
     );
   });

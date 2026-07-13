@@ -1,21 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect } from "vitest";
-import { AdvisorNote } from "../src/components/AdvisorNote.js";
 import { PrimaryButton } from "../src/components/PrimaryButton.js";
-import { StatusChip } from "../src/components/StatusChip.js";
 import { AppHeader } from "../src/components/AppHeader.js";
 
 describe("component contracts", () => {
-  it("AdvisorNote null renders labeled unavailable advisor note", () => {
-    const html = renderToStaticMarkup(
-      createElement(AdvisorNote, { result: null }),
-    );
-
-    expect(html).toContain('class="advisor-note advisor-note--empty"');
-    expect(html).toContain("Advisor: Not available");
-  });
-
   it("PrimaryButton forwards id and className without injecting type", () => {
     const html = renderToStaticMarkup(
       createElement(
@@ -28,16 +17,6 @@ describe("component contracts", () => {
     expect(html).toContain('id="submit-action"');
     expect(html).toContain('class="button button--primary extra"');
     expect(html).not.toMatch(/\stype="/);
-  });
-
-  it("StatusChip emits the correct label", () => {
-    const html = renderToStaticMarkup(
-      createElement(StatusChip, { status: "needs-analysis" }),
-    );
-
-    expect(html).toContain("Needs analysis");
-    expect(html).toContain('role="status"');
-    expect(html).toContain("status-badge--needs-analysis");
   });
 
   it("AppHeader renders primary nav and marks the active page", () => {

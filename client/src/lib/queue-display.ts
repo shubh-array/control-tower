@@ -11,22 +11,6 @@ export type InboxAction = "analyze" | "open-review" | "retry" | null;
 
 export type CoverageFilter = "eligible" | "ineligible" | "all";
 
-const RELEVANCE_ORDINAL: Record<string, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  unknown: 4,
-};
-
-const RISK_ORDINAL: Record<string, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  unknown: 4,
-};
-
 const ACTIVE_JOB_STATES = new Set([
   "queued",
   "preparing_context",
@@ -68,10 +52,6 @@ export function deriveInboxPresentation(item: TrackedQueueRow): {
   return { chip: "waiting", primaryAction: null };
 }
 
-function hasCurrentAdvice(item: TrackedQueueRow): boolean {
-  return item.advisorResult !== null && !item.advisorResult.stale;
-}
-
 function compareQueueOrder(a: TrackedQueueRow, b: TrackedQueueRow): number {
   const ao = a.queueOrder;
   const bo = b.queueOrder;
@@ -93,29 +73,8 @@ function compareQueueOrder(a: TrackedQueueRow, b: TrackedQueueRow): number {
   return ao.prNumber - bo.prNumber;
 }
 
-function compareAdvisedRows(a: TrackedQueueRow, b: TrackedQueueRow): number {
-  const ar = a.advisorResult!;
-  const br = b.advisorResult!;
-
-  const relA = RELEVANCE_ORDINAL[ar.relevance] ?? 4;
-  const relB = RELEVANCE_ORDINAL[br.relevance] ?? 4;
-  if (relA !== relB) return relA - relB;
-
-  const riskA = RISK_ORDINAL[ar.risk] ?? 4;
-  const riskB = RISK_ORDINAL[br.risk] ?? 4;
-  if (riskA !== riskB) return riskA - riskB;
-
-  return compareQueueOrder(a, b);
-}
-
 export function sortInboxRows(items: TrackedQueueRow[]): TrackedQueueRow[] {
-  const advised = items.filter(hasCurrentAdvice);
-  const nonAdvised = items.filter((item) => !hasCurrentAdvice(item));
-
-  const sortedAdvised = [...advised].sort(compareAdvisedRows);
-  const sortedNonAdvised = [...nonAdvised].sort(compareQueueOrder);
-
-  return [...sortedAdvised, ...sortedNonAdvised];
+  return [...items].sort(compareQueueOrder);
 }
 
 function formatReasonCode(code: string): string {

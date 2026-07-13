@@ -57,18 +57,4 @@ export class CheckpointStore {
     const now = new Date().toISOString();
     this.set(`poll:${host}:lastCompleted`, host, now, { freshnessAt: now });
   }
-
-  getPageCursor(host: string, query: string): string | null {
-    return this.get(`cursor:${host}:${query}`);
-  }
-
-  setPageCursor(host: string, query: string, cursor: string): void {
-    this.set(`cursor:${host}:${query}`, host, cursor);
-  }
-
-  clearPageCursor(host: string, query: string): void {
-    this.db
-      .prepare("DELETE FROM discovery_checkpoints WHERE id = ?")
-      .run(`cursor:${host}:${query}`);
-  }
 }

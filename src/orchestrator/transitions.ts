@@ -8,8 +8,6 @@ import {
   type RunState,
   ALLOWED_RUN_TRANSITIONS,
   isTerminalRun,
-  type AdvisorRunState,
-  ALLOWED_ADVISOR_TRANSITIONS,
 } from "./run-state.js";
 
 export class TransitionError extends Error {
@@ -191,60 +189,6 @@ export function transitionRun(
     const newVersion = row.version + 1;
     db.prepare(
       "UPDATE runs SET state = ?, version = ? WHERE id = ? AND version = ?",
-    ).run(req.newState, newVersion, req.runId, row.version);
-    return { success: true, newVersion };
-  })();
-}
-
-export interface AdvisorTransitionRequest {
-  runId: string;
-  expectedState: AdvisorRunState;
-  expectedVersion: number;
-  newState: AdvisorRunState;
-}
-
-export function transitionAdvisorRun(
-  db: Database.Database,
-  req: AdvisorTransitionRequest,
-): TransitionResult {
-  return db.transaction(() => {
-    const row = db
-      .prepare("SELECT id, state, version FROM advisor_runs WHERE id = ?")
-      .get(req.runId) as
-      | { id: string; state: AdvisorRunState; version: number }
-      | undefined;
-
-    if (!row) {
-      throw new TransitionError(
-        "advisor_run",
-        req.runId,
-        req.expectedState,
-        req.newState,
-        "run not found",
-      );
-    }
-    if (row.state !== req.expectedState || row.version !== req.expectedVersion) {
-      throw new TransitionError(
-        "advisor_run",
-        req.runId,
-        req.expectedState,
-        req.newState,
-        `compare-and-set mismatch: state=${row.state} version=${row.version}`,
-      );
-    }
-    const allowed = ALLOWED_ADVISOR_TRANSITIONS.get(row.state);
-    if (!allowed?.has(req.newState)) {
-      throw new TransitionError(
-        "advisor_run",
-        req.runId,
-        row.state,
-        req.newState,
-        "transition not in allowed graph",
-      );
-    }
-    const newVersion = row.version + 1;
-    db.prepare(
-      "UPDATE advisor_runs SET state = ?, version = ? WHERE id = ? AND version = ?",
     ).run(req.newState, newVersion, req.runId, row.version);
     return { success: true, newVersion };
   })();
