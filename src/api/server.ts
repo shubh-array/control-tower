@@ -96,7 +96,9 @@ export function createApiServer(deps: ServerDeps) {
 
   app.use("/*", async (c, next) => {
     const cookie = c.req.header("cookie");
-    if (!cookie?.includes("ct_session=")) {
+    const origin = c.req.header("origin");
+    // Re-issue when missing or stale (daemon restart rotates sessionSecret).
+    if (!validateSession(sessionSecret, cookie, origin)) {
       issueSession(c);
     }
     await next();
