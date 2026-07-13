@@ -3,16 +3,19 @@ import { useState, useCallback, useEffect } from "react";
 import {
   type FocusQueueRow,
   type PublishResult,
+  type CoverageInfo,
 } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
 import { SafeMarkdown } from "../components/SafeMarkdown.js";
 import { CoverageWarning } from "../components/CoverageWarning.js";
 import { AdvisorNote } from "../components/AdvisorNote.js";
+import { ReviewEvidenceSection } from "../components/ReviewEvidenceSection.js";
 import { ActionButton } from "../components/ActionButton.js";
 import { DataState } from "../components/DataState.js";
 import { EmptyState } from "../components/EmptyState.js";
 import { Tabs } from "../components/Tabs.js";
 import { getReviewFallback } from "../lib/review-fallback.js";
+import { formatRepositoryPr } from "../lib/repository-display.js";
 import { useDraftQuery } from "../hooks/useDraftQuery.js";
 import {
   useAnalyzeMutation,
@@ -26,6 +29,15 @@ import {
 type Tab = "understand" | "verify" | "act";
 type Disposition = "comment" | "request_changes" | "approve";
 
+function countCoverageLimitations(coverage: CoverageInfo): number {
+  let count = 0;
+  if (!coverage.sourceTreeInspected) count += 1;
+  count += coverage.missingCoverage.length;
+  count += coverage.omittedProtectedPaths.length;
+  if (!coverage.diffFiltered) count += 1;
+  return count;
+}
+
 interface WorkbenchProps {
   item: FocusQueueRow;
   onBack: () => void;
@@ -38,7 +50,6 @@ function ReviewChrome({
   item: FocusQueueRow;
   onBack: () => void;
 }) {
-  const repoLabel = item.repository.split("/").at(-1) ?? item.repository;
   return (
     <header className="review-header">
       <div>
@@ -46,7 +57,11 @@ function ReviewChrome({
           ← Inbox
         </ActionButton>
         <p>
-          <code>{`${repoLabel}#${item.prNumber}`}</code>
+          <code>
+            <SafeText
+              text={formatRepositoryPr(item.repository, item.prNumber)}
+            />
+          </code>
         </p>
         <h2>
           <SafeText text={item.title} />
@@ -235,35 +250,86 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
           role="tabpanel"
           id="review-panel-understand"
           aria-labelledby="review-tab-understand"
+          className="review-panel"
         >
-          <h3>Intent</h3>
-          <SafeText text={draft.summary.intent} as="p" />
-          <h3>Implementation</h3>
-          <SafeText text={draft.summary.implementation} as="p" />
-          <h3>Checks ({draft.checks.length})</h3>
-          {draft.checks.length === 0 ? (
-            <p className="muted">No check results</p>
-          ) : (
+          <div className="review-section">
+            <h3 className="review-section__title">Intent</h3>
+            <SafeText
+              text={draft.summary.intent}
+              as="p"
+              className="review-section__body"
+            />
+          </div>
+          <div className="review-section">
+            <h3 className="review-section__title">Implementation</h3>
+            <SafeText
+              text={draft.summary.implementation}
+              as="p"
+              className="review-section__body"
+            />
+          </div>
+          <ReviewEvidenceSection title="Checks" count={draft.checks.length}>
+            {draft.checks.length === 0 ? (
+              <p className="muted">No check results</p>
+            ) : (
+              <ul>
+                {draft.checks.map((c, i) => (
+                  <li key={i}>
+                    <SafeText text={`${c.name}: ${c.status}`} />
+                    {c.provenanceRef && (
+                      <div className="muted provenance">
+                        Provenance: <SafeText text={c.provenanceRef} />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ReviewEvidenceSection>
+          <ReviewEvidenceSection title="Unknowns" count={draft.unknowns.length}>
+            {draft.unknowns.length === 0 ? (
+              <p className="muted">None reported</p>
+            ) : (
+              <ul>
+                {draft.unknowns.map((u, i) => (
+                  <li key={i}>
+                    <SafeText text={u} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ReviewEvidenceSection>
+          <ReviewEvidenceSection
+            title="Coverage & limitations"
+            count={countCoverageLimitations(draft.coverage)}
+          >
             <ul>
-              {draft.checks.map((c, i) => (
-                <li key={i}>
-                  <SafeText text={`${c.name}: ${c.status}`} />
+              <li>
+                Mode: <SafeText text={draft.coverage.mode} />
+              </li>
+              <li>
+                Source tree inspected:{" "}
+                {draft.coverage.sourceTreeInspected ? "yes" : "no"}
+              </li>
+              <li>
+                Diff filtered: {draft.coverage.diffFiltered ? "yes" : "no"}
+              </li>
+              {draft.coverage.missingCoverage.length > 0 && (
+                <li>
+                  Missing coverage:{" "}
+                  <SafeText text={draft.coverage.missingCoverage.join(", ")} />
                 </li>
-              ))}
-            </ul>
-          )}
-          <h3>Unknowns</h3>
-          {draft.unknowns.length === 0 ? (
-            <p className="muted">None reported</p>
-          ) : (
-            <ul>
-              {draft.unknowns.map((u, i) => (
-                <li key={i}>
-                  <SafeText text={u} />
+              )}
+              {draft.coverage.omittedProtectedPaths.length > 0 && (
+                <li>
+                  Protected paths omitted:{" "}
+                  <SafeText
+                    text={draft.coverage.omittedProtectedPaths.join(", ")}
+                  />
                 </li>
-              ))}
+              )}
             </ul>
-          )}
+          </ReviewEvidenceSection>
         </section>
       )}
 
@@ -272,42 +338,92 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
           role="tabpanel"
           id="review-panel-verify"
           aria-labelledby="review-tab-verify"
+          className="review-panel"
         >
-          <h3>Observations ({draft.observations.length})</h3>
-          {draft.observations.map((obs, i) => (
-            <div key={i} className="review-card">
-              <span className={`observation-type observation-type--${obs.type}`}>
-                {obs.type}
-              </span>
-              <SafeText text={obs.statement} as="p" />
-              <div className="muted provenance">
-                Provenance: {obs.provenanceRefs.join(", ") || "none"}
+          <ReviewEvidenceSection
+            title="Observations"
+            count={draft.observations.length}
+          >
+            {draft.observations.length === 0 ? (
+              <p className="muted">No observations</p>
+            ) : (
+              draft.observations.map((obs, i) => (
+                <div key={i} className="review-card">
+                  <span
+                    className={`observation-type observation-type--${obs.type}`}
+                  >
+                    {obs.type}
+                  </span>
+                  <SafeText text={obs.statement} as="p" />
+                  <div className="muted provenance">
+                    Provenance:{" "}
+                    <SafeText
+                      text={obs.provenanceRefs.join(", ") || "none"}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </ReviewEvidenceSection>
+          <div className="review-section">
+            <h3 className="review-section__title">
+              Findings ({draft.findings.length})
+            </h3>
+            {draft.findings.map((f, i) => (
+              <div
+                key={i}
+                className={`finding finding--${f.severity === "blocking" ? "blocking" : f.severity === "high" ? "high" : "other"}`}
+              >
+                <div className="finding__header">
+                  <strong>
+                    <SafeText text={f.title} />
+                  </strong>
+                </div>
+                <dl className="finding__meta">
+                  <div className="finding__meta-item">
+                    <dt>Severity</dt>
+                    <dd>
+                      <SafeText text={f.severity} />
+                    </dd>
+                  </div>
+                  <div className="finding__meta-item">
+                    <dt>Confidence</dt>
+                    <dd>
+                      <SafeText text={f.confidence} />
+                    </dd>
+                  </div>
+                  {f.file && (
+                    <div className="finding__meta-item">
+                      <dt>Source</dt>
+                      <dd>
+                        <code>
+                          <SafeText text={f.file} />
+                          {f.location && `:${f.location.line}`}
+                        </code>
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                <SafeText text={f.rationale} as="p" />
               </div>
-            </div>
-          ))}
-          <h3>Findings ({draft.findings.length})</h3>
-          {draft.findings.map((f, i) => (
-            <div
-              key={i}
-              className={`finding finding--${f.severity === "blocking" ? "blocking" : f.severity === "high" ? "high" : "other"}`}
-            >
-              <div className="finding__header">
-                <strong>
-                  <SafeText text={f.title} />
-                </strong>
-                <span className="muted">
-                  {f.severity} · {f.confidence} confidence
-                </span>
-              </div>
-              <SafeText text={f.rationale} as="p" />
-              {f.file && (
-                <code>
-                  <SafeText text={f.file} />
-                  {f.location && `:${f.location.line}`}
-                </code>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
+          <ReviewEvidenceSection
+            title="Provenance"
+            count={draft.validatedProvenance.length}
+          >
+            {draft.validatedProvenance.length === 0 ? (
+              <p className="muted">No validated provenance records</p>
+            ) : (
+              <ul>
+                {draft.validatedProvenance.map((entry, i) => (
+                  <li key={i}>
+                    <SafeText text={JSON.stringify(entry)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ReviewEvidenceSection>
         </section>
       )}
 

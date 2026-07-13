@@ -16,7 +16,9 @@ function formatAdvice(result: AdvisorResult): string {
 export function AdvisorNote({ result }: AdvisorNoteProps) {
   if (!result) {
     return (
-      <p className="advisor-note advisor-note--empty">No advisor yet</p>
+      <p className="advisor-note advisor-note--empty">
+        Advisor: Not available
+      </p>
     );
   }
 
@@ -25,7 +27,7 @@ export function AdvisorNote({ result }: AdvisorNoteProps) {
 
   return (
     <p className="advisor-note">
-      <SafeText text={text} />
+      Advisor: <SafeText text={text} />
     </p>
   );
 }

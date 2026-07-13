@@ -7,13 +7,13 @@ import { StatusChip } from "../src/components/StatusChip.js";
 import { AppHeader } from "../src/components/AppHeader.js";
 
 describe("component contracts", () => {
-  it("AdvisorNote null renders empty advisor note", () => {
+  it("AdvisorNote null renders labeled unavailable advisor note", () => {
     const html = renderToStaticMarkup(
       createElement(AdvisorNote, { result: null }),
     );
 
     expect(html).toContain('class="advisor-note advisor-note--empty"');
-    expect(html).toContain("No advisor yet");
+    expect(html).toContain("Advisor: Not available");
   });
 
   it("PrimaryButton forwards id and className without injecting type", () => {

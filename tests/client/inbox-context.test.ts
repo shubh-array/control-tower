@@ -1,0 +1,71 @@
+import { describe, it, expect } from "vitest";
+import type { TrackedQueueRow } from "../../client/src/lib/api.js";
+import { buildInboxContext } from "../../client/src/lib/inbox-context.js";
+
+function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
+  return {
+    jobId: null,
+    repositoryKey: "pba-webapp",
+    repository: "org/pba-webapp",
+    prNumber: 42,
+    title: "Fix bug",
+    author: "dev",
+    headSha: "a".repeat(40),
+    eligibilityReasons: [],
+    exclusionReasons: [],
+    priority: "p1",
+    priorityReasons: [],
+    queueOrder: {
+      prioritySortOrdinal: 1,
+      explicitRequestSort: 0,
+      queueTimestamp: "2026-07-10T12:00:00.000Z",
+      normalizedRepositoryIdentity: "pba-webapp",
+      prNumber: 42,
+    },
+    domains: [],
+    attentionState: "ready_for_analysis",
+    jobState: null,
+    advisorResult: null,
+    discoveredAt: "2026-07-10T12:00:00.000Z",
+    updatedAt: "2026-07-10T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("buildInboxContext", () => {
+  it("returns labeled priority, attention reason, and advisor availability", () => {
+    expect(
+      buildInboxContext(
+        row({
+          eligibilityReasons: [{ code: "explicit_review_request" }],
+        }),
+      ),
+    ).toEqual([
+      { label: "Priority", value: "P1" },
+      { label: "Attention reason", value: "Explicit review request" },
+      { label: "Advisor", value: "Not available" },
+    ]);
+  });
+
+  it("includes advisor advice when present", () => {
+    expect(
+      buildInboxContext(
+        row({
+          advisorResult: {
+            relevance: "high",
+            risk: "medium",
+            explanation: "Review auth changes.",
+            recommendedAction: "review",
+            confidence: "high",
+            unknowns: [],
+            stale: false,
+          },
+        }),
+      ),
+    ).toEqual([
+      { label: "Priority", value: "P1" },
+      { label: "Attention reason", value: "No eligibility reason recorded" },
+      { label: "Advisor", value: "Review auth changes." },
+    ]);
+  });
+});

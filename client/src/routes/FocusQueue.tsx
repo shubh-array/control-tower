@@ -3,13 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, type FocusQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
 import { StatusBadge } from "../components/StatusBadge.js";
-import { AdvisorNote } from "../components/AdvisorNote.js";
 import { ReasonLine } from "../components/ReasonLine.js";
 import { ActionButton } from "../components/ActionButton.js";
 import { DataState } from "../components/DataState.js";
 import { EmptyState } from "../components/EmptyState.js";
 import { PageHeader } from "../components/PageHeader.js";
-import { PriorityIndicator } from "../components/PriorityIndicator.js";
 import {
   INBOX_REFRESH_ERROR,
   inboxRowKey,
@@ -20,19 +18,15 @@ import {
 import {
   deriveInboxPresentation,
   sortInboxRows,
-  summarizeReasons,
 } from "../lib/queue-display.js";
+import { buildInboxContext } from "../lib/inbox-context.js";
+import { formatRepositoryPr } from "../lib/repository-display.js";
 import { queryKeys } from "../lib/query-keys.js";
 import { useAnalyzeMutation, useRetryMutation } from "../hooks/useJobMutations.js";
 import { useQueueQuery } from "../hooks/useQueueQuery.js";
 
 const DRAFT_UNAVAILABLE_MESSAGE =
   "Draft is not available yet. Retry analysis or refresh the Inbox.";
-
-function formatRepoPr(item: FocusQueueRow): string {
-  const repoName = item.repository.split("/").at(-1) ?? item.repository;
-  return `${repoName}#${item.prNumber}`;
-}
 
 function actionLabel(action: "analyze" | "open-review" | "retry"): string {
   if (action === "analyze") return "Analyze";
@@ -56,48 +50,53 @@ function InboxRow({
   const key = inboxRowKey(item);
   const presentation = deriveInboxPresentation(item);
   const pending = actioningKey === key;
-  const hasExplicitRequest = item.eligibilityReasons.some(
-    (reason) => reason.code === "explicit_review_request",
-  );
+  const context = buildInboxContext(item);
 
   return (
     <li>
       <article className="inbox-row">
-        <div>
-          <div className="inbox-row__meta">
+        <div className="inbox-row__content">
+          <div className="inbox-row__identity">
             <code>
-              <SafeText text={formatRepoPr(item)} />
+              <SafeText text={formatRepositoryPr(item.repository, item.prNumber)} />
             </code>
+          </div>
+          <h3 className="inbox-row__title">
             <SafeText text={item.title} />
-          </div>
-          <div className="inbox-row__meta">
+          </h3>
+          <p className="inbox-row__author">
             <SafeText text={item.author} />
-            {item.priority !== "unranked" && (
-              <>
-                {" · "}
-                <PriorityIndicator priority={item.priority} />
-              </>
-            )}
-            {hasExplicitRequest && " · Explicit request"}
-          </div>
-          <AdvisorNote result={item.advisorResult} />
-          <ReasonLine text={summarizeReasons(item)} />
+          </p>
+          <dl className="inbox-row__context">
+            {context.map(({ label, value }) => (
+              <div key={label} className="inbox-row__context-item">
+                <dt>{label}</dt>
+                <dd>
+                  <SafeText text={value} />
+                </dd>
+              </div>
+            ))}
+          </dl>
           {mutationError && <ReasonLine text={mutationError} />}
           {refreshError && <ReasonLine text={refreshError} />}
         </div>
-        <StatusBadge status={presentation.chip} />
-        {presentation.primaryAction !== null ? (
-          <ActionButton
-            disabled={actioningKey !== null && !pending}
-            busy={pending}
-            busyLabel="Working…"
-            onClick={() => onAction(item)}
-          >
-            {actionLabel(presentation.primaryAction)}
-          </ActionButton>
-        ) : (
-          <span />
-        )}
+        <div className="inbox-row__status">
+          <StatusBadge status={presentation.chip} />
+        </div>
+        <div className="inbox-row__action">
+          {presentation.primaryAction !== null ? (
+            <ActionButton
+              disabled={actioningKey !== null && !pending}
+              busy={pending}
+              busyLabel="Working…"
+              onClick={() => onAction(item)}
+            >
+              {actionLabel(presentation.primaryAction)}
+            </ActionButton>
+          ) : (
+            <span />
+          )}
+        </div>
       </article>
     </li>
   );
