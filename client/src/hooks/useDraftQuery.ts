@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, api, type DraftDetail } from "../lib/api.js";
 import { queryKeys } from "../lib/query-keys.js";
 import { resolveDraftQuerySurface } from "../lib/query-surface.js";
+import { isDocumentVisible } from "../lib/document-visibility.js";
+import { resolveDraftRefetchInterval } from "../lib/queue-polling.js";
 
 export function useDraftQuery(
   jobId: string | null | undefined,
@@ -19,6 +21,12 @@ export function useDraftQuery(
       }
       return failureCount < 1;
     },
+    refetchInterval: (queryState) =>
+      resolveDraftRefetchInterval({
+        isVisible: isDocumentVisible(),
+        hasDraft: queryState.state.data !== undefined,
+      }),
+    refetchIntervalInBackground: false,
   });
 
   const surface = resolveDraftQuerySurface<DraftDetail>({

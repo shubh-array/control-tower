@@ -2,7 +2,10 @@
 
 Local-first control tower for principal engineers who need complete coverage of GitHub pull requests, evidence-backed review drafts, and human-gated publication — without giving agents authority over eligibility, scheduling, or GitHub mutations.
 
-Array’s repositories are the starter profile. Organization repos, priorities, prompts, and review judgment are **configuration**, not application code. Another engineer can onboard different repositories without forking the app.
+Array’s repositories are the starter organization catalog. The example engineer
+profile selects repositories from that catalog. Organization repos, priorities,
+prompts, and review judgment are **configuration**, not application code.
+Another engineer can onboard different repositories without forking the app.
 
 ## Who this is for
 
@@ -14,10 +17,10 @@ Array’s repositories are the starter profile. Organization repos, priorities, 
 
 | Capability | What you get |
 |------------|--------------|
-| **All Tracked** | Authoritative coverage of configured repos and explicit review requests. Agents cannot hide items. |
-| **Focus Queue** | Eligible-only Now / Next / Monitor view for day-to-day triage |
-| **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout or local runtime |
-| **Attention advisor** (optional) | Metadata-only relevance/risk advice; never changes coverage or auto-analysis |
+| **Coverage** | Authoritative coverage of configured repos and explicit review requests. Agents cannot hide items. |
+| **Inbox** | Eligible-only triage, deterministically ordered by the queue tuple. Users can optionally group it into Now / Next / Monitor lanes. |
+| **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout. It runs locally; registered-source reviews fetch the PR head into a daemon-owned worktree and record a source manifest, while unregistered repos use remote evidence. |
+| **Attention advisor** | Deferred: advisor configuration and harnesses exist, but the daemon does not yet run or persist advisor results. |
 | **Gated publication** | Exact preview + per-operation human approval before GitHub mutations |
 | **Governed learning** | Structured signals and profile-change proposals; nothing silent |
 
@@ -38,10 +41,11 @@ Array’s repositories are the starter profile. Organization repos, priorities, 
 | Node.js | ≥ 22 |
 | pnpm | ≥ 10 |
 | Git | ≥ 2.40 |
-| GitHub CLI (`gh`) | ≥ 2.70, authenticated to every configured host |
-| Cursor Agent CLI | Authenticated with your Cursor account |
+| GitHub CLI (`gh`) | ≥ 2.70, authenticated to the GitHub host in `config/organization.json` |
+| Cursor Agent CLI | Authenticated with your Cursor account (`agent` by default; configurable) |
 
-First supported distribution: **source checkout on macOS** (product target; `doctor` validates tool versions and auth, not OS).
+The product is developed and tested from a source checkout on macOS. `doctor`
+validates tools and authentication, not the operating system.
 
 ## Quick start
 
@@ -51,27 +55,32 @@ First supported distribution: **source checkout on macOS** (product target; `doc
 pnpm install
 cd client && pnpm install && pnpm build && cd ..
 
-# Create ~/.control-tower/{config.json,profile,data} from examples
+# Create ~/.control-tower/config.json plus profile/ and data/ from examples
 pnpm ct init
 
 # Edit profile, policy, and local machine paths (see ONBOARDING.md)
 # Then verify the environment
 pnpm ct doctor
 
-# Start the local daemon + loopback UI
+# Start the foreground local daemon + loopback UI
 pnpm ct start
 ```
 
-Default UI: `http://127.0.0.1:9120` (port configurable in local config).
+The daemon serves `client/dist`, so the client build must succeed before starting
+the UI. The default UI is `http://127.0.0.1:9120`. If you set another
+`daemon.port`, restart the daemon and set `CT_DAEMON_PORT` for Vite development.
+`pnpm ct start` remains in the foreground; use another terminal for `status` or
+`stop`.
 
 ```bash
 pnpm ct status
 pnpm ct stop
 ```
 
-### Enable publishing (after shadow validation)
+### Enable publishing (after operator validation)
 
-Publication starts as `shadow` (publisher disabled). When rollout gates pass:
+Publication starts as `shadow` (publisher disabled). After you validate draft
+quality, enable gated publication:
 
 ```bash
 pnpm ct publication enable   # re-runs doctor, requires confirmation
@@ -85,16 +94,16 @@ Three non-overlapping layers — there is no generic deep-merge.
 | Layer | Location | Contents |
 |-------|----------|----------|
 | **Organization catalog** | `config/organization.json` (in repo) | GitHub host/orgs, repo IDs, protected paths, ticket extractors, review defaults |
-| **Engineer profile** | `~/.control-tower/profile/` | `profile.json` (login + active repos), `policy.json` (eligibility/priority/domains/auto-analyze), `persona.md` |
-| **Local machine** | `~/.control-tower/config.json` | Absolute paths, Cursor binary/models, data directory, daemon port, `publication.mode` |
+| **Engineer profile** | `~/.control-tower/profile/` | `profile.json` (`profileId`, login, active repos), `policy.json` (eligibility/priority/domains/auto-analyze), `persona.md` |
+| **Local machine** | `~/.control-tower/config.json` | Absolute paths, workspace roots, repository paths, Cursor binary/model roles/concurrency, worktree limit, data directory, daemon port, `publication.mode` |
 
 Secrets and absolute paths stay in local machine config. Shared defaults and profile content are versionable.
 
 ### Minimal personalization checklist
 
-1. Set `githubLogin` in `profile.json` to your GitHub login.
+1. Set `profileId` and `githubLogin` in `profile.json`.
 2. Set `activeRepositoryIds` to the catalog repos you want tracked.
-3. Map those repos to local checkouts in `repositoryPaths` (for registered-source reviews).
+3. Map repos to local checkouts in `repositoryPaths` for registered-source reviews. Without a path, analysis can still use remote-evidence-only mode.
 4. Tune `eligiblePaths`, `eligibleAuthors`, `priorityRules`, and `domainRules` in `policy.json`.
 5. Confirm Cursor `modelRoles` (`attention`, `primaryReview`) via `pnpm ct doctor`.
 6. Leave `publication.mode` as `"shadow"` until you are ready.
@@ -103,21 +112,35 @@ Examples live under `config/examples/`. Full walkthrough with copy-paste example
 
 ## Day-to-day UI
 
-| Route | Purpose |
-|-------|---------|
-| **Focus Queue** | Default triage — eligible PRs only |
-| **All Tracked** | Complete coverage, including tracked-but-ineligible items |
-| **Workbench** | Inspect draft findings, provenance, and approve publication operations |
-| **Propose Change** | Preview and adopt governed profile/policy proposals |
+The daemon serves a React single-page app. Navigation has durable URLs; a
+direct Review link resolves its job against the current queue.
+
+| Visible surface | URL | Purpose |
+|-----------------|-----|---------|
+| **Inbox** | `/inbox` | Default triage: a flat eligible Focus Queue; enable **Group by lane** to show Now / Next / Monitor |
+| **Coverage** | `/coverage` | Complete All Tracked coverage, including tracked-but-ineligible PRs |
+| **Review** | `/review/:jobId` | Inspect a draft's summary, findings, evidence, provenance, and approval operations |
+| **Propose** | `/propose` | Build, validate, preview, and adopt governed profile/policy proposals |
+
+The queue and health status refresh while the tab is visible: the queue every
+3 seconds while a job is active and every 30 seconds otherwise, and health
+every 30 seconds. An unavailable Review draft also retries every 3 seconds.
+These polls pause in background tabs; the queue refetches when the tab becomes
+visible and all queries refetch on window focus. The header also provides a
+manual **Refresh** action for queue and health status, plus connection and
+stale-data status.
 
 ## CLI reference
 
 | Command | Purpose |
 |---------|---------|
-| `pnpm ct init` | Bootstrap local config and profile |
+| `pnpm ct init` | Bootstrap local config and profile; every run rewrites configured profile/data paths and restores shadow mode |
+| `pnpm ct init --non-interactive [--github-login LOGIN]` | Apply the optional login and run `doctor` without pausing for input |
 | `pnpm ct doctor` | Environment, identity, models, harness, and path checks |
 | `pnpm ct start` / `stop` / `status` | Daemon lifecycle |
 | `pnpm ct publication enable` / `disable` | Switch gated publishing on/off |
+| `pnpm ct reset` | Delete local runtime data after confirmation |
+| `pnpm ct reset --all` | Delete local runtime data, profile, and local config after confirmation |
 
 Override config path with `CONTROL_TOWER_CONFIG` if needed.
 
@@ -125,8 +148,14 @@ Override config path with `CONTROL_TOWER_CONFIG` if needed.
 
 ```bash
 pnpm test          # vitest
+pnpm test:watch    # vitest watch mode
 pnpm typecheck     # tsc --noEmit
+pnpm --dir client build  # typecheck and build the production UI bundle
 ```
+
+For UI development, start the daemon, then run `pnpm --dir client dev`. Vite
+proxies `/api` to `http://127.0.0.1:9120` by default; set
+`CT_DAEMON_PORT` when the daemon uses a different port.
 
 Operator setup and customization: see [`ONBOARDING.md`](./ONBOARDING.md).
 
@@ -140,10 +169,10 @@ Detailed Phase 1 design and implementation plans: `docs/superpowers/`.
 - Autonomous approvals, merges, or Linear mutations
 - A replacement for GitHub as the review system of record
 - Silent learning or agent-owned policy mutation
-- Execution of untrusted PR code on your machine (Phase 1)
+- Execution of untrusted PR code/tests on your machine (Phase 1); registered-source reviews may still fetch PR heads into daemon-owned admin worktrees and generate source manifests
 
 ## Roadmap posture
 
-**Phase 1** — Delegated PR review (discovery → analysis → workbench → gated publish → learning/eval).
+**Phase 1** — Delegated PR review (discovery → analysis → Review → gated publish → learning/eval).
 
 **Phase 2** (independently gated, after Phase 1 gates) — advanced/cross-repo review, bot publication, delivery-provider intelligence, sandboxed checks. See `docs/superpowers/specs/`.

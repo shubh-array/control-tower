@@ -4,6 +4,7 @@ import {
   QUEUE_ACTIVE_POLL_MS,
   QUEUE_IDLE_POLL_MS,
   queueHasActiveJob,
+  resolveDraftRefetchInterval,
   resolveQueueRefetchInterval,
 } from "../../client/src/lib/queue-polling.js";
 
@@ -66,6 +67,27 @@ describe("queue polling", () => {
     ).toBe(false);
     expect(
       resolveQueueRefetchInterval({ isVisible: false, hasActiveJob: false }),
+    ).toBe(false);
+  });
+
+  it("keeps an unavailable Review draft query live", () => {
+    expect(
+      resolveDraftRefetchInterval({
+        isVisible: true,
+        hasDraft: false,
+      }),
+    ).toBe(QUEUE_ACTIVE_POLL_MS);
+    expect(
+      resolveDraftRefetchInterval({
+        isVisible: true,
+        hasDraft: true,
+      }),
+    ).toBe(false);
+    expect(
+      resolveDraftRefetchInterval({
+        isVisible: false,
+        hasDraft: false,
+      }),
     ).toBe(false);
   });
 });

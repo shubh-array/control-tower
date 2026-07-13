@@ -9,7 +9,7 @@ For product overview and design invariants, see [`README.md`](./README.md). For 
 ## What you get after setup
 
 1. A local daemon that polls GitHub for PRs in your active repos (and PRs that request your review).
-2. A loopback UI at `http://127.0.0.1:9120` (default) with **Focus Queue**, **All Tracked**, **Workbench**, and **Propose Change**.
+2. A loopback React UI at `http://127.0.0.1:9120` (default), with **Inbox**, **Coverage**, **Review**, and **Propose** surfaces.
 3. Cursor-backed review drafts. GitHub comments / approvals stay off until you enable gated publication and approve each operation.
 
 ---
@@ -36,7 +36,7 @@ First supported distribution: **source checkout on macOS**. `doctor` validates t
 
 ```bash
 git clone <this-repo-url>
-cd assistant
+cd <checkout-directory>
 
 # Backend + CLI
 pnpm install
@@ -68,19 +68,22 @@ This creates (only if missing):
 
 `init` also:
 
-- Rewrites `profileDirectory` and `dataDirectory` in local config to **absolute** paths under `~/.control-tower/`
-- Forces `publication.mode` to `"shadow"` if it was anything else
+- Rewrites `profileDirectory` and `dataDirectory` in local config to **absolute** paths under `~/.control-tower/` on every run
+- Forces `publication.mode` to `"shadow"` on every run when it was anything else
 
 Optional flags:
 
 ```bash
-# Apply GitHub login and then run doctor (no further prompts)
+# Apply GitHub login and run doctor
 pnpm ct init --non-interactive --github-login YOUR_GITHUB_LOGIN
 ```
 
-`--github-login` only takes effect with `--non-interactive`. Otherwise edit `profile.json` yourself (next step).
+`--non-interactive` always runs `doctor`. `--github-login` only takes effect
+with `--non-interactive`; otherwise edit `profile.json` yourself (next step).
 
-If profile/config already exist, `init` leaves them in place and only prints that they already exist.
+Existing profile files and data are preserved, but `init` always rewrites local
+config paths and can reset publication mode to `shadow`. Do not re-run it after
+customizing either setting unless you intend that change.
 
 ---
 
@@ -105,7 +108,7 @@ Edit `~/.control-tower/profile/profile.json`.
 Rules:
 
 - `githubLogin` must match the login `gh` is authenticated as (same host as org config).
-- Every ID in `activeRepositoryIds` must exist in `config/organization.json` → `repositories[].id`.
+- Every ID in `activeRepositoryIds` must exist in `config/organization.json` → `repositories[].id`. `doctor` does not validate those IDs, so check them before starting.
 
 Starter catalog IDs today: `pba-webapp`, `pba-agents`, `pba-microservices`, `pba-infra`.
 
@@ -171,15 +174,16 @@ Also confirm:
 
 Edit `~/.control-tower/profile/policy.json`.
 
-### Eligibility (what can enter Focus Queue)
+### Eligibility (what can enter Inbox)
 
-For an active repo, a PR becomes eligible if **any** of these hold:
+An explicit GitHub review request is eligible even when the repository is not
+active. For an active repo, a PR is also eligible if either of these holds:
 
 1. GitHub requested **your** review (`explicit_review_request`) — always eligible
 2. A changed file matches `eligiblePaths`
 3. The author is in `eligibleAuthors`
 
-Otherwise the PR stays tracked but ineligible (`All Tracked` still shows it).
+Otherwise the PR stays tracked but ineligible (visible in **Coverage**).
 
 **Example — only frontend paths in `pba-webapp`:**
 
@@ -196,24 +200,26 @@ Otherwise the PR stays tracked but ineligible (`All Tracked` still shows it).
 }
 ```
 
-**Example — also treat PRs from a mentee as eligible:**
+**Example — also treat PRs from a mentee as eligible in `pba-webapp`:**
 
 ```json
-"eligibleAuthors": ["mentee-login"]
+"pba-webapp": {
+  "eligibleAuthors": ["mentee-login"]
+}
 ```
 
 Author-only matches are usually **on-demand** analysis (not auto), unless an independent priority rule also matches.
 
-### Priority (Focus Queue lanes)
+### Priority (Inbox lanes)
 
 Allowed tiers: `p0`, `p1`, `p2`, `p3`.
 
-| Tier | Focus Queue lane |
+| Tier | Inbox lane when **Group by lane** is enabled |
 |------|------------------|
 | `p0`, `p1` | **Now** |
 | `p2` | **Next** |
 | `p3` (default when eligible but no rule matches) | **Monitor** |
-| ineligible / `unranked` | Not shown on Focus Queue (still on All Tracked) |
+| ineligible / `unranked` | Not shown in Inbox (still visible in Coverage) |
 
 ### Auto-analyze
 
@@ -228,9 +234,9 @@ Meaning in code:
 
 - Eligible + explicit review request + `explicitReviewRequests: true` → auto enqueue Cursor primary review
 - Eligible + priority in `priorityTiers` → auto enqueue (with author-only caveats)
-- Everything else → on-demand (use **Analyze** on All Tracked)
+- Everything else → on-demand (use **Analyze** in Coverage)
 
-### Attention advisor
+### Attention advisor (deferred)
 
 ```json
 "attentionAdvisor": {
@@ -240,7 +246,9 @@ Meaning in code:
 }
 ```
 
-When enabled, keep an `attention` model role in local config. Advisor output is **advisory only** — it does not change coverage or eligibility.
+The current daemon does not run advisor batches or persist advisor results.
+These settings and harness files are retained for the deferred advisor feature;
+enabling them does not affect current Inbox ordering, coverage, or eligibility.
 
 ### Persona
 
@@ -279,7 +287,7 @@ Then:
 Also in org config:
 
 - `github.host` / `github.organizations` / `github.pollIntervalSeconds`
-- `security.protectedPaths` (unioned with hardcoded app defaults; you cannot remove the defaults)
+- `security.protectedPaths` — configured protection patterns. The current runtime passes these patterns to registered-source preparation, but does not yet wire the planned built-in default union or streaming diff filter.
 - `ticketExtractors` — opaque ticket IDs from title/body/branch
 - `reviewDefaults` — job timeout, retention, storage cap
 
@@ -293,7 +301,7 @@ Without touching application code:
 |------|------|
 | Your voice / bar | `~/.control-tower/profile/persona.md` |
 | Primary review prompt/skills | `config/harnesses/pr-review/` |
-| Attention advisor prompt/skills | `config/harnesses/pr-attention/` |
+| Deferred attention-advisor prompt/skills | `config/harnesses/pr-attention/` (not invoked by the current daemon) |
 | Domain guidance | `config/harnesses/pr-review/domains/*.md` |
 
 ---
@@ -310,11 +318,22 @@ Typical failures:
 
 - `gh` not authenticated to the configured host
 - GitHub login ≠ `profile.githubLogin`
-- Cursor auth / model ID not available
+- Cursor CLI version, authentication, or configured model smoke check fails
 - `repositoryPaths` entry missing, not a Git repo, or wrong `origin`
 - Invalid profile/policy JSON schema
 - Missing `persona.md` or empty persona
+- Missing harness files or invalid policy globs
+- Data directory missing, not writable, or with insufficient free space
 - Daemon port already in use
+
+If the UI cannot load after start, rebuild it with:
+
+```bash
+pnpm --dir client build
+```
+
+The daemon serves `client/dist`; a missing build can leave client routes without
+an `index.html` entry point.
 
 Override local config path if needed:
 
@@ -333,12 +352,19 @@ pnpm ct start
 
 Open the printed URL (default: `http://127.0.0.1:9120`). The server binds to loopback only.
 
-| UI surface | What to do |
-|------------|------------|
-| **Focus Queue** | Triage eligible PRs in Now / Next / Monitor |
-| **All Tracked** | See full coverage; click **Analyze** for on-demand review |
-| **Workbench** | Open a job, inspect draft findings / provenance, approve publish operations |
-| **Propose Change** | Build / validate / adopt governed profile-policy proposals from learning signals |
+| Visible UI surface | URL | What to do |
+|--------------------|-----|----------------|
+| **Inbox** | `/inbox` | Triage the eligible Focus Queue in its default flat order. Enable **Group by lane** to show Now / Next / Monitor. Start/retry analysis; Review opens when a draft is available. |
+| **Coverage** | `/coverage` | See complete coverage, including ineligible PRs through its filters, and start on-demand analysis. |
+| **Review** | `/review/:jobId` | Inspect a job's draft, findings, supporting evidence, provenance, and gated publication operations. |
+| **Propose** | `/propose` | Build, validate, preview, and adopt governed profile-policy proposals from learning signals. |
+
+While the tab is visible, the queue polls every 3 seconds when a job is active
+and every 30 seconds otherwise; health polls every 30 seconds; and an
+unavailable Review draft retries every 3 seconds. These polls pause in
+background tabs, the queue refetches when the tab becomes visible, and all
+queries refetch on window focus. The header provides a **Refresh** action for
+queue and health status and reports connection and stale-data state.
 
 Useful commands:
 
@@ -367,7 +393,28 @@ To turn publishing off immediately:
 pnpm ct publication disable
 ```
 
-Even in gated mode, every GitHub mutation requires an exact per-operation approval in the Workbench.
+Even in gated mode, every GitHub mutation requires an exact per-operation approval in Review.
+
+---
+
+## 11. Reset local state
+
+Use reset only when you intend to discard local Control Tower state. It
+recursively deletes the configured data directory and, with `--all`, the
+configured profile directory and local config file. Verify that those configured
+paths do not point at a source checkout or repository harness before running it.
+
+```bash
+# Remove only local runtime data (database, runs, signals, and proposals).
+pnpm ct reset
+
+# Also remove the configured profile directory and local config file.
+pnpm ct reset --all
+```
+
+Both commands prompt for confirmation. Add `--yes` only when running an
+intentional non-interactive reset. After `reset --all`, run `pnpm ct init`
+again.
 
 ---
 
@@ -381,12 +428,12 @@ Even in gated mode, every GitHub mutation requires an exact per-operation approv
 | Prefer certain authors | `policy.json` → `eligibleAuthors` |
 | Raise urgency for hot paths | `policy.json` → `priorityRules` |
 | Auto-run Cursor more/less | `policy.json` → `autoAnalyze` |
-| Turn advisor on/off | `policy.json` → `attentionAdvisor.enabled` (+ attention model) |
+| Preconfigure the deferred advisor | `policy.json` → `attentionAdvisor` (+ attention model) |
 | Change models | local `config.json` → `cursor.modelRoles` |
 | Change UI port | local `config.json` → `daemon.port` |
 | Prefer local checkout evidence | local `config.json` → `repositoryPaths` |
 | Change review voice | `persona.md` and/or harness files |
-| Publish to GitHub | `pnpm ct publication enable` + Workbench approvals |
+| Publish to GitHub | `pnpm ct publication enable` + Review approvals |
 
 Three config layers — **no deep-merge**:
 

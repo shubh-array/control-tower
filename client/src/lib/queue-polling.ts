@@ -28,3 +28,14 @@ export function resolveQueueRefetchInterval(input: {
   }
   return input.hasActiveJob ? QUEUE_ACTIVE_POLL_MS : QUEUE_IDLE_POLL_MS;
 }
+
+export function resolveDraftRefetchInterval(input: {
+  isVisible: boolean;
+  hasDraft: boolean;
+}): number | false {
+  if (!input.isVisible) {
+    return false;
+  }
+
+  return input.hasDraft ? false : QUEUE_ACTIVE_POLL_MS;
+}
