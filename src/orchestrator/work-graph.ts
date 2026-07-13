@@ -19,6 +19,7 @@ interface JoinedRow {
   head_sha: string;
   base_sha: string;
   title: string;
+  url: string | null;
   author_login: string;
   draft: number;
   labels_json: string;
@@ -79,6 +80,7 @@ function projectTrackedItem(
     headSha: row.head_sha,
     baseSha: row.base_sha,
     title: row.title,
+    url: row.url ?? '',
     author: row.author_login,
     draft: row.draft === 1,
     labels: JSON.parse(row.labels_json),
@@ -111,6 +113,7 @@ export class WorkGraph {
             p.head_sha,
             p.base_sha,
             p.title,
+            p.url,
             p.author_login,
             p.draft,
             p.labels_json,

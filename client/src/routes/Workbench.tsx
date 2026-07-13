@@ -7,6 +7,8 @@ import {
 } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
 import { SafeMarkdown } from "../components/SafeMarkdown.js";
+import { PrLink } from "../components/PrLink.js";
+import { PriorityIndicator } from "../components/PriorityIndicator.js";
 import { CoverageWarning } from "../components/CoverageWarning.js";
 import { AdvisorNote } from "../components/AdvisorNote.js";
 import { ReviewEvidenceSection } from "../components/ReviewEvidenceSection.js";
@@ -16,6 +18,7 @@ import { EmptyState } from "../components/EmptyState.js";
 import { Tabs } from "../components/Tabs.js";
 import { getReviewFallback } from "../lib/review-fallback.js";
 import { formatRepositoryPr } from "../lib/repository-display.js";
+import { confidenceTone, severityTone } from "../lib/severity-display.js";
 import { useDraftQuery } from "../hooks/useDraftQuery.js";
 import {
   useAnalyzeMutation,
@@ -57,18 +60,23 @@ function ReviewChrome({
           ← Inbox
         </ActionButton>
         <p>
-          <code>
-            <SafeText
-              text={formatRepositoryPr(item.repository, item.prNumber)}
-            />
-          </code>
+          <PrLink
+            url={item.url}
+            text={formatRepositoryPr(item.repository, item.prNumber)}
+            className="pr-link"
+          />
         </p>
         <h2>
           <SafeText text={item.title} />
         </h2>
         <p className="row-meta">
           <SafeText text={item.author} />
-          {item.priority !== "unranked" ? ` · ${item.priority.toUpperCase()}` : ""}
+          {item.priority !== "unranked" && (
+            <>
+              {" · "}
+              <PriorityIndicator priority={item.priority} />
+            </>
+          )}
         </p>
         <AdvisorNote result={item.advisorResult} />
       </div>
@@ -254,19 +262,23 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
         >
           <div className="review-section">
             <h3 className="review-section__title">Intent</h3>
-            <SafeText
-              text={draft.summary.intent}
-              as="p"
-              className="review-section__body"
-            />
+            <div className="review-note">
+              <SafeText
+                text={draft.summary.intent}
+                as="p"
+                className="review-section__body"
+              />
+            </div>
           </div>
           <div className="review-section">
             <h3 className="review-section__title">Implementation</h3>
-            <SafeText
-              text={draft.summary.implementation}
-              as="p"
-              className="review-section__body"
-            />
+            <div className="review-note">
+              <SafeText
+                text={draft.summary.implementation}
+                as="p"
+                className="review-section__body"
+              />
+            </div>
           </div>
           <ReviewEvidenceSection title="Checks" count={draft.checks.length}>
             {draft.checks.length === 0 ? (
@@ -303,32 +315,40 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
             title="Coverage & limitations"
             count={countCoverageLimitations(draft.coverage)}
           >
-            <ul>
-              <li>
-                Mode: <SafeText text={draft.coverage.mode} />
-              </li>
-              <li>
-                Source tree inspected:{" "}
-                {draft.coverage.sourceTreeInspected ? "yes" : "no"}
-              </li>
-              <li>
-                Diff filtered: {draft.coverage.diffFiltered ? "yes" : "no"}
-              </li>
+            <dl className="meta-grid">
+              <div className="meta-grid__item">
+                <dt>Mode</dt>
+                <dd>
+                  <SafeText text={draft.coverage.mode} />
+                </dd>
+              </div>
+              <div className="meta-grid__item">
+                <dt>Source tree inspected</dt>
+                <dd>{draft.coverage.sourceTreeInspected ? "Yes" : "No"}</dd>
+              </div>
+              <div className="meta-grid__item">
+                <dt>Diff filtered</dt>
+                <dd>{draft.coverage.diffFiltered ? "Yes" : "No"}</dd>
+              </div>
               {draft.coverage.missingCoverage.length > 0 && (
-                <li>
-                  Missing coverage:{" "}
-                  <SafeText text={draft.coverage.missingCoverage.join(", ")} />
-                </li>
+                <div className="meta-grid__item">
+                  <dt>Missing coverage</dt>
+                  <dd>
+                    <SafeText text={draft.coverage.missingCoverage.join(", ")} />
+                  </dd>
+                </div>
               )}
               {draft.coverage.omittedProtectedPaths.length > 0 && (
-                <li>
-                  Protected paths omitted:{" "}
-                  <SafeText
-                    text={draft.coverage.omittedProtectedPaths.join(", ")}
-                  />
-                </li>
+                <div className="meta-grid__item">
+                  <dt>Protected paths omitted</dt>
+                  <dd>
+                    <SafeText
+                      text={draft.coverage.omittedProtectedPaths.join(", ")}
+                    />
+                  </dd>
+                </div>
               )}
-            </ul>
+            </dl>
           </ReviewEvidenceSection>
         </section>
       )}
@@ -350,11 +370,11 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
               draft.observations.map((obs, i) => (
                 <div key={i} className="review-card">
                   <span
-                    className={`observation-type observation-type--${obs.type}`}
+                    className={`observation-type observation-type--${obs.type === "inference" ? "inference" : "observation"}`}
                   >
                     {obs.type}
                   </span>
-                  <SafeText text={obs.statement} as="p" />
+                  <SafeText text={obs.statement} as="p" className="review-card__statement" />
                   <div className="muted provenance">
                     Provenance:{" "}
                     <SafeText
@@ -375,21 +395,28 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
                 className={`finding finding--${f.severity === "blocking" ? "blocking" : f.severity === "high" ? "high" : "other"}`}
               >
                 <div className="finding__header">
-                  <strong>
+                  <span className={`severity-chip severity-chip--${severityTone(f.severity)}`}>
+                    <SafeText text={f.severity} />
+                  </span>
+                  <strong className="finding__title">
                     <SafeText text={f.title} />
                   </strong>
                 </div>
                 <dl className="finding__meta">
                   <div className="finding__meta-item">
                     <dt>Severity</dt>
-                    <dd>
+                    <dd className={`meta-value meta-value--${severityTone(f.severity)}`}>
                       <SafeText text={f.severity} />
                     </dd>
                   </div>
                   <div className="finding__meta-item">
                     <dt>Confidence</dt>
                     <dd>
-                      <SafeText text={f.confidence} />
+                      <span
+                        className={`confidence-chip confidence-chip--${confidenceTone(f.confidence)}`}
+                      >
+                        <SafeText text={f.confidence} />
+                      </span>
                     </dd>
                   </div>
                   {f.file && (

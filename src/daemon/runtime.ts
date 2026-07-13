@@ -103,6 +103,7 @@ function stubTrackedQueueRow(item: AllTrackedItem): TrackedQueueRow {
     repository: item.repositoryKey,
     prNumber: item.prNumber,
     title: item.title,
+    url: item.url,
     author: item.author,
     headSha: item.headSha,
     eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],

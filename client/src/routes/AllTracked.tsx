@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { type TrackedQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
+import { PrLink } from "../components/PrLink.js";
 import { ReasonLine } from "../components/ReasonLine.js";
 import { ActionButton } from "../components/ActionButton.js";
 import { StatusBadge } from "../components/StatusBadge.js";
@@ -288,9 +289,7 @@ export function AllTracked() {
             return (
               <tr key={key}>
                 <td>
-                  <code>
-                    <SafeText text={formatRepoPr(item)} />
-                  </code>
+                  <PrLink url={item.url} text={formatRepoPr(item)} className="pr-link" />
                 </td>
                 <td>
                   <SafeText text={item.title} />

@@ -61,6 +61,7 @@ function queueItem(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     repository: "acme-corp/widgets",
     prNumber: 42,
     title: "Improve review readability",
+    url: "https://github.com/acme-corp/widgets/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],

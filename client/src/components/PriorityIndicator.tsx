@@ -13,7 +13,10 @@ export function PriorityIndicator({ priority }: PriorityIndicatorProps) {
   const label = formatPriorityLabel(priority);
 
   return (
-    <span className="priority-indicator" aria-label={`Priority: ${label}`}>
+    <span
+      className={`priority-indicator priority-indicator--${priority}`}
+      aria-label={`Priority: ${label}`}
+    >
       {label}
     </span>
   );

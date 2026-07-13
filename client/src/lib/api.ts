@@ -150,6 +150,7 @@ export interface TrackedQueueRow {
   repository: string;
   prNumber: number;
   title: string;
+  url: string;
   author: string;
   headSha: string;
   eligibilityReasons: EligibilityReason[];

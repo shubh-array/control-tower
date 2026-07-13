@@ -33,6 +33,7 @@ function makeTrackedItem(overrides: Partial<AllTrackedItem> = {}): AllTrackedIte
     headSha: 'a'.repeat(40),
     baseSha: 'b'.repeat(40),
     title: 'Test PR',
+    url: 'https://github.com/pba-webapp/pull/1',
     author: 'dev',
     draft: false,
     labels: [],

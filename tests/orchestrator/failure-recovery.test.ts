@@ -461,6 +461,7 @@ describe('Fetch failure recovery', () => {
           headSha: 'a'.repeat(40),
           baseSha: 'b'.repeat(40),
           title: 'Test',
+          url: 'https://github.com/pba-webapp/pull/42',
           author: 'dev',
           draft: false,
           labels: [],

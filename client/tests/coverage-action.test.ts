@@ -12,6 +12,7 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     repository: "org/repo",
     prNumber: 1,
     title: "Example",
+    url: "https://github.com/org/repo/pull/1",
     author: "alice",
     headSha: "abc",
     eligibilityReasons: [{ code: "eligible_author" }],

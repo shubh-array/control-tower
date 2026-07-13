@@ -2,7 +2,10 @@ import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, type FocusQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
+import { PrLink } from "../components/PrLink.js";
+import { InboxLaneSection } from "../components/InboxLaneSection.js";
 import { StatusBadge } from "../components/StatusBadge.js";
+import { PriorityIndicator } from "../components/PriorityIndicator.js";
 import { ReasonLine } from "../components/ReasonLine.js";
 import { ActionButton } from "../components/ActionButton.js";
 import { DataState } from "../components/DataState.js";
@@ -57,9 +60,11 @@ function InboxRow({
       <article className="inbox-row">
         <div className="inbox-row__content">
           <div className="inbox-row__identity">
-            <code>
-              <SafeText text={formatRepositoryPr(item.repository, item.prNumber)} />
-            </code>
+            <PrLink
+              url={item.url}
+              text={formatRepositoryPr(item.repository, item.prNumber)}
+              className="pr-link"
+            />
           </div>
           <h3 className="inbox-row__title">
             <SafeText text={item.title} />
@@ -72,7 +77,11 @@ function InboxRow({
               <div key={label} className="inbox-row__context-item">
                 <dt>{label}</dt>
                 <dd>
-                  <SafeText text={value} />
+                  {label === "Priority" ? (
+                    <PriorityIndicator priority={item.priority} />
+                  ) : (
+                    <SafeText text={value} />
+                  )}
                 </dd>
               </div>
             ))}
@@ -162,7 +171,7 @@ export function FocusQueue({
   const loadError = surface.showError
     ? (surface.error?.message ?? "Failed to load inbox")
     : null;
-  const [groupByLane, setGroupByLane] = useState(false);
+  const [groupByLane, setGroupByLane] = useState(true);
   const [actioningKey, setActioningKey] = useState<string | null>(null);
   const [rowPatches, setRowPatches] = useState<
     Record<string, Partial<FocusQueueRow>>
@@ -331,42 +340,57 @@ export function FocusQueue({
         title="Inbox"
         subtitle={`${actionableCount} items need attention · ordered by advisor relevance & risk`}
       />
-      <label className="reason-line">
+      <label className="lane-toggle">
         <input
           type="checkbox"
           checked={groupByLane}
           onChange={(event) => setGroupByLane(event.target.checked)}
-        />{" "}
+        />
         Group by lane
       </label>
 
       {groupByLane ? (
-        <>
-          <h3 className="page-heading">Now</h3>
-          <InboxList
-            items={groupedItems.now}
-            actioningKey={actioningKey}
-            mutationErrorByKey={mutationErrorByKey}
-            refreshErrorByKey={refreshErrorByKey}
-            onAction={handleAction}
-          />
-          <h3 className="page-heading">Next</h3>
-          <InboxList
-            items={groupedItems.next}
-            actioningKey={actioningKey}
-            mutationErrorByKey={mutationErrorByKey}
-            refreshErrorByKey={refreshErrorByKey}
-            onAction={handleAction}
-          />
-          <h3 className="page-heading">Monitor</h3>
-          <InboxList
-            items={groupedItems.monitor}
-            actioningKey={actioningKey}
-            mutationErrorByKey={mutationErrorByKey}
-            refreshErrorByKey={refreshErrorByKey}
-            onAction={handleAction}
-          />
-        </>
+        <div className="inbox-lanes">
+          <InboxLaneSection
+            title="Now"
+            description="Needs attention now"
+            count={groupedItems.now.length}
+          >
+            <InboxList
+              items={groupedItems.now}
+              actioningKey={actioningKey}
+              mutationErrorByKey={mutationErrorByKey}
+              refreshErrorByKey={refreshErrorByKey}
+              onAction={handleAction}
+            />
+          </InboxLaneSection>
+          <InboxLaneSection
+            title="Next"
+            description="Handle soon"
+            count={groupedItems.next.length}
+          >
+            <InboxList
+              items={groupedItems.next}
+              actioningKey={actioningKey}
+              mutationErrorByKey={mutationErrorByKey}
+              refreshErrorByKey={refreshErrorByKey}
+              onAction={handleAction}
+            />
+          </InboxLaneSection>
+          <InboxLaneSection
+            title="Monitor"
+            description="Track — no action needed yet"
+            count={groupedItems.monitor.length}
+          >
+            <InboxList
+              items={groupedItems.monitor}
+              actioningKey={actioningKey}
+              mutationErrorByKey={mutationErrorByKey}
+              refreshErrorByKey={refreshErrorByKey}
+              onAction={handleAction}
+            />
+          </InboxLaneSection>
+        </div>
       ) : (
         <InboxList
           items={flatItems}

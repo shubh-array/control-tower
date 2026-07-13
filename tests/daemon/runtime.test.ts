@@ -16,6 +16,7 @@ function makeTrackedItemFixture(): AllTrackedItem {
     headSha: 'a'.repeat(40),
     baseSha: 'b'.repeat(40),
     title: 'Fix bug',
+    url: 'https://github.com/pba-webapp/pull/42',
     author: 'dev',
     draft: false,
     labels: [],
