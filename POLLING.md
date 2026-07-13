@@ -2,7 +2,7 @@
 
 Control Tower uses **three independent timers** that are easy to confuse because they all involve periodic work. They poll **different things** for **different reasons**. This document explains what each loop does, how jobs run, and how data flows from GitHub to the UI.
 
-For daemon architecture and module boundaries, see [`Architecture.md`](./Architecture.md).
+For daemon architecture and module boundaries, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ## At a glance
 

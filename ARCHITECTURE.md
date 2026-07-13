@@ -47,7 +47,7 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 ├── package.json                 # Root package (`control-tower`)
 ├── README.md                    # Operator-facing overview
 ├── ONBOARDING.md                # Step-by-step local setup + customization
-└── Architecture.md              # This document
+└── ARCHITECTURE.md              # This document
 ```
 
 **Separation of concerns**

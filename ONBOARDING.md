@@ -2,7 +2,7 @@
 
 Step-by-step guide to run Control Tower on your machine and tailor it to the repos and review rules you care about.
 
-For product overview and design invariants, see [`README.md`](./README.md). For module map and extension rules, see [`Architecture.md`](./Architecture.md).
+For product overview and design invariants, see [`README.md`](./README.md). For module map and extension rules, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ---
 

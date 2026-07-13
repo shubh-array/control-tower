@@ -122,7 +122,7 @@ direct Review link resolves its job against the current queue.
 | **Propose** | `/propose` | Build, validate, preview, and adopt governed profile/policy proposals |
 
 The UI refreshes queue and health status on a timer while the tab is visible
-(3s when jobs are active, 30s when idle). See [`Polling.md`](./Polling.md) for
+(3s when jobs are active, 30s when idle). See [`POLLING.md`](./POLLING.md) for
 how discovery, the job scheduler, the analysis pipeline, and client refresh fit
 together end-to-end. The header **Refresh** action and connection/stale-data
 indicators are also available.
@@ -156,9 +156,9 @@ proxies `/api` to `http://127.0.0.1:9120` by default; set
 
 Operator setup and customization: see [`ONBOARDING.md`](./ONBOARDING.md).
 
-Architecture, module map, and extension guidance: see [`Architecture.md`](./Architecture.md).
+Architecture, module map, and extension guidance: see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
-Polling, jobs, and the analysis pipeline: see [`Polling.md`](./Polling.md).
+Polling, jobs, and the analysis pipeline: see [`POLLING.md`](./POLLING.md).
 
 Detailed Phase 1 design and implementation plans: `docs/superpowers/`.
 
