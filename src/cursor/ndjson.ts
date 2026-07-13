@@ -10,6 +10,23 @@ export interface InitEvent {
   model: string;
 }
 
+/**
+ * Newer Cursor agent versions emit { type: "system", subtype: "init" }
+ * instead of { type: "init" }. Normalize to our InitEvent shape.
+ */
+export function isInitEvent(event: NdjsonEvent): boolean {
+  if (event.type === 'init') return true;
+  return event.type === 'system' && event.subtype === 'init';
+}
+
+export function toInitEvent(event: NdjsonEvent): InitEvent {
+  return {
+    type: 'init',
+    sessionId: (event.sessionId ?? event.session_id ?? '') as string,
+    model: (event.model ?? '') as string,
+  };
+}
+
 export interface AssistantEvent {
   type: 'assistant';
   content?: string;
@@ -48,6 +65,10 @@ export interface InitValidationResult {
   actualModel?: string;
 }
 
+function normalizeModelName(name: string): string {
+  return name.toLowerCase().replace(/[\s_]+/g, '-');
+}
+
 export function validateInitEvent(
   init: InitEvent,
   expectedModel: string,
@@ -56,7 +77,7 @@ export function validateInitEvent(
     return { valid: false, error: 'missing sessionId in init event' };
   }
 
-  if (init.model !== expectedModel) {
+  if (normalizeModelName(init.model) !== normalizeModelName(expectedModel)) {
     return {
       valid: false,
       error: `model mismatch: expected '${expectedModel}', got '${init.model}'`,
@@ -99,4 +120,29 @@ export function parseNdjsonStream(raw: string): NdjsonEvent[] {
   return raw.split('\n')
     .map(parseNdjsonLine)
     .filter((e): e is NdjsonEvent => e !== null);
+}
+
+/**
+ * Agent result may be bare JSON or prose wrapping a markdown-fenced JSON block.
+ * Extract the JSON either way.
+ */
+export function extractJsonFromResult(text: string): string | null {
+  const trimmed = text.trim();
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {
+    // Look for ```json ... ``` or ``` ... ```
+    const match = trimmed.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+    if (match) {
+      const inner = match[1]!.trim();
+      try {
+        JSON.parse(inner);
+        return inner;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 }

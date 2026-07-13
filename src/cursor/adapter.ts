@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { buildCursorArgv, buildCursorEnvironment } from './argv.js';
-import { parseNdjsonLine, validateInitEvent, extractResultFromTerminal, type InitEvent, type TerminalEvent, type NdjsonEvent } from './ndjson.js';
+import { parseNdjsonLine, validateInitEvent, extractResultFromTerminal, isInitEvent, toInitEvent, type InitEvent, type TerminalEvent, type NdjsonEvent } from './ndjson.js';
 
 export const STREAM_TRUNCATE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -117,7 +117,7 @@ async function collectOutput(
         const event = parseNdjsonLine(line);
         if (event) {
           events.push(event);
-          if (event.type === 'init') initEvent = event as unknown as InitEvent;
+          if (isInitEvent(event)) initEvent = toInitEvent(event);
           if (event.type === 'result') terminalEvent = event as unknown as TerminalEvent;
         }
       }
@@ -138,7 +138,7 @@ async function collectOutput(
         const event = parseNdjsonLine(stdoutBuffer);
         if (event) {
           events.push(event);
-          if (event.type === 'init') initEvent = event as unknown as InitEvent;
+          if (isInitEvent(event)) initEvent = toInitEvent(event);
           if (event.type === 'result') terminalEvent = event as unknown as TerminalEvent;
         }
       }

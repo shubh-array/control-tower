@@ -20,6 +20,7 @@ import {
   type AdapterRunInput,
   type AdapterRunResult,
 } from "../cursor/adapter.js";
+import { extractJsonFromResult } from "../cursor/ndjson.js";
 import { sealRun as sealRunDir } from "../context/seal.js";
 import type { SignalRecorder } from "../learning/record.js";
 import { createSignalHooks } from "../learning/signal-hooks.js";
@@ -364,10 +365,15 @@ export function buildPipelineDeps(
         throw new Error(result.failureReason ?? "agent_failed");
       }
 
-      writeFileSync(layout.outputPath, result.resultText, "utf-8");
+      const extractedJson = extractJsonFromResult(result.resultText);
+      if (!extractedJson) {
+        throw new Error("agent output does not contain valid JSON");
+      }
+
+      writeFileSync(layout.outputPath, extractedJson, "utf-8");
 
       return {
-        rawOutput: result.resultText,
+        rawOutput: extractedJson,
         exitCode: result.exitCode ?? 0,
         modelId: result.actualModel ?? modelId,
       };
