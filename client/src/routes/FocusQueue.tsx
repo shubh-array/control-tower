@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, type FocusQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
-import { StatusChip } from "../components/StatusChip.js";
+import { StatusBadge } from "../components/StatusBadge.js";
 import { AdvisorNote } from "../components/AdvisorNote.js";
 import { ReasonLine } from "../components/ReasonLine.js";
-import { PrimaryButton } from "../components/PrimaryButton.js";
+import { ActionButton } from "../components/ActionButton.js";
+import { DataState } from "../components/DataState.js";
 import { EmptyState } from "../components/EmptyState.js";
+import { PageHeader } from "../components/PageHeader.js";
+import { PriorityIndicator } from "../components/PriorityIndicator.js";
 import {
   INBOX_REFRESH_ERROR,
   inboxRowKey,
@@ -18,6 +22,9 @@ import {
   sortInboxRows,
   summarizeReasons,
 } from "../lib/queue-display.js";
+import { queryKeys } from "../lib/query-keys.js";
+import { useAnalyzeMutation, useRetryMutation } from "../hooks/useJobMutations.js";
+import { useQueueQuery } from "../hooks/useQueueQuery.js";
 
 const DRAFT_UNAVAILABLE_MESSAGE =
   "Draft is not available yet. Retry analysis or refresh the Inbox.";
@@ -68,7 +75,7 @@ function InboxRow({
             {item.priority !== "unranked" && (
               <>
                 {" · "}
-                {item.priority.toUpperCase()}
+                <PriorityIndicator priority={item.priority} />
               </>
             )}
             {hasExplicitRequest && " · Explicit request"}
@@ -78,14 +85,16 @@ function InboxRow({
           {mutationError && <ReasonLine text={mutationError} />}
           {refreshError && <ReasonLine text={refreshError} />}
         </div>
-        <StatusChip status={presentation.chip} />
+        <StatusBadge status={presentation.chip} />
         {presentation.primaryAction !== null ? (
-          <PrimaryButton
-            disabled={pending || actioningKey !== null}
+          <ActionButton
+            disabled={actioningKey !== null && !pending}
+            busy={pending}
+            busyLabel="Working…"
             onClick={() => onAction(item)}
           >
-            {pending ? "Working…" : actionLabel(presentation.primaryAction)}
-          </PrimaryButton>
+            {actionLabel(presentation.primaryAction)}
+          </ActionButton>
         ) : (
           <span />
         )}
@@ -145,13 +154,15 @@ export function FocusQueue({
 }: {
   onOpenReview: (item: FocusQueueRow) => void;
 }) {
-  const [queue, setQueue] = useState<{
-    now: FocusQueueRow[];
-    next: FocusQueueRow[];
-    monitor: FocusQueueRow[];
-  }>({ now: [], next: [], monitor: [] });
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { focusQueue, surface, refetch } = useQueueQuery();
+  const analyzeMutation = useAnalyzeMutation();
+  const retryMutation = useRetryMutation();
+  const queue = focusQueue ?? { now: [], next: [], monitor: [] };
+  const loading = surface.isLoading;
+  const loadError = surface.showError
+    ? (surface.error?.message ?? "Failed to load inbox")
+    : null;
   const [groupByLane, setGroupByLane] = useState(false);
   const [actioningKey, setActioningKey] = useState<string | null>(null);
   const [rowPatches, setRowPatches] = useState<
@@ -165,28 +176,18 @@ export function FocusQueue({
   >({});
 
   const refetchQueue = useCallback(async () => {
-    const data = await api.getQueue();
-    setQueue(data.focusQueue);
-    return data.focusQueue;
-  }, []);
+    const result = await refetch();
+    if (result.isError) {
+      throw result.error;
+    }
+    return result.data?.focusQueue;
+  }, [refetch]);
 
   const applyPatches = useCallback(
     (items: FocusQueueRow[]) =>
       items.map((item) => mergeRowPatch(item, rowPatches)),
     [rowPatches],
   );
-
-  useEffect(() => {
-    refetchQueue()
-      .then(() => {
-        setLoadError(null);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setLoadError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [refetchQueue]);
 
   const flatItems = useMemo(
     () =>
@@ -266,7 +267,7 @@ export function FocusQueue({
 
       try {
         if (action === "analyze") {
-          const { jobId } = await api.requestAnalyze({
+          const { jobId } = await analyzeMutation.mutateAsync({
             repositoryKey: item.repositoryKey,
             prNumber: item.prNumber,
           });
@@ -283,7 +284,7 @@ export function FocusQueue({
           if (item.jobId === null) {
             throw new Error("No job available to retry.");
           }
-          await api.requestRetry(item.jobId);
+          await retryMutation.mutateAsync(item.jobId);
           const patched = patchRowAfterRetry(item);
           setRowPatches((prev) => ({
             ...prev,
@@ -294,7 +295,10 @@ export function FocusQueue({
           if (item.jobId === null) {
             throw new Error(DRAFT_UNAVAILABLE_MESSAGE);
           }
-          await api.getDraft(item.jobId);
+          await queryClient.fetchQuery({
+            queryKey: queryKeys.draft(item.jobId),
+            queryFn: () => api.getDraft(item.jobId!),
+          });
           onOpenReview(item);
         }
       } catch (err: unknown) {
@@ -309,46 +313,25 @@ export function FocusQueue({
         setActioningKey(null);
       }
     },
-    [actioningKey, clearRowFeedback, onOpenReview, refreshAfterMutation],
+    [actioningKey, analyzeMutation, clearRowFeedback, onOpenReview, queryClient, refreshAfterMutation, retryMutation],
   );
 
-  if (loading) {
-    return <p className="reason-line">Loading inbox…</p>;
-  }
-
-  if (loadError !== null) {
-    return (
-      <EmptyState
-        title="Could not load inbox"
-        body={loadError}
-        action={
-          <PrimaryButton
-            onClick={() => {
-              setLoading(true);
-              void refetchQueue()
-                .then(() => {
-                  setLoadError(null);
-                  setLoading(false);
-                })
-                .catch((err: unknown) => {
-                  setLoadError(err instanceof Error ? err.message : String(err));
-                  setLoading(false);
-                });
-            }}
-          >
-            Retry
-          </PrimaryButton>
-        }
-      />
-    );
-  }
-
   return (
-    <div>
-      <h2 className="page-heading">Inbox</h2>
-      <p className="reason-line">
-        {`${actionableCount} items need attention · ordered by advisor relevance & risk`}
-      </p>
+    <DataState
+      isLoading={loading}
+      showError={loadError !== null}
+      isStale={surface.isStale}
+      loadingMessage="Loading inbox…"
+      errorTitle="Could not load inbox"
+      errorMessage={loadError ?? "Failed to load inbox"}
+      onRetry={() => {
+        void refetch();
+      }}
+    >
+      <PageHeader
+        title="Inbox"
+        subtitle={`${actionableCount} items need attention · ordered by advisor relevance & risk`}
+      />
       <label className="reason-line">
         <input
           type="checkbox"
@@ -395,6 +378,6 @@ export function FocusQueue({
           showEmptyState
         />
       )}
-    </div>
+    </DataState>
   );
 }

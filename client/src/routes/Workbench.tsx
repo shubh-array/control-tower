@@ -1,8 +1,6 @@
 // client/src/routes/Workbench.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
-  api,
-  type DraftDetail,
   type FocusQueueRow,
   type PublishResult,
 } from "../lib/api.js";
@@ -10,9 +8,20 @@ import { SafeText } from "../components/SafeText.js";
 import { SafeMarkdown } from "../components/SafeMarkdown.js";
 import { CoverageWarning } from "../components/CoverageWarning.js";
 import { AdvisorNote } from "../components/AdvisorNote.js";
-import { PrimaryButton } from "../components/PrimaryButton.js";
+import { ActionButton } from "../components/ActionButton.js";
+import { DataState } from "../components/DataState.js";
 import { EmptyState } from "../components/EmptyState.js";
+import { Tabs } from "../components/Tabs.js";
 import { getReviewFallback } from "../lib/review-fallback.js";
+import { useDraftQuery } from "../hooks/useDraftQuery.js";
+import {
+  useAnalyzeMutation,
+  useRetryMutation,
+} from "../hooks/useJobMutations.js";
+import {
+  useApproveMutation,
+  usePublishMutation,
+} from "../hooks/usePublicationMutations.js";
 
 type Tab = "understand" | "verify" | "act";
 type Disposition = "comment" | "request_changes" | "approve";
@@ -33,9 +42,9 @@ function ReviewChrome({
   return (
     <header className="review-header">
       <div>
-        <PrimaryButton quiet type="button" onClick={onBack}>
+        <ActionButton quiet type="button" onClick={onBack}>
           ← Inbox
-        </PrimaryButton>
+        </ActionButton>
         <p>
           <code>{`${repoLabel}#${item.prNumber}`}</code>
         </p>
@@ -54,8 +63,13 @@ function ReviewChrome({
 
 export function Workbench({ item, onBack }: WorkbenchProps) {
   const jobId = item.jobId;
-  const [draft, setDraft] = useState<DraftDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { surface } = useDraftQuery(jobId);
+  const draft = surface.displayData ?? null;
+  const loading = surface.isLoading;
+  const analyzeMutation = useAnalyzeMutation();
+  const retryMutation = useRetryMutation();
+  const approveMutation = useApproveMutation(jobId);
+  const publishMutation = usePublishMutation(jobId);
   const [tab, setTab] = useState<Tab>("understand");
   const [disposition, setDisposition] = useState<Disposition | null>(null);
   const [publishSummary, setPublishSummary] = useState(false);
@@ -66,33 +80,23 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (jobId === null) {
-      setDraft(null);
-      setLoading(false);
-      return;
+    if (
+      draft?.recommendedDisposition &&
+      draft.recommendedDisposition !== "needs_human"
+    ) {
+      setDisposition(draft.recommendedDisposition as Disposition);
     }
-    setLoading(true);
-    api
-      .getDraft(jobId)
-      .then((d) => {
-        setDraft(d);
-        setLoading(false);
-        if (d.recommendedDisposition !== "needs_human") {
-          setDisposition(d.recommendedDisposition as Disposition);
-        }
-      })
-      .catch(() => {
-        setDraft(null);
-        setLoading(false);
-      });
-  }, [jobId]);
+  }, [draft?.recommendedDisposition]);
 
   const handleApproveAndPublish = useCallback(
     async (opHash: string, body: string | null) => {
       setPublishing(true);
       try {
-        await api.approveOperation(opHash);
-        const result = await api.publishOperation(opHash, body);
+        await approveMutation.mutateAsync(opHash);
+        const result = await publishMutation.mutateAsync({
+          operationHash: opHash,
+          body,
+        });
         setResults((prev) => [...prev, result]);
       } catch (err) {
         setResults((prev) => [
@@ -106,14 +110,14 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
         setPublishing(false);
       }
     },
-    [],
+    [approveMutation, publishMutation],
   );
 
   const handleRetry = useCallback(async () => {
     if (jobId === null) return;
     setRetrying(true);
     try {
-      const { runId } = await api.requestRetry(jobId);
+      const { runId } = await retryMutation.mutateAsync(jobId);
       setResults((prev) => [...prev, { status: "completed", error: undefined }]);
       console.log(`Retry started: runId=${runId}`);
     } catch (err) {
@@ -127,7 +131,7 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
     } finally {
       setRetrying(false);
     }
-  }, [jobId]);
+  }, [jobId, retryMutation]);
 
   const handleFallback = useCallback(async () => {
     const fallback = getReviewFallback({
@@ -141,9 +145,9 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
         if (item.jobId === null) {
           throw new Error("No job available to retry");
         }
-        await api.requestRetry(item.jobId);
+        await retryMutation.mutateAsync(item.jobId);
       } else {
-        await api.requestAnalyze({
+        await analyzeMutation.mutateAsync({
           repositoryKey: item.repositoryKey,
           prNumber: item.prNumber,
         });
@@ -153,9 +157,21 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
     } finally {
       setRecovering(false);
     }
-  }, [item]);
+  }, [analyzeMutation, item, retryMutation]);
 
-  if (loading) return <p>Loading draft…</p>;
+  if (loading) {
+    return (
+      <section className="review-page">
+        <ReviewChrome item={item} onBack={onBack} />
+        <DataState
+          isLoading
+          showError={false}
+          isStale={false}
+          loadingMessage="Loading draft…"
+        />
+      </section>
+    );
+  }
 
   if (!draft) {
     const fallback = getReviewFallback({
@@ -170,16 +186,17 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
           body={fallback.message}
           action={
             <div className="button-group">
-              <PrimaryButton
+              <ActionButton
                 type="button"
                 onClick={() => void handleFallback()}
-                disabled={recovering}
+                busy={recovering}
+                busyLabel="Starting…"
               >
-                {recovering ? "Starting…" : fallback.label}
-              </PrimaryButton>
-              <PrimaryButton quiet type="button" onClick={onBack}>
+                {fallback.label}
+              </ActionButton>
+              <ActionButton quiet type="button" onClick={onBack}>
                 Back to Inbox
-              </PrimaryButton>
+              </ActionButton>
             </div>
           }
         />
@@ -200,21 +217,25 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
 
       <CoverageWarning coverage={draft.coverage} />
 
-      <nav className="review-tabs" aria-label="Review tabs">
-        {(["understand", "verify", "act"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`review-tabs__tab${tab === t ? " review-tabs__tab--active" : ""}`}
-          >
-            {t}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        tabs={[
+          { id: "understand", label: "Understand" },
+          { id: "verify", label: "Verify" },
+          { id: "act", label: "Act" },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="Review tabs"
+        tabIdPrefix="review-tab"
+        panelIdPrefix="review-panel"
+      />
 
       {tab === "understand" && (
-        <section>
+        <section
+          role="tabpanel"
+          id="review-panel-understand"
+          aria-labelledby="review-tab-understand"
+        >
           <h3>Intent</h3>
           <SafeText text={draft.summary.intent} as="p" />
           <h3>Implementation</h3>
@@ -247,7 +268,11 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
       )}
 
       {tab === "verify" && (
-        <section>
+        <section
+          role="tabpanel"
+          id="review-panel-verify"
+          aria-labelledby="review-tab-verify"
+        >
           <h3>Observations ({draft.observations.length})</h3>
           {draft.observations.map((obs, i) => (
             <div key={i} className="review-card">
@@ -287,7 +312,11 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
       )}
 
       {tab === "act" && (
-        <section>
+        <section
+          role="tabpanel"
+          id="review-panel-act"
+          aria-labelledby="review-tab-act"
+        >
           <h3>Draft Summary</h3>
           <div className="review-card review-card--summary">
             <SafeMarkdown content={draft.draftSummary.body} />
@@ -301,14 +330,16 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
           )}
 
           <div className="button-group">
-            <PrimaryButton
+            <ActionButton
               quiet
               type="button"
               disabled={retrying || jobId === null}
+              busy={retrying}
+              busyLabel="Retrying…"
               onClick={() => void handleRetry()}
             >
-              {retrying ? "Retrying…" : "Retry Analysis"}
-            </PrimaryButton>
+              Retry Analysis
+            </ActionButton>
           </div>
 
           {!isNeedsHuman && (
@@ -317,14 +348,14 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
               <div className="button-group">
                 {(["comment", "request_changes", "approve"] as Disposition[]).map(
                   (d) => (
-                    <PrimaryButton
+                    <ActionButton
                       key={d}
                       quiet={disposition !== d}
                       type="button"
                       onClick={() => setDisposition(d)}
                     >
                       {d.replace(/_/g, " ")}
-                    </PrimaryButton>
+                    </ActionButton>
                   ),
                 )}
               </div>
@@ -356,15 +387,17 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
                           <span className="muted"> ({op.event})</span>
                         )}
                       </div>
-                      <PrimaryButton
+                      <ActionButton
                         type="button"
+                        busy={publishing}
+                        busyLabel="Publishing…"
                         disabled={publishing}
                         onClick={() =>
                           void handleApproveAndPublish(op.operationHash, null)
                         }
                       >
                         Approve & Publish
-                      </PrimaryButton>
+                      </ActionButton>
                     </div>
                   ))}
                 </>

@@ -1,15 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  api,
-  type LearningSignalSummary,
   type ProposalDetail,
   type ProposalValidationResult,
   type ProposalAdoptionResult,
 } from "../lib/api.js";
 import { PrimaryButton } from "../components/PrimaryButton.js";
+import { useSignalsQuery } from "../hooks/useSignalsQuery.js";
+import {
+  useAdoptProposalMutation,
+  useStartProposalMutation,
+  useValidateProposalMutation,
+} from "../hooks/useProposalMutations.js";
+import { resolveAdoptControlState } from "../lib/proposal-adopt.js";
+
+const SIGNAL_LIMIT = 50;
 
 export function ProposeChange() {
-  const [signals, setSignals] = useState<LearningSignalSummary[]>([]);
+  const { signals } = useSignalsQuery(SIGNAL_LIMIT);
+  const startMutation = useStartProposalMutation(SIGNAL_LIMIT);
+  const validateMutation = useValidateProposalMutation();
+  const adoptMutation = useAdoptProposalMutation(SIGNAL_LIMIT);
   const [selectedSignals, setSelectedSignals] = useState<Set<string>>(new Set());
   const [proposal, setProposal] = useState<ProposalDetail | null>(null);
   const [validation, setValidation] = useState<ProposalValidationResult | null>(
@@ -17,15 +27,7 @@ export function ProposeChange() {
   );
   const [adoptionResult, setAdoptionResult] =
     useState<ProposalAdoptionResult | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .getSignals(50)
-      .then(setSignals)
-      .catch(() => setSignals([]));
-  }, []);
 
   function toggleSignal(runId: string) {
     setSelectedSignals((prev) => {
@@ -38,17 +40,14 @@ export function ProposeChange() {
 
   async function startProposal() {
     if (selectedSignals.size === 0) return;
-    setLoading(true);
     setError(null);
     try {
-      const data = await api.startProposal([...selectedSignals]);
+      const data = await startMutation.mutateAsync([...selectedSignals]);
       setProposal(data);
       setValidation(null);
       setAdoptionResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start proposal");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -56,21 +55,27 @@ export function ProposeChange() {
     if (!proposal) return;
     setError(null);
     try {
-      setValidation(await api.validateProposal(proposal.id));
+      setValidation(await validateMutation.mutateAsync(proposal.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Validation failed");
     }
   }
 
   async function adoptProposal() {
-    if (!proposal) return;
+    if (!proposal || adoptionResult?.adopted || adoptMutation.isPending) return;
     setError(null);
     try {
-      setAdoptionResult(await api.adoptProposal(proposal.id));
+      setAdoptionResult(await adoptMutation.mutateAsync(proposal.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Adoption failed");
     }
   }
+
+  const loading = startMutation.isPending;
+  const adoptControl = resolveAdoptControlState({
+    isAdopting: adoptMutation.isPending,
+    adoptionResult,
+  });
 
   return (
     <div className="proposal-page">
@@ -175,8 +180,12 @@ export function ProposeChange() {
             </div>
           )}
           {validation.valid && (
-            <PrimaryButton type="button" onClick={() => void adoptProposal()}>
-              Adopt (single-use)
+            <PrimaryButton
+              type="button"
+              disabled={adoptControl.disabled}
+              onClick={() => void adoptProposal()}
+            >
+              {adoptControl.label}
             </PrimaryButton>
           )}
         </section>

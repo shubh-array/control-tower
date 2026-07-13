@@ -1,8 +1,11 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Hono } from "hono";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { serve } from "@hono/node-server";
 import { loopbackGuard, cspMiddleware } from "./csp.js";
 import { createSessionSecret, createSessionCookie, validateSession } from "./session.js";
+import { shouldServeSpaFallback } from "./spa-fallback.js";
 import { ActionTokenStore } from "./action-token.js";
 import { healthRoutes, type HealthDeps } from "./routes/health.js";
 import { queueRoutes, type QueueDeps } from "./routes/queue.js";
@@ -105,6 +108,24 @@ export function createApiServer(deps: ServerDeps) {
   });
 
   app.use("/*", serveStatic({ root: deps.clientDistPath }));
+
+  app.use("/*", async (c) => {
+    const method = c.req.method;
+    if (method !== "GET" && method !== "HEAD") {
+      return c.notFound();
+    }
+
+    const pathname = new URL(c.req.url).pathname;
+    if (!shouldServeSpaFallback(pathname)) {
+      return c.notFound();
+    }
+
+    const html = await readFile(join(deps.clientDistPath, "index.html"), "utf-8");
+    if (method === "HEAD") {
+      return c.body(null, 200, { "Content-Type": "text/html; charset=UTF-8" });
+    }
+    return c.html(html);
+  });
 
   const cleanupInterval = setInterval(() => actionTokens.cleanup(), 60_000);
 

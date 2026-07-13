@@ -1,91 +1,69 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { AllTracked } from "./routes/AllTracked.js";
 import { FocusQueue } from "./routes/FocusQueue.js";
-import { Workbench } from "./routes/Workbench.js";
+import { ReviewRoute } from "./routes/ReviewRoute.js";
 import { ProposeChange } from "./routes/ProposeChange.js";
-import { AppHeader } from "./components/AppHeader.js";
+import { AppShell } from "./components/AppShell.js";
 import { DEFAULT_PAGE, type PrimaryPage } from "./lib/navigation.js";
-import {
-  isLatestHealthRequest,
-  resolveHealthBanner,
-  type HealthBanner,
-} from "./lib/health-request.js";
-import { api, type FocusQueueRow } from "./lib/api.js";
+import { ROUTES } from "./lib/routes.js";
+import { type FocusQueueRow } from "./lib/api.js";
+import { useAppShellState } from "./hooks/useAppShellState.js";
 
-type Route =
-  | { page: "inbox" }
-  | { page: "coverage" }
-  | { page: "propose" }
-  | { page: "review"; item: FocusQueueRow };
+function pathnameToPrimaryPage(pathname: string): PrimaryPage {
+  if (pathname.startsWith(ROUTES.coverage)) {
+    return "coverage";
+  }
+  if (pathname.startsWith(ROUTES.propose)) {
+    return "propose";
+  }
+  return DEFAULT_PAGE;
+}
 
 export function App() {
-  const [route, setRoute] = useState<Route>({ page: DEFAULT_PAGE });
-  const [healthBanner, setHealthBanner] = useState<HealthBanner>(null);
-  const healthRequestSeq = useRef(0);
-
-  const refreshHealth = useCallback(async () => {
-    const requestId = ++healthRequestSeq.current;
-    try {
-      const result = await api.getHealth();
-      if (!isLatestHealthRequest(requestId, healthRequestSeq.current)) {
-        return;
-      }
-      setHealthBanner(
-        resolveHealthBanner({
-          kind: "ok",
-          healthy: result.healthy,
-          issues: result.issues,
-        }),
-      );
-    } catch {
-      if (!isLatestHealthRequest(requestId, healthRequestSeq.current)) {
-        return;
-      }
-      setHealthBanner(resolveHealthBanner({ kind: "error" }));
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshHealth();
-  }, [refreshHealth]);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const shell = useAppShellState();
 
   const handleNavigate = (page: PrimaryPage) => {
-    setRoute({ page });
+    navigate(ROUTES[page]);
   };
 
   const handleOpenReview = (item: FocusQueueRow) => {
-    setRoute({ page: "review", item });
+    if (!item.jobId) {
+      return;
+    }
+    navigate(ROUTES.review(item.jobId), { state: { item } });
   };
 
-  const headerActive: PrimaryPage =
-    route.page === "review" ? "inbox" : route.page;
+  const headerActive: PrimaryPage = location.pathname.startsWith("/review/")
+    ? DEFAULT_PAGE
+    : pathnameToPrimaryPage(location.pathname);
 
   return (
-    <div className="app-shell">
-      <AppHeader active={headerActive} onNavigate={handleNavigate} />
-      {healthBanner === "unavailable" && (
-        <div className="health-banner" role="alert">
-          Control Tower is unavailable.{" "}
-          <button
-            type="button"
-            className="button button--quiet"
-            onClick={() => void refreshHealth()}
-          >
-            Retry connection
-          </button>
-        </div>
-      )}
-      {route.page === "inbox" && (
-        <FocusQueue onOpenReview={handleOpenReview} />
-      )}
-      {route.page === "coverage" && <AllTracked />}
-      {route.page === "propose" && <ProposeChange />}
-      {route.page === "review" && (
-        <Workbench
-          item={route.item}
-          onBack={() => setRoute({ page: "inbox" })}
+    <AppShell
+      active={headerActive}
+      onNavigate={handleNavigate}
+      connection={shell.connection}
+      refresh={shell.refresh}
+      showUnavailableBanner={shell.showUnavailableBanner}
+      showStaleBanner={shell.showStaleBanner}
+      isRefreshing={shell.isRefreshing}
+      onRefresh={shell.onRefresh}
+      onRetryConnection={shell.onRetryConnection}
+      onRetryRefresh={shell.onRetryRefresh}
+    >
+      <Routes>
+        <Route path="/" element={<Navigate to={ROUTES.inbox} replace />} />
+        <Route
+          path={ROUTES.inbox}
+          element={<FocusQueue onOpenReview={handleOpenReview} />}
         />
-      )}
-    </div>
+        <Route path={ROUTES.coverage} element={<AllTracked />} />
+        <Route path={ROUTES.propose} element={<ProposeChange />} />
+        <Route path="/review/:jobId" element={<ReviewRoute />} />
+        <Route path="*" element={<Navigate to={ROUTES.inbox} replace />} />
+      </Routes>
+    </AppShell>
   );
 }

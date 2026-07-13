@@ -33,10 +33,24 @@ export default defineConfig({
         replacement: path.join(rootDir, "client/node_modules/react/index.js"),
       },
       {
+        find: "react-dom/client",
+        replacement: path.join(
+          rootDir,
+          "client/node_modules/react-dom/client.js",
+        ),
+      },
+      {
         find: "react-dom",
         replacement: path.join(
           rootDir,
           "client/node_modules/react-dom/index.js",
+        ),
+      },
+      {
+        find: "@tanstack/react-query",
+        replacement: path.join(
+          rootDir,
+          "client/node_modules/@tanstack/react-query/build/modern/index.js",
         ),
       },
     ],

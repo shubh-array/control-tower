@@ -36,7 +36,8 @@ describe("component contracts", () => {
     );
 
     expect(html).toContain("Needs analysis");
-    expect(html).toContain("status-chip--needs-analysis");
+    expect(html).toContain('role="status"');
+    expect(html).toContain("status-badge--needs-analysis");
   });
 
   it("AppHeader renders primary nav and marks the active page", () => {

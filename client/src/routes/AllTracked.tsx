@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type TrackedQueueRow } from "../lib/api.js";
+import { useCallback, useMemo, useState } from "react";
+import { type TrackedQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
 import { ReasonLine } from "../components/ReasonLine.js";
-import { PrimaryButton } from "../components/PrimaryButton.js";
-import { StatusChip } from "../components/StatusChip.js";
-import { EmptyState } from "../components/EmptyState.js";
+import { ActionButton } from "../components/ActionButton.js";
+import { StatusBadge } from "../components/StatusBadge.js";
+import { DataState } from "../components/DataState.js";
+import { FilterBar } from "../components/FilterBar.js";
+import { PageHeader } from "../components/PageHeader.js";
+import { PriorityIndicator } from "../components/PriorityIndicator.js";
 import {
   type CoverageFilter,
   deriveInboxPresentation,
@@ -17,15 +20,12 @@ import {
   mergeRowPatch,
   patchRowAfterMutation,
 } from "../lib/inbox-resilience.js";
+import { useAnalyzeMutation } from "../hooks/useJobMutations.js";
+import { useQueueQuery } from "../hooks/useQueueQuery.js";
 
 function formatRepoPr(item: TrackedQueueRow): string {
   const repoName = item.repository.split("/").at(-1) ?? item.repository;
   return `${repoName}#${item.prNumber}`;
-}
-
-function formatPriority(priority: string): string {
-  if (priority === "unranked") return "Unranked — ineligible";
-  return priority.toUpperCase();
 }
 
 function isAnalyzing(item: TrackedQueueRow): boolean {
@@ -71,36 +71,44 @@ export function CoverageActionCell({
       {mutationError && <CoverageFeedback text={mutationError} />}
       {refreshError && <CoverageFeedback text={refreshError} />}
       {pending ? (
-        <PrimaryButton disabled>Working…</PrimaryButton>
+        <ActionButton busy busyLabel="Working…" disabled>
+          Analyze
+        </ActionButton>
       ) : refreshError ? (
         <>
-          {analyzing && <StatusChip status="analyzing" />}
-          <PrimaryButton
+          {analyzing && <StatusBadge status="analyzing" />}
+          <ActionButton
             quiet
+            busy={refreshing}
+            busyLabel="Refreshing…"
             disabled={refreshing}
             onClick={() => onRefreshRetry(item)}
           >
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </PrimaryButton>
+            Refresh
+          </ActionButton>
         </>
       ) : analyzing ? (
-        <StatusChip status="analyzing" />
+        <StatusBadge status="analyzing" />
       ) : (
-        <PrimaryButton
+        <ActionButton
           disabled={actioningElsewhere}
           onClick={() => onAction(item)}
         >
           {actionLabel}
-        </PrimaryButton>
+        </ActionButton>
       )}
     </>
   );
 }
 
 export function AllTracked() {
-  const [items, setItems] = useState<TrackedQueueRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { allTracked, surface, refetch } = useQueueQuery();
+  const analyzeMutation = useAnalyzeMutation();
+  const items = allTracked ?? [];
+  const loading = surface.isLoading;
+  const loadError = surface.showError
+    ? (surface.error?.message ?? "Failed to load coverage")
+    : null;
   const [filter, setFilter] = useState<CoverageFilter>("eligible");
   const [query, setQuery] = useState("");
   const [actioningKey, setActioningKey] = useState<string | null>(null);
@@ -116,18 +124,11 @@ export function AllTracked() {
   >({});
 
   const refetchQueue = useCallback(async () => {
-    const data = await api.getQueue();
-    setItems(data.allTracked);
-  }, []);
-
-  useEffect(() => {
-    refetchQueue()
-      .then(() => setLoading(false))
-      .catch((err: unknown) => {
-        setLoadError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [refetchQueue]);
+    const result = await refetch();
+    if (result.isError) {
+      throw result.error;
+    }
+  }, [refetch]);
 
   const displayItems = useMemo(
     () => items.map((item) => mergeRowPatch(item, rowPatches)),
@@ -215,7 +216,7 @@ export function AllTracked() {
       clearRowFeedback(key);
 
       try {
-        const { jobId } = await api.requestAnalyze({
+        const { jobId } = await analyzeMutation.mutateAsync({
           repositoryKey: item.repositoryKey,
           prNumber: item.prNumber,
         });
@@ -235,76 +236,37 @@ export function AllTracked() {
         setActioningKey(null);
       }
     },
-    [actioningKey, clearRowFeedback, refreshAfterMutation],
+    [actioningKey, analyzeMutation, clearRowFeedback, refreshAfterMutation],
   );
 
-  if (loading) {
-    return <p className="reason-line">Loading coverage…</p>;
-  }
-
-  if (loadError !== null) {
-    return (
-      <EmptyState
-        title="Could not load coverage"
-        body={loadError}
-        action={
-          <PrimaryButton
-            onClick={() => {
-              setLoading(true);
-              void refetchQueue()
-                .then(() => {
-                  setLoadError(null);
-                  setLoading(false);
-                })
-                .catch((err: unknown) => {
-                  setLoadError(
-                    err instanceof Error ? err.message : String(err),
-                  );
-                  setLoading(false);
-                });
-            }}
-          >
-            Retry
-          </PrimaryButton>
-        }
-      />
-    );
-  }
-
   return (
-    <div>
-      <h2 className="page-heading">Coverage</h2>
+    <DataState
+      isLoading={loading}
+      showError={loadError !== null}
+      isStale={surface.isStale}
+      loadingMessage="Loading coverage…"
+      errorTitle="Could not load coverage"
+      errorMessage={loadError ?? "Failed to load coverage"}
+      onRetry={() => {
+        void refetch();
+      }}
+    >
+      <PageHeader title="Coverage" />
 
-      <div className="coverage-controls">
-        <PrimaryButton
-          quiet={filter !== "eligible"}
-          aria-pressed={filter === "eligible"}
-          onClick={() => setFilter("eligible")}
-        >
-          Eligible
-        </PrimaryButton>
-        <PrimaryButton
-          quiet={filter !== "ineligible"}
-          aria-pressed={filter === "ineligible"}
-          onClick={() => setFilter("ineligible")}
-        >
-          Ineligible
-        </PrimaryButton>
-        <PrimaryButton
-          quiet={filter !== "all"}
-          aria-pressed={filter === "all"}
-          onClick={() => setFilter("all")}
-        >
-          All
-        </PrimaryButton>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label="Search coverage"
-          placeholder="Search PR, title, or author"
-        />
-      </div>
+      <FilterBar
+        options={[
+          { value: "eligible", label: "Eligible" },
+          { value: "ineligible", label: "Ineligible" },
+          { value: "all", label: "All" },
+        ]}
+        value={filter}
+        onChange={setFilter}
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchLabel="Search coverage"
+        searchPlaceholder="Search PR, title, or author"
+        groupName="coverage-filter"
+      />
 
       <table className="coverage-table">
         <thead>
@@ -337,7 +299,7 @@ export function AllTracked() {
                   <SafeText text={item.author} />
                 </td>
                 <td>
-                  <SafeText text={formatPriority(item.priority)} />
+                  <PriorityIndicator priority={item.priority} />
                 </td>
                 <td>
                   <ReasonLine text={summarizeReasons(item)} />
@@ -359,6 +321,6 @@ export function AllTracked() {
           })}
         </tbody>
       </table>
-    </div>
+    </DataState>
   );
 }
