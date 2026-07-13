@@ -121,13 +121,11 @@ direct Review link resolves its job against the current queue.
 | **Review** | `/review/:jobId` | Inspect a draft's summary, findings, evidence, provenance, and approval operations |
 | **Propose** | `/propose` | Build, validate, preview, and adopt governed profile/policy proposals |
 
-The queue and health status refresh while the tab is visible: the queue every
-3 seconds while a job is active and every 30 seconds otherwise, and health
-every 30 seconds. An unavailable Review draft also retries every 3 seconds.
-These polls pause in background tabs; the queue refetches when the tab becomes
-visible and all queries refetch on window focus. The header also provides a
-manual **Refresh** action for queue and health status, plus connection and
-stale-data status.
+The UI refreshes queue and health status on a timer while the tab is visible
+(3s when jobs are active, 30s when idle). See [`Polling.md`](./Polling.md) for
+how discovery, the job scheduler, the analysis pipeline, and client refresh fit
+together end-to-end. The header **Refresh** action and connection/stale-data
+indicators are also available.
 
 ## CLI reference
 
@@ -159,6 +157,8 @@ proxies `/api` to `http://127.0.0.1:9120` by default; set
 Operator setup and customization: see [`ONBOARDING.md`](./ONBOARDING.md).
 
 Architecture, module map, and extension guidance: see [`Architecture.md`](./Architecture.md).
+
+Polling, jobs, and the analysis pipeline: see [`Polling.md`](./Polling.md).
 
 Detailed Phase 1 design and implementation plans: `docs/superpowers/`.
 
