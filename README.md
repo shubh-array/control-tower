@@ -45,13 +45,16 @@ First supported distribution: **source checkout on macOS** (product target; `doc
 
 ## Quick start
 
+**Full step-by-step onboarding and customization:** see [`ONBOARDING.md`](./ONBOARDING.md).
+
 ```bash
 pnpm install
+cd client && pnpm install && pnpm build && cd ..
 
 # Create ~/.control-tower/{config.json,profile,data} from examples
 pnpm ct init
 
-# Edit profile, policy, and local machine paths (see below)
+# Edit profile, policy, and local machine paths (see ONBOARDING.md)
 # Then verify the environment
 pnpm ct doctor
 
@@ -124,6 +127,8 @@ Override config path with `CONTROL_TOWER_CONFIG` if needed.
 pnpm test          # vitest
 pnpm typecheck     # tsc --noEmit
 ```
+
+Operator setup and customization: see [`ONBOARDING.md`](./ONBOARDING.md).
 
 Architecture, module map, and extension guidance: see [`Architecture.md`](./Architecture.md).
 

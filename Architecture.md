@@ -2,7 +2,7 @@
 
 This document is the living architecture map for **Control Tower**: how the system is structured, where authority lives, and how to customize or extend it safely. Update it as the codebase evolves.
 
-For operator quick start, see [`README.md`](./README.md). Authoritative Phase 1 product contracts live in `docs/superpowers/specs/`.
+For operator quick start, see [`README.md`](./README.md). For step-by-step local setup and customization, see [`ONBOARDING.md`](./ONBOARDING.md). Authoritative Phase 1 product contracts live in `docs/superpowers/specs/`.
 
 ---
 
@@ -48,6 +48,7 @@ For operator quick start, see [`README.md`](./README.md). Authoritative Phase 1 
 ├── tests/                       # Vitest unit/integration/e2e coverage
 ├── package.json                 # Root package (`control-tower`)
 ├── README.md                    # Operator-facing overview
+├── ONBOARDING.md                # Step-by-step local setup + customization
 └── Architecture.md              # This document
 ```
 
