@@ -93,10 +93,33 @@ describe("queue projection", () => {
     const enrichment = loadQueueEnrichment(db);
     const row = projectTrackedItem(stubItem(), enrichment);
     expect(row.jobId).toBe("job-1");
+    expect(row.repositoryKey).toBe("pba-webapp");
     expect(row.repository).toBe("org/pba-webapp");
+    expect(row.queueOrder).toEqual({
+      prioritySortOrdinal: 1,
+      explicitRequestSort: 0,
+      queueTimestamp: "2026-07-10T12:00:00.000Z",
+      normalizedRepositoryIdentity: "pba-webapp",
+      prNumber: 42,
+    });
     expect(row.attentionState).toBe("ready_for_analysis");
     expect(row.priority).toBe("p1");
     expect(row.domains).toEqual(["backend"]);
     expect(row.eligibilityReasons[0]?.code).toBe("explicit_review_request");
+  });
+
+  it("uses stable unknown queue timestamp when updatedAt is absent", () => {
+    const enrichment = loadQueueEnrichment(db);
+    const item = { ...stubItem(), updatedAt: null };
+    const rowA = projectTrackedItem(item, enrichment);
+    const rowB = projectTrackedItem(item, enrichment);
+    expect(rowA.queueOrder).toEqual({
+      prioritySortOrdinal: 1,
+      explicitRequestSort: 0,
+      queueTimestamp: "unknown",
+      normalizedRepositoryIdentity: "pba-webapp",
+      prNumber: 42,
+    });
+    expect(rowB.queueOrder).toEqual(rowA.queueOrder);
   });
 });

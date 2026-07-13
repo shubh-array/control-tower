@@ -1,19 +1,59 @@
 // client/src/routes/Workbench.tsx
 import { useEffect, useState, useCallback } from "react";
-import { api, type DraftDetail, type PublishResult } from "../lib/api.js";
+import {
+  api,
+  type DraftDetail,
+  type FocusQueueRow,
+  type PublishResult,
+} from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
 import { SafeMarkdown } from "../components/SafeMarkdown.js";
 import { CoverageWarning } from "../components/CoverageWarning.js";
+import { AdvisorNote } from "../components/AdvisorNote.js";
+import { PrimaryButton } from "../components/PrimaryButton.js";
+import { EmptyState } from "../components/EmptyState.js";
+import { getReviewFallback } from "../lib/review-fallback.js";
 
 type Tab = "understand" | "verify" | "act";
 type Disposition = "comment" | "request_changes" | "approve";
 
 interface WorkbenchProps {
-  jobId: string;
+  item: FocusQueueRow;
   onBack: () => void;
 }
 
-export function Workbench({ jobId, onBack }: WorkbenchProps) {
+function ReviewChrome({
+  item,
+  onBack,
+}: {
+  item: FocusQueueRow;
+  onBack: () => void;
+}) {
+  const repoLabel = item.repository.split("/").at(-1) ?? item.repository;
+  return (
+    <header className="review-header">
+      <div>
+        <PrimaryButton quiet type="button" onClick={onBack}>
+          ← Inbox
+        </PrimaryButton>
+        <p>
+          <code>{`${repoLabel}#${item.prNumber}`}</code>
+        </p>
+        <h2>
+          <SafeText text={item.title} />
+        </h2>
+        <p className="row-meta">
+          <SafeText text={item.author} />
+          {item.priority !== "unranked" ? ` · ${item.priority.toUpperCase()}` : ""}
+        </p>
+        <AdvisorNote result={item.advisorResult} />
+      </div>
+    </header>
+  );
+}
+
+export function Workbench({ item, onBack }: WorkbenchProps) {
+  const jobId = item.jobId;
   const [draft, setDraft] = useState<DraftDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("understand");
@@ -22,79 +62,151 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
   const [publishing, setPublishing] = useState(false);
   const [results, setResults] = useState<PublishResult[]>([]);
   const [retrying, setRetrying] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getDraft(jobId).then((d) => {
-      setDraft(d);
+    if (jobId === null) {
+      setDraft(null);
       setLoading(false);
-      if (d.recommendedDisposition !== "needs_human") {
-        setDisposition(d.recommendedDisposition as Disposition);
-      }
-    }).catch(() => setLoading(false));
+      return;
+    }
+    setLoading(true);
+    api
+      .getDraft(jobId)
+      .then((d) => {
+        setDraft(d);
+        setLoading(false);
+        if (d.recommendedDisposition !== "needs_human") {
+          setDisposition(d.recommendedDisposition as Disposition);
+        }
+      })
+      .catch(() => {
+        setDraft(null);
+        setLoading(false);
+      });
   }, [jobId]);
 
-  const handleApproveAndPublish = useCallback(async (opHash: string, body: string | null) => {
-    setPublishing(true);
-    try {
-      await api.approveOperation(opHash);
-      const result = await api.publishOperation(opHash, body);
-      setResults((prev) => [...prev, result]);
-    } catch (err) {
-      setResults((prev) => [
-        ...prev,
-        { status: "failed", error: err instanceof Error ? err.message : String(err) },
-      ]);
-    } finally {
-      setPublishing(false);
-    }
-  }, []);
+  const handleApproveAndPublish = useCallback(
+    async (opHash: string, body: string | null) => {
+      setPublishing(true);
+      try {
+        await api.approveOperation(opHash);
+        const result = await api.publishOperation(opHash, body);
+        setResults((prev) => [...prev, result]);
+      } catch (err) {
+        setResults((prev) => [
+          ...prev,
+          {
+            status: "failed",
+            error: err instanceof Error ? err.message : String(err),
+          },
+        ]);
+      } finally {
+        setPublishing(false);
+      }
+    },
+    [],
+  );
 
   const handleRetry = useCallback(async () => {
+    if (jobId === null) return;
     setRetrying(true);
     try {
       const { runId } = await api.requestRetry(jobId);
-      setResults((prev) => [
-        ...prev,
-        { status: "completed", error: undefined },
-      ]);
+      setResults((prev) => [...prev, { status: "completed", error: undefined }]);
       console.log(`Retry started: runId=${runId}`);
     } catch (err) {
       setResults((prev) => [
         ...prev,
-        { status: "failed", error: `Retry failed: ${err instanceof Error ? err.message : String(err)}` },
+        {
+          status: "failed",
+          error: `Retry failed: ${err instanceof Error ? err.message : String(err)}`,
+        },
       ]);
     } finally {
       setRetrying(false);
     }
   }, [jobId]);
 
+  const handleFallback = useCallback(async () => {
+    const fallback = getReviewFallback({
+      jobId: item.jobId,
+      jobState: item.jobState,
+    });
+    setRecovering(true);
+    setRecoveryError(null);
+    try {
+      if (fallback.action === "retry") {
+        if (item.jobId === null) {
+          throw new Error("No job available to retry");
+        }
+        await api.requestRetry(item.jobId);
+      } else {
+        await api.requestAnalyze({
+          repositoryKey: item.repositoryKey,
+          prNumber: item.prNumber,
+        });
+      }
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRecovering(false);
+    }
+  }, [item]);
+
   if (loading) return <p>Loading draft…</p>;
-  if (!draft) return <p>No draft available for this job.</p>;
+
+  if (!draft) {
+    const fallback = getReviewFallback({
+      jobId: item.jobId,
+      jobState: item.jobState,
+    });
+    return (
+      <section className="review-page">
+        <ReviewChrome item={item} onBack={onBack} />
+        <EmptyState
+          title="Review is not available"
+          body={fallback.message}
+          action={
+            <div className="button-group">
+              <PrimaryButton
+                type="button"
+                onClick={() => void handleFallback()}
+                disabled={recovering}
+              >
+                {recovering ? "Starting…" : fallback.label}
+              </PrimaryButton>
+              <PrimaryButton quiet type="button" onClick={onBack}>
+                Back to Inbox
+              </PrimaryButton>
+            </div>
+          }
+        />
+        {recoveryError !== null && (
+          <p className="error-message" role="alert">
+            {recoveryError}
+          </p>
+        )}
+      </section>
+    );
+  }
 
   const isNeedsHuman = draft.recommendedDisposition === "needs_human";
 
   return (
-    <div style={{ maxWidth: "960px", margin: "0 auto" }}>
-      <button onClick={onBack} style={{ marginBottom: "12px", cursor: "pointer" }}>
-        ← Back to queue
-      </button>
+    <div className="review-page">
+      <ReviewChrome item={item} onBack={onBack} />
 
       <CoverageWarning coverage={draft.coverage} />
 
-      <nav style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "2px solid #e5e7eb", paddingBottom: "8px" }}>
+      <nav className="review-tabs" aria-label="Review tabs">
         {(["understand", "verify", "act"] as Tab[]).map((t) => (
           <button
             key={t}
+            type="button"
             onClick={() => setTab(t)}
-            style={{
-              padding: "6px 16px",
-              border: "none",
-              borderBottom: tab === t ? "2px solid #2563eb" : "2px solid transparent",
-              background: "none",
-              fontWeight: tab === t ? 600 : 400,
-              cursor: "pointer",
-              textTransform: "capitalize",
-            }}
+            className={`review-tabs__tab${tab === t ? " review-tabs__tab--active" : ""}`}
           >
             {t}
           </button>
@@ -109,7 +221,7 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
           <SafeText text={draft.summary.implementation} as="p" />
           <h3>Checks ({draft.checks.length})</h3>
           {draft.checks.length === 0 ? (
-            <p style={{ color: "#6b7280" }}>No check results</p>
+            <p className="muted">No check results</p>
           ) : (
             <ul>
               {draft.checks.map((c, i) => (
@@ -121,7 +233,7 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
           )}
           <h3>Unknowns</h3>
           {draft.unknowns.length === 0 ? (
-            <p style={{ color: "#6b7280" }}>None reported</p>
+            <p className="muted">None reported</p>
           ) : (
             <ul>
               {draft.unknowns.map((u, i) => (
@@ -138,27 +250,12 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
         <section>
           <h3>Observations ({draft.observations.length})</h3>
           {draft.observations.map((obs, i) => (
-            <div
-              key={i}
-              style={{
-                padding: "8px",
-                marginBottom: "8px",
-                border: "1px solid #e5e7eb",
-                borderRadius: "6px",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  color: obs.type === "observation" ? "#16a34a" : "#ca8a04",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                }}
-              >
+            <div key={i} className="review-card">
+              <span className={`observation-type observation-type--${obs.type}`}>
                 {obs.type}
               </span>
               <SafeText text={obs.statement} as="p" />
-              <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>
+              <div className="muted provenance">
                 Provenance: {obs.provenanceRefs.join(", ") || "none"}
               </div>
             </div>
@@ -167,25 +264,19 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
           {draft.findings.map((f, i) => (
             <div
               key={i}
-              style={{
-                padding: "8px 12px",
-                marginBottom: "8px",
-                borderLeft: `3px solid ${f.severity === "blocking" ? "#dc2626" : f.severity === "high" ? "#ea580c" : "#ca8a04"}`,
-                backgroundColor: "#fafafa",
-                borderRadius: "0 6px 6px 0",
-              }}
+              className={`finding finding--${f.severity === "blocking" ? "blocking" : f.severity === "high" ? "high" : "other"}`}
             >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div className="finding__header">
                 <strong>
                   <SafeText text={f.title} />
                 </strong>
-                <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                <span className="muted">
                   {f.severity} · {f.confidence} confidence
                 </span>
               </div>
               <SafeText text={f.rationale} as="p" />
               {f.file && (
-                <code style={{ fontSize: "0.8rem" }}>
+                <code>
                   <SafeText text={f.file} />
                   {f.location && `:${f.location.line}`}
                 </code>
@@ -198,80 +289,52 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
       {tab === "act" && (
         <section>
           <h3>Draft Summary</h3>
-          <div
-            style={{
-              padding: "12px",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              marginBottom: "16px",
-              backgroundColor: "#f9fafb",
-            }}
-          >
+          <div className="review-card review-card--summary">
             <SafeMarkdown content={draft.draftSummary.body} />
           </div>
 
           {isNeedsHuman && (
-            <div
-              style={{
-                padding: "12px",
-                backgroundColor: "#fee2e2",
-                border: "1px solid #fca5a5",
-                borderRadius: "8px",
-                marginBottom: "16px",
-              }}
-            >
-              <strong>needs_human</strong> — This draft requires manual handling and cannot be published.
+            <div className="error-banner" role="alert">
+              <strong>needs_human</strong> — This draft requires manual handling
+              and cannot be published.
             </div>
           )}
 
-          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-            <button
-              disabled={retrying}
-              onClick={handleRetry}
-              style={{
-                padding: "6px 16px",
-                fontSize: "0.875rem",
-                border: "1px solid #d97706",
-                borderRadius: "6px",
-                backgroundColor: "#fff",
-                color: "#d97706",
-                cursor: retrying ? "wait" : "pointer",
-                opacity: retrying ? 0.6 : 1,
-              }}
+          <div className="button-group">
+            <PrimaryButton
+              quiet
+              type="button"
+              disabled={retrying || jobId === null}
+              onClick={() => void handleRetry()}
             >
               {retrying ? "Retrying…" : "Retry Analysis"}
-            </button>
+            </PrimaryButton>
           </div>
 
           {!isNeedsHuman && (
             <>
               <h3>Disposition</h3>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-                {(["comment", "request_changes", "approve"] as Disposition[]).map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setDisposition(d)}
-                    style={{
-                      padding: "8px 16px",
-                      border: disposition === d ? "2px solid #2563eb" : "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      backgroundColor: disposition === d ? "#eff6ff" : "#fff",
-                      cursor: "pointer",
-                      fontWeight: disposition === d ? 600 : 400,
-                    }}
-                  >
-                    {d.replace(/_/g, " ")}
-                  </button>
-                ))}
+              <div className="button-group">
+                {(["comment", "request_changes", "approve"] as Disposition[]).map(
+                  (d) => (
+                    <PrimaryButton
+                      key={d}
+                      quiet={disposition !== d}
+                      type="button"
+                      onClick={() => setDisposition(d)}
+                    >
+                      {d.replace(/_/g, " ")}
+                    </PrimaryButton>
+                  ),
+                )}
               </div>
 
               {disposition === "approve" && (
-                <label style={{ display: "block", marginBottom: "16px", fontSize: "0.875rem" }}>
+                <label className="checkbox-label">
                   <input
                     type="checkbox"
                     checked={publishSummary}
                     onChange={(e) => setPublishSummary(e.target.checked)}
-                    style={{ marginRight: "6px" }}
                   />
                   Publish summary as a separate comment
                 </label>
@@ -280,68 +343,49 @@ export function Workbench({ jobId, onBack }: WorkbenchProps) {
               {draft.operationPlan && (
                 <>
                   <h3>Operations Preview</h3>
-                  <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "8px" }}>
+                  <p className="muted">
                     Each operation requires separate approval. No batch approval.
                   </p>
                   {draft.operationPlan.operations.map((op, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        marginBottom: "4px",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "6px",
-                      }}
-                    >
+                    <div key={i} className="operation-row">
                       <div>
-                        <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>
+                        <span className="operation-row__type">
                           {op.type.replace(/_/g, " ")}
                         </span>
                         {op.event && (
-                          <span style={{ marginLeft: "8px", fontSize: "0.75rem", color: "#6b7280" }}>
-                            ({op.event})
-                          </span>
+                          <span className="muted"> ({op.event})</span>
                         )}
                       </div>
-                      <button
+                      <PrimaryButton
+                        type="button"
                         disabled={publishing}
-                        onClick={() => handleApproveAndPublish(op.operationHash, null)}
-                        style={{
-                          padding: "4px 12px",
-                          fontSize: "0.875rem",
-                          border: "1px solid #2563eb",
-                          borderRadius: "6px",
-                          backgroundColor: "#2563eb",
-                          color: "#fff",
-                          cursor: publishing ? "wait" : "pointer",
-                          opacity: publishing ? 0.6 : 1,
-                        }}
+                        onClick={() =>
+                          void handleApproveAndPublish(op.operationHash, null)
+                        }
                       >
                         Approve & Publish
-                      </button>
+                      </PrimaryButton>
                     </div>
                   ))}
                 </>
               )}
 
               {results.length > 0 && (
-                <div style={{ marginTop: "16px" }}>
+                <div className="publication-results">
                   <h4>Publication Results</h4>
                   {results.map((r, i) => (
                     <div
                       key={i}
-                      style={{
-                        padding: "6px 12px",
-                        marginBottom: "4px",
-                        borderRadius: "4px",
-                        backgroundColor: r.status === "completed" ? "#dcfce7" : "#fee2e2",
-                        fontSize: "0.875rem",
-                      }}
+                      className={
+                        r.status === "completed"
+                          ? "success-message"
+                          : "error-message"
+                      }
+                      role={r.status === "failed" ? "alert" : undefined}
                     >
-                      {r.status === "completed" ? "✓ Published" : `✗ Failed: ${r.error}`}
+                      {r.status === "completed"
+                        ? "✓ Published"
+                        : `✗ Failed: ${r.error}`}
                     </div>
                   ))}
                 </div>

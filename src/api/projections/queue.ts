@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { AllTrackedItem } from "../../policy/evaluate.js";
+import { toQueueTuple } from "../../policy/queue-order.js";
 import type {
   AdvisorResult,
   FocusQueueRow,
@@ -116,8 +117,23 @@ export function projectTrackedItem(
   const repo =
     enrichment.repositoryDisplay.get(item.repositoryKey) ?? item.repositoryKey;
 
+  const { queueTimestampSort, ...tupleRest } = toQueueTuple({
+    prNumber: item.prNumber,
+    normalizedRepositoryIdentity: item.repositoryKey,
+    prioritySortOrdinal: item.policy.prioritySortOrdinal,
+    explicitRequest: item.reviewRequested,
+    explicitRequestTimestamp: item.explicitRequestTimestamp ?? undefined,
+    updatedAt: item.updatedAt ?? "unknown",
+    eligible: item.policy.eligible,
+  });
+  const queueOrder = {
+    ...tupleRest,
+    queueTimestamp: queueTimestampSort,
+  };
+
   return {
     jobId: job?.id ?? null,
+    repositoryKey: item.repositoryKey,
     repository: repo,
     prNumber: item.prNumber,
     title: item.title,
@@ -127,6 +143,7 @@ export function projectTrackedItem(
     exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
     priority: item.policy.priorityStatus,
     priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
+    queueOrder,
     domains: item.policy.selectedDomains.map((d) => d.domain),
     attentionState: att?.state ?? "monitoring",
     jobState: job?.state ?? null,

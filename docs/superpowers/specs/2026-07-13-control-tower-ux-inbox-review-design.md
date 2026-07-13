@@ -169,14 +169,7 @@ Secondary surface for “am I missing something?” and policy debugging. Not th
 
 ### 8.1 Direction
 
-Calm focus, high craft:
-
-- Canvas: warm off-white (`#faf9f7`); cards white; hairline `#e8e6e1`.
-- Ink: `#1a1a1a`; secondary `#6b6760`; muted `#8a8680`.
-- Primary actions: charcoal fills (not purple/blue gradients).
-- Semantic color used sparingly (risk text, success text, error banners).
-- Typography: one distinctive UI sans (implementation picks Geist, IBM Plex Sans, or equivalent already acceptable to the repo); monospace only for `repo#PR`.
-- Radius ~10px; soft elevation; generous but intentional whitespace.
+Calm focus, high craft
 
 ### 8.2 Anti-patterns
 
@@ -198,9 +191,6 @@ Introduce small presentational components used across routes:
 
 Replace ad-hoc inline styles with a token stylesheet or CSS modules under `client/src/`. No new external design-system package required.
 
-### 8.4 Motion
-
-Minimal: subtle list reorder when advisor order applies; progress pulse while Analyzing. No decorative motion.
 
 ---
 

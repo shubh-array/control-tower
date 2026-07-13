@@ -8,6 +8,7 @@ import { runInit } from "./init.js";
 import { probePortAvailable } from "./port.js";
 import { startCommand, stopCommand, statusCommand } from "./daemon-control.js";
 import { enablePublication, disablePublication } from "./publication.js";
+import { runReset, type ResetScope } from "./reset.js";
 import {
   loadLocalConfig,
   loadOrganizationConfig,
@@ -271,6 +272,48 @@ program
     const localConfig = loadLocalConfig(localConfigPath);
     const msg = statusCommand(localConfig.dataDirectory);
     console.log(msg);
+  });
+
+program
+  .command("reset")
+  .description(
+    "Wipe local Control Tower data (default) or all local state; never touches repo harnesses",
+  )
+  .option("--all", "Also wipe config.json and profile/ (requires re-init)")
+  .option("--yes", "Skip confirmation prompt")
+  .action(async (opts) => {
+    const localConfigPath =
+      process.env.CONTROL_TOWER_CONFIG ??
+      join(homedir(), ".control-tower", "config.json");
+
+    const scope: ResetScope = opts.all ? "all" : "data";
+
+    let confirm: ((message: string) => Promise<boolean>) | undefined;
+    if (!opts.yes) {
+      const readline = await import("node:readline/promises");
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      confirm = async (message) => {
+        const answer = await rl.question(`${message} `);
+        rl.close();
+        return answer.trim().toLowerCase() === "y";
+      };
+    }
+
+    const result = await runReset({
+      configPath: localConfigPath,
+      scope,
+      yes: opts.yes ?? false,
+      confirm,
+      stopDaemon: stopCommand,
+      log: (message) => console.log(message),
+    });
+
+    if (result.aborted) {
+      process.exit(1);
+    }
   });
 
 const publicationCmd = program

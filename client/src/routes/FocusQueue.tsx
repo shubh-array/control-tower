@@ -1,124 +1,149 @@
-// client/src/routes/FocusQueue.tsx
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type FocusQueueRow } from "../lib/api.js";
 import { SafeText } from "../components/SafeText.js";
-import { AdvisorBadge } from "../components/AdvisorBadge.js";
+import { StatusChip } from "../components/StatusChip.js";
+import { AdvisorNote } from "../components/AdvisorNote.js";
+import { ReasonLine } from "../components/ReasonLine.js";
+import { PrimaryButton } from "../components/PrimaryButton.js";
+import { EmptyState } from "../components/EmptyState.js";
+import {
+  INBOX_REFRESH_ERROR,
+  inboxRowKey,
+  mergeRowPatch,
+  patchRowAfterMutation,
+  patchRowAfterRetry,
+} from "../lib/inbox-resilience.js";
+import {
+  deriveInboxPresentation,
+  sortInboxRows,
+  summarizeReasons,
+} from "../lib/queue-display.js";
 
-type ViewOrder = "deterministic" | "advisor";
+const DRAFT_UNAVAILABLE_MESSAGE =
+  "Draft is not available yet. Retry analysis or refresh the Inbox.";
 
-const RELEVANCE_ORDINAL: Record<string, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  unknown: 4,
-};
-
-const RISK_ORDINAL: Record<string, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  unknown: 4,
-};
-
-function sortAdvisorOrder(items: FocusQueueRow[]): FocusQueueRow[] {
-  const advised = items.filter((i) => i.advisorResult !== null);
-  const nonAdvised = items.filter((i) => i.advisorResult === null);
-
-  const compareDeterministic = (a: FocusQueueRow, b: FocusQueueRow) => {
-    const pri =
-      (a.priority === "p0" ? 0 : a.priority === "p1" ? 1 : a.priority === "p2" ? 2 : 3) -
-      (b.priority === "p0" ? 0 : b.priority === "p1" ? 1 : b.priority === "p2" ? 2 : 3);
-    if (pri !== 0) return pri;
-    return a.updatedAt.localeCompare(b.updatedAt);
-  };
-
-  advised.sort((a, b) => {
-    const ar = a.advisorResult!;
-    const br = b.advisorResult!;
-    const relA = RELEVANCE_ORDINAL[ar.relevance] ?? 4;
-    const relB = RELEVANCE_ORDINAL[br.relevance] ?? 4;
-    if (relA !== relB) return relA - relB;
-    const riskA = RISK_ORDINAL[ar.risk] ?? 4;
-    const riskB = RISK_ORDINAL[br.risk] ?? 4;
-    if (riskA !== riskB) return riskA - riskB;
-    return compareDeterministic(a, b);
-  });
-
-  nonAdvised.sort(compareDeterministic);
-  return [...advised, ...nonAdvised];
+function formatRepoPr(item: FocusQueueRow): string {
+  const repoName = item.repository.split("/").at(-1) ?? item.repository;
+  return `${repoName}#${item.prNumber}`;
 }
 
-function applyViewOrder(
-  items: FocusQueueRow[],
-  viewOrder: ViewOrder,
-): FocusQueueRow[] {
-  return viewOrder === "advisor" ? sortAdvisorOrder(items) : items;
+function actionLabel(action: "analyze" | "open-review" | "retry"): string {
+  if (action === "analyze") return "Analyze";
+  if (action === "open-review") return "Open Review";
+  return "Retry";
 }
 
-function QueueLane({
-  title,
-  items,
-  onSelect,
+function InboxRow({
+  item,
+  actioningKey,
+  mutationError,
+  refreshError,
+  onAction,
 }: {
-  title: string;
+  item: FocusQueueRow;
+  actioningKey: string | null;
+  mutationError: string | undefined;
+  refreshError: string | undefined;
+  onAction: (item: FocusQueueRow) => void;
+}) {
+  const key = inboxRowKey(item);
+  const presentation = deriveInboxPresentation(item);
+  const pending = actioningKey === key;
+  const hasExplicitRequest = item.eligibilityReasons.some(
+    (reason) => reason.code === "explicit_review_request",
+  );
+
+  return (
+    <li>
+      <article className="inbox-row">
+        <div>
+          <div className="inbox-row__meta">
+            <code>
+              <SafeText text={formatRepoPr(item)} />
+            </code>
+            <SafeText text={item.title} />
+          </div>
+          <div className="inbox-row__meta">
+            <SafeText text={item.author} />
+            {item.priority !== "unranked" && (
+              <>
+                {" · "}
+                {item.priority.toUpperCase()}
+              </>
+            )}
+            {hasExplicitRequest && " · Explicit request"}
+          </div>
+          <AdvisorNote result={item.advisorResult} />
+          <ReasonLine text={summarizeReasons(item)} />
+          {mutationError && <ReasonLine text={mutationError} />}
+          {refreshError && <ReasonLine text={refreshError} />}
+        </div>
+        <StatusChip status={presentation.chip} />
+        {presentation.primaryAction !== null ? (
+          <PrimaryButton
+            disabled={pending || actioningKey !== null}
+            onClick={() => onAction(item)}
+          >
+            {pending ? "Working…" : actionLabel(presentation.primaryAction)}
+          </PrimaryButton>
+        ) : (
+          <span />
+        )}
+      </article>
+    </li>
+  );
+}
+
+function InboxList({
+  items,
+  actioningKey,
+  mutationErrorByKey,
+  refreshErrorByKey,
+  onAction,
+  showEmptyState = false,
+}: {
   items: FocusQueueRow[];
-  onSelect: (item: FocusQueueRow) => void;
+  actioningKey: string | null;
+  mutationErrorByKey: Record<string, string>;
+  refreshErrorByKey: Record<string, string>;
+  onAction: (item: FocusQueueRow) => void;
+  showEmptyState?: boolean;
 }) {
   if (items.length === 0) {
-    return (
-      <section style={{ marginBottom: "24px" }}>
-        <h3 style={{ fontSize: "1rem", color: "#6b7280" }}>{title}</h3>
-        <p style={{ color: "#9ca3af", fontStyle: "italic" }}>No items</p>
-      </section>
-    );
+    if (showEmptyState) {
+      return (
+        <EmptyState
+          title="Inbox is clear"
+          body="No pull requests need attention right now."
+        />
+      );
+    }
+    return <p className="reason-line">No items in this lane.</p>;
   }
 
   return (
-    <section style={{ marginBottom: "24px" }}>
-      <h3 style={{ fontSize: "1rem", marginBottom: "8px" }}>
-        {title} ({items.length})
-      </h3>
-      {items.map((item) => (
-        <div
-          key={`${item.repository}-${item.prNumber}`}
-          onClick={() => onSelect(item)}
-          style={{
-            padding: "12px",
-            marginBottom: "8px",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            cursor: "pointer",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <span style={{ fontFamily: "monospace", fontSize: "0.875rem", fontWeight: 600 }}>
-                <SafeText text={`${item.repository.split("/")[1]}#${item.prNumber}`} />
-              </span>
-              <span style={{ marginLeft: "8px" }}>
-                <SafeText text={item.title} />
-              </span>
-            </div>
-            <AdvisorBadge result={item.advisorResult} />
-          </div>
-          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "4px" }}>
-            <SafeText text={item.author} /> ·{" "}
-            {item.priority !== "unranked" ? item.priority.toUpperCase() : ""} ·{" "}
-            {item.domains.join(", ")} ·{" "}
-            <SafeText text={item.attentionState.replace(/_/g, " ")} />
-          </div>
-        </div>
-      ))}
-    </section>
+    <ul className="inbox-list">
+      {items.map((item) => {
+        const key = inboxRowKey(item);
+        return (
+          <InboxRow
+            key={key}
+            item={item}
+            actioningKey={actioningKey}
+            mutationError={mutationErrorByKey[key]}
+            refreshError={refreshErrorByKey[key]}
+            onAction={onAction}
+          />
+        );
+      })}
+    </ul>
   );
 }
 
 export function FocusQueue({
-  onSelectItem,
+  onOpenReview,
 }: {
-  onSelectItem: (item: FocusQueueRow) => void;
+  onOpenReview: (item: FocusQueueRow) => void;
 }) {
   const [queue, setQueue] = useState<{
     now: FocusQueueRow[];
@@ -126,60 +151,250 @@ export function FocusQueue({
     monitor: FocusQueueRow[];
   }>({ now: [], next: [], monitor: [] });
   const [loading, setLoading] = useState(true);
-  const [viewOrder, setViewOrder] = useState<ViewOrder>("deterministic");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [groupByLane, setGroupByLane] = useState(false);
+  const [actioningKey, setActioningKey] = useState<string | null>(null);
+  const [rowPatches, setRowPatches] = useState<
+    Record<string, Partial<FocusQueueRow>>
+  >({});
+  const [mutationErrorByKey, setMutationErrorByKey] = useState<
+    Record<string, string>
+  >({});
+  const [refreshErrorByKey, setRefreshErrorByKey] = useState<
+    Record<string, string>
+  >({});
 
-  useEffect(() => {
-    api
-      .getQueue()
-      .then((data) => {
-        setQueue(data.focusQueue);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const refetchQueue = useCallback(async () => {
+    const data = await api.getQueue();
+    setQueue(data.focusQueue);
+    return data.focusQueue;
   }, []);
 
-  const displayQueue = useMemo(
-    () => ({
-      now: applyViewOrder(queue.now, viewOrder),
-      next: applyViewOrder(queue.next, viewOrder),
-      monitor: applyViewOrder(queue.monitor, viewOrder),
-    }),
-    [queue, viewOrder],
+  const applyPatches = useCallback(
+    (items: FocusQueueRow[]) =>
+      items.map((item) => mergeRowPatch(item, rowPatches)),
+    [rowPatches],
   );
 
-  if (loading) return <p>Loading queue…</p>;
+  useEffect(() => {
+    refetchQueue()
+      .then(() => {
+        setLoadError(null);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        setLoadError(err instanceof Error ? err.message : String(err));
+        setLoading(false);
+      });
+  }, [refetchQueue]);
+
+  const flatItems = useMemo(
+    () =>
+      applyPatches(
+        sortInboxRows([...queue.now, ...queue.next, ...queue.monitor]),
+      ),
+    [applyPatches, queue],
+  );
+
+  const groupedItems = useMemo(
+    () => ({
+      now: applyPatches(sortInboxRows(queue.now)),
+      next: applyPatches(sortInboxRows(queue.next)),
+      monitor: applyPatches(sortInboxRows(queue.monitor)),
+    }),
+    [applyPatches, queue],
+  );
+
+  const actionableCount = useMemo(
+    () =>
+      flatItems.filter(
+        (item) => deriveInboxPresentation(item).primaryAction !== null,
+      ).length,
+    [flatItems],
+  );
+
+  const clearRowFeedback = useCallback((key: string) => {
+    setMutationErrorByKey((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setRefreshErrorByKey((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const clearRowPatch = useCallback((key: string) => {
+    setRowPatches((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const refreshAfterMutation = useCallback(
+    async (key: string) => {
+      try {
+        await refetchQueue();
+        clearRowPatch(key);
+        setRefreshErrorByKey((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      } catch {
+        setRefreshErrorByKey((prev) => ({
+          ...prev,
+          [key]: INBOX_REFRESH_ERROR,
+        }));
+      }
+    },
+    [clearRowPatch, refetchQueue],
+  );
+
+  const handleAction = useCallback(
+    async (item: FocusQueueRow) => {
+      const key = inboxRowKey(item);
+      const presentation = deriveInboxPresentation(item);
+      const action = presentation.primaryAction;
+      if (action === null || actioningKey !== null) return;
+
+      setActioningKey(key);
+      clearRowFeedback(key);
+
+      try {
+        if (action === "analyze") {
+          const { jobId } = await api.requestAnalyze({
+            repositoryKey: item.repositoryKey,
+            prNumber: item.prNumber,
+          });
+          const patched = patchRowAfterMutation(item, jobId);
+          setRowPatches((prev) => ({
+            ...prev,
+            [key]: {
+              jobId: patched.jobId,
+              jobState: patched.jobState,
+            },
+          }));
+          await refreshAfterMutation(key);
+        } else if (action === "retry") {
+          if (item.jobId === null) {
+            throw new Error("No job available to retry.");
+          }
+          await api.requestRetry(item.jobId);
+          const patched = patchRowAfterRetry(item);
+          setRowPatches((prev) => ({
+            ...prev,
+            [key]: { jobState: patched.jobState },
+          }));
+          await refreshAfterMutation(key);
+        } else if (action === "open-review") {
+          if (item.jobId === null) {
+            throw new Error(DRAFT_UNAVAILABLE_MESSAGE);
+          }
+          await api.getDraft(item.jobId);
+          onOpenReview(item);
+        }
+      } catch (err: unknown) {
+        const message =
+          action === "open-review"
+            ? DRAFT_UNAVAILABLE_MESSAGE
+            : err instanceof Error
+              ? err.message
+              : String(err);
+        setMutationErrorByKey((prev) => ({ ...prev, [key]: message }));
+      } finally {
+        setActioningKey(null);
+      }
+    },
+    [actioningKey, clearRowFeedback, onOpenReview, refreshAfterMutation],
+  );
+
+  if (loading) {
+    return <p className="reason-line">Loading inbox…</p>;
+  }
+
+  if (loadError !== null) {
+    return (
+      <EmptyState
+        title="Could not load inbox"
+        body={loadError}
+        action={
+          <PrimaryButton
+            onClick={() => {
+              setLoading(true);
+              void refetchQueue()
+                .then(() => {
+                  setLoadError(null);
+                  setLoading(false);
+                })
+                .catch((err: unknown) => {
+                  setLoadError(err instanceof Error ? err.message : String(err));
+                  setLoading(false);
+                });
+            }}
+          >
+            Retry
+          </PrimaryButton>
+        }
+      />
+    );
+  }
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-        <h2>Focus Queue</h2>
-        <label style={{ fontSize: "0.875rem" }}>
-          <input
-            type="checkbox"
-            checked={viewOrder === "advisor"}
-            onChange={(e) =>
-              setViewOrder(e.target.checked ? "advisor" : "deterministic")
-            }
-            style={{ marginRight: "4px" }}
+      <h2 className="page-heading">Inbox</h2>
+      <p className="reason-line">
+        {`${actionableCount} items need attention · ordered by advisor relevance & risk`}
+      </p>
+      <label className="reason-line">
+        <input
+          type="checkbox"
+          checked={groupByLane}
+          onChange={(event) => setGroupByLane(event.target.checked)}
+        />{" "}
+        Group by lane
+      </label>
+
+      {groupByLane ? (
+        <>
+          <h3 className="page-heading">Now</h3>
+          <InboxList
+            items={groupedItems.now}
+            actioningKey={actioningKey}
+            mutationErrorByKey={mutationErrorByKey}
+            refreshErrorByKey={refreshErrorByKey}
+            onAction={handleAction}
           />
-          Advisor order
-        </label>
-      </div>
-      <QueueLane
-        title="Now"
-        items={displayQueue.now}
-        onSelect={onSelectItem}
-      />
-      <QueueLane
-        title="Next"
-        items={displayQueue.next}
-        onSelect={onSelectItem}
-      />
-      <QueueLane
-        title="Monitor"
-        items={displayQueue.monitor}
-        onSelect={onSelectItem}
-      />
+          <h3 className="page-heading">Next</h3>
+          <InboxList
+            items={groupedItems.next}
+            actioningKey={actioningKey}
+            mutationErrorByKey={mutationErrorByKey}
+            refreshErrorByKey={refreshErrorByKey}
+            onAction={handleAction}
+          />
+          <h3 className="page-heading">Monitor</h3>
+          <InboxList
+            items={groupedItems.monitor}
+            actioningKey={actioningKey}
+            mutationErrorByKey={mutationErrorByKey}
+            refreshErrorByKey={refreshErrorByKey}
+            onAction={handleAction}
+          />
+        </>
+      ) : (
+        <InboxList
+          items={flatItems}
+          actioningKey={actioningKey}
+          mutationErrorByKey={mutationErrorByKey}
+          refreshErrorByKey={refreshErrorByKey}
+          onAction={handleAction}
+          showEmptyState
+        />
+      )}
     </div>
   );
 }

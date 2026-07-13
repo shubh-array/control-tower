@@ -34,11 +34,11 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 │   ├── store/                   # SQLite open + migrations
 │   ├── tickets/                 # Deterministic ticket-id extraction (opaque)
 │   └── util/                    # Hash + canonical JSON helpers
-├── client/                      # React loopback UI (Focus / All Tracked / Workbench)
+├── client/                      # React loopback UI (Inbox / Coverage / Review)
 │   └── src/
 │       ├── components/          # SafeMarkdown, coverage/advisor badges
 │       ├── lib/                 # API client helpers
-│       └── routes/              # FocusQueue, AllTracked, Workbench, ProposeChange
+│       └── routes/              # FocusQueue (Inbox), AllTracked (Coverage), Workbench (Review), ProposeChange
 ├── config/                      # Committed org catalog + harnesses + examples
 │   ├── organization.json        # Shared org/repo catalog (no secrets)
 │   ├── harnesses/               # pr-attention + pr-review prompts/skills/domains
@@ -93,13 +93,13 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 **Data / authority flow (Phase 1)**
 
 ```
-gh poll → normalize → policy evaluate → All Tracked
+gh poll → normalize → policy evaluate → Coverage
                                     ├─ optional attention advisor (advisory)
                                     └─ enqueue (auto | human)
                                          → prepare context + source
                                          → Cursor primaryReview
                                          → validate provenance → seal
-                                         → Workbench draft
+                                         → Review draft
                                          → human approve op → publisher → gh
 ```
 
@@ -111,9 +111,9 @@ gh poll → normalize → policy evaluate → All Tracked
 
 ### 3.1. Frontend
 
-**Name:** Control Tower Workbench UI
+**Name:** Control Tower Inbox UI
 
-**Description:** Single-operator React app served from the loopback daemon. Routes: Focus Queue (eligible triage), All Tracked (authoritative coverage), Workbench (draft + approvals), Propose Change (governed profile edits). Renders sanitized Markdown under a restrictive CSP; mutating actions use single-use action tokens.
+**Description:** Single-operator React app served from the loopback daemon. Routes: Inbox (advisor-ranked triage), Coverage (authoritative audit), Review (draft + approvals), Propose Change (governed profile edits). Renders sanitized Markdown under a restrictive CSP; mutating actions use single-use action tokens.
 
 **Technologies:** React, TypeScript, Vite-style client package under `client/`
 
@@ -332,9 +332,9 @@ pnpm ct start
 
 | Term | Meaning |
 |------|---------|
-| **All Tracked** | Authoritative UI/API coverage of every discovered active-repo PR and explicit review request; never agent-filtered |
-| **Focus Queue** | Eligible-only triage view (Now / Next / Monitor) |
-| **Workbench** | Draft review + provenance + publication approval UI for a job |
+| **Coverage** | Authoritative UI/API audit of every discovered active-repo PR and explicit review request; never agent-filtered |
+| **Inbox** | Advisor-ranked eligible triage home (optional Now / Next / Monitor grouping) |
+| **Review** | Draft review + provenance + publication approval UI for a job |
 | **Eligibility** | Deterministic rule: explicit request, or active repo + path/author match |
 | **Author-only** | Eligible via author match without path match; usually on-demand analysis |
 | **Auto-analyze** | Deterministic policy that enqueues Cursor primary review without human click |

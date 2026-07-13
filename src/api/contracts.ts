@@ -31,8 +31,17 @@ export interface AdvisorResult {
 }
 
 /** Client queue row — flat projection of AllTrackedItem + DB enrichment. */
+export interface QueueOrder {
+  prioritySortOrdinal: number;
+  explicitRequestSort: 0 | 1;
+  queueTimestamp: string;
+  normalizedRepositoryIdentity: string;
+  prNumber: number;
+}
+
 export interface TrackedQueueRow {
   jobId: string | null;
+  repositoryKey: string;
   repository: string;
   prNumber: number;
   title: string;
@@ -42,6 +51,7 @@ export interface TrackedQueueRow {
   exclusionReasons: ExclusionReason[];
   priority: string;
   priorityReasons: PriorityReason[];
+  queueOrder: QueueOrder;
   domains: string[];
   attentionState: string;
   jobState: string | null;

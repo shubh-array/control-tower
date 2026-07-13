@@ -6,6 +6,8 @@ import type { OrchestratorFacade } from "../orchestrator/facade.js";
 import { GuardInputStore } from "../publisher/guard-store.js";
 import { PublisherService } from "../publisher/publisher-service.js";
 import type { FocusQueueRow, TrackedQueueRow } from "../api/contracts.js";
+import type { AllTrackedItem } from "../policy/evaluate.js";
+import { toQueueTuple } from "../policy/queue-order.js";
 import type { SignalRecorder } from "../learning/record.js";
 import type { ProposalStore } from "../api/routes/proposals.js";
 import type { ProfileChangeProposal } from "../proposals/types.js";
@@ -76,6 +78,45 @@ function defaultClientDistPath(): string {
     dirname(fileURLToPath(import.meta.url)),
     "../../client/dist",
   );
+}
+
+function stubQueueOrder(item: AllTrackedItem): TrackedQueueRow["queueOrder"] {
+  const { queueTimestampSort, ...tupleRest } = toQueueTuple({
+    prNumber: item.prNumber,
+    normalizedRepositoryIdentity: item.repositoryKey,
+    prioritySortOrdinal: item.policy.prioritySortOrdinal,
+    explicitRequest: item.reviewRequested,
+    explicitRequestTimestamp: item.explicitRequestTimestamp ?? undefined,
+    updatedAt: item.updatedAt ?? "unknown",
+    eligible: item.policy.eligible,
+  });
+  return {
+    ...tupleRest,
+    queueTimestamp: queueTimestampSort,
+  };
+}
+
+function stubTrackedQueueRow(item: AllTrackedItem): TrackedQueueRow {
+  return {
+    jobId: null,
+    repositoryKey: item.repositoryKey,
+    repository: item.repositoryKey,
+    prNumber: item.prNumber,
+    title: item.title,
+    author: item.author,
+    headSha: item.headSha,
+    eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],
+    exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
+    priority: item.policy.priorityStatus,
+    priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
+    queueOrder: stubQueueOrder(item),
+    domains: item.policy.selectedDomains.map((d) => d.domain),
+    attentionState: "monitoring",
+    jobState: null,
+    advisorResult: null,
+    discoveredAt: item.updatedAt ?? new Date().toISOString(),
+    updatedAt: item.updatedAt ?? new Date().toISOString(),
+  };
 }
 
 function createStubLearningDeps(): {
@@ -203,45 +244,10 @@ export async function startRuntime(
     configuredOperator: "",
     authenticatedLogin: "",
     ...stubLearning,
-    getAllTrackedRows: () => facade.getAllTracked().map((item) => ({
-      jobId: null,
-      repository: item.repositoryKey,
-      prNumber: item.prNumber,
-      title: item.title,
-      author: item.author,
-      headSha: item.headSha,
-      eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],
-      exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
-      priority: item.policy.priorityStatus,
-      priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
-      domains: item.policy.selectedDomains.map((d) => d.domain),
-      attentionState: "monitoring",
-      jobState: null,
-      advisorResult: null,
-      discoveredAt: item.updatedAt ?? new Date().toISOString(),
-      updatedAt: item.updatedAt ?? new Date().toISOString(),
-    })),
+    getAllTrackedRows: () => facade.getAllTracked().map(stubTrackedQueueRow),
     getFocusQueueRows: () => {
       const q = facade.getFocusQueue();
-      const map = (items: typeof q.now) =>
-        items.map((item) => ({
-          jobId: null,
-          repository: item.repositoryKey,
-          prNumber: item.prNumber,
-          title: item.title,
-          author: item.author,
-          headSha: item.headSha,
-          eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],
-          exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
-          priority: item.policy.priorityStatus,
-          priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
-          domains: item.policy.selectedDomains.map((d) => d.domain),
-          attentionState: "monitoring",
-          jobState: null,
-          advisorResult: null,
-          discoveredAt: item.updatedAt ?? new Date().toISOString(),
-          updatedAt: item.updatedAt ?? new Date().toISOString(),
-        }));
+      const map = (items: typeof q.now) => items.map(stubTrackedQueueRow);
       return { now: map(q.now), next: map(q.next), monitor: map(q.monitor) };
     },
     getJobDetail: (id) => {

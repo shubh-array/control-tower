@@ -7,14 +7,73 @@ import {
   type RuntimeDeps,
   type RuntimeHandle,
 } from '../../src/daemon/runtime.js';
+import type { AllTrackedItem } from '../../src/policy/evaluate.js';
 
-function makeFakeRuntimeDeps(): RuntimeDeps & {
+function makeTrackedItemFixture(): AllTrackedItem {
+  return {
+    repositoryKey: 'pba-webapp',
+    prNumber: 42,
+    headSha: 'a'.repeat(40),
+    baseSha: 'b'.repeat(40),
+    title: 'Fix bug',
+    author: 'dev',
+    draft: false,
+    labels: [],
+    additions: 1,
+    deletions: 0,
+    changedFiles: ['src/a.ts'],
+    reviewRequested: true,
+    checkSummary: [],
+    updatedAt: '2026-07-10T12:00:00.000Z',
+    explicitRequestTimestamp: null,
+    policy: {
+      eligible: true,
+      eligibilityReasons: [
+        { code: 'explicit_review_request', requestedLogin: 'dev' },
+      ],
+      exclusionReasons: [],
+      authorOnly: false,
+      priorityStatus: 'p1',
+      prioritySortOrdinal: 1,
+      priorityReasons: [
+        {
+          code: 'priority_rule',
+          tier: 'p1',
+          declarationIndex: 0,
+          matchedPath: 'src/a.ts',
+          matchedRule: 'backend',
+        },
+      ],
+      allPriorityReasons: [],
+      selectedPriorityReason: null,
+      analysisMode: 'on_demand',
+      autoAnalyzeReasons: [],
+      selectedDomains: [
+        {
+          domain: 'backend',
+          selectedPriority: 1,
+          selectedDeclarationIndex: 0,
+          matchedPaths: ['src/a.ts'],
+          allReasons: [],
+        },
+      ],
+      allDomainReasons: [],
+    },
+    sourceMode: 'registered-source',
+    bodyTruncated: '',
+  };
+}
+
+function makeFakeRuntimeDeps(options?: {
+  tracked?: AllTrackedItem[];
+}): RuntimeDeps & {
   migrateCalled: boolean;
   recoveryCalled: boolean;
   pollerStarted: boolean;
   schedulerTicks: number;
   attentionBatches: number;
 } {
+  const tracked = options?.tracked ?? [];
   return {
     migrateCalled: false,
     recoveryCalled: false,
@@ -42,8 +101,8 @@ function makeFakeRuntimeDeps(): RuntimeDeps & {
     },
     createFacade() {
       return {
-        getAllTracked: () => [],
-        getFocusQueue: () => ({ now: [], next: [], monitor: [] }),
+        getAllTracked: () => tracked,
+        getFocusQueue: () => ({ now: tracked, next: [], monitor: [] }),
         getJob: () => null,
         getDraft: () => null,
         getHealthStatus: () => ({
@@ -118,5 +177,36 @@ describe('startRuntime', () => {
     await stopRuntime(handle);
     expect(deps.pollerStarted).toBe(false);
     handle = null;
+  });
+
+  it('maps facade tracked items to /api/queue with repositoryKey and queueOrder', async () => {
+    const trackedItem = makeTrackedItemFixture();
+    const deps = makeFakeRuntimeDeps({ tracked: [trackedItem] });
+    handle = await startRuntime(
+      { ...DEFAULT_CONFIG, port: 19120, apiServerEnabled: true },
+      deps,
+    );
+
+    const sessionRes = await fetch(`${handle.url}/`, { redirect: 'manual' });
+    const setCookie = sessionRes.headers.get('set-cookie');
+    expect(setCookie).toBeTruthy();
+    const cookie = setCookie!.split(';')[0]!;
+
+    const queueRes = await fetch(`${handle.url}/api/queue`, {
+      headers: { cookie },
+    });
+    expect(queueRes.status).toBe(200);
+    const body = await queueRes.json() as {
+      allTracked: Array<{ repositoryKey: string; queueOrder: unknown }>;
+    };
+    expect(body.allTracked).toHaveLength(1);
+    expect(body.allTracked[0]!.repositoryKey).toBe('pba-webapp');
+    expect(body.allTracked[0]!.queueOrder).toEqual({
+      prioritySortOrdinal: 1,
+      explicitRequestSort: 0,
+      queueTimestamp: '2026-07-10T12:00:00.000Z',
+      normalizedRepositoryIdentity: 'pba-webapp',
+      prNumber: 42,
+    });
   });
 });

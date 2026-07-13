@@ -3,7 +3,7 @@
   "github": {
     "host": "github.com",
     "organizations": ["Powered-By-Array"],
-    "pollIntervalSeconds": 300
+    "pollIntervalSeconds": 900
   },
   "ticketExtractors": [
     {
