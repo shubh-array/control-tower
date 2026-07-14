@@ -110,7 +110,7 @@ describe("Integration: production pipeline deps wiring", () => {
     const remoteCoverage = {
       mode: "remote-evidence-only",
       sourceTreeInspected: false,
-      diffFiltered: true,
+      diffFiltered: false,
       omittedProtectedPaths: [],
       omittedSourceEntries: [],
       missingCoverage: ["source_tree"],
@@ -188,7 +188,7 @@ describe("Integration: production pipeline deps wiring", () => {
     const remoteCoverage = {
       mode: "remote-evidence-only",
       sourceTreeInspected: false,
-      diffFiltered: true,
+      diffFiltered: false,
       omittedProtectedPaths: [],
       omittedSourceEntries: [],
       missingCoverage: ["source_tree"],
