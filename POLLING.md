@@ -98,13 +98,13 @@ Jobs are created when:
 - You request analysis from the UI/API (`on_demand` + explicit request), or
 - You retry a failed job.
 
-If the PR head SHA, policy hash, or source mode changes, an existing active job may be **superseded** and a new one enqueued.
+If the PR head SHA, policy hash, or source mode changes, an existing active job may be **superseded** and a new one enqueued. Enqueueing for a PR also supersedes any other active job for the same repository and PR number (one active job per PR).
 
 ### Pipeline states (happy path)
 
 ```
 queued
-  → preparing_context      build review harness (prompt, coverage, metadata)
+  → preparing_context      build harness, fetch PR diff, build provenance catalog, materialize context artifacts
   → preparing_source       git checkout into daemon worktree (registered-source only)
   → running_agent          Cursor agent executes (slow — often minutes)
   → validating_output      validate agent JSON output
@@ -118,7 +118,7 @@ Terminal or side states: `failed`, `cancelled`, `superseded`. After a daemon cra
 
 ### What “start pipeline” means
 
-`runPipelineForJob()` loads the job (must be `queued`), builds dependencies (Cursor binary, profile paths, signal recorder), and runs `executePipeline()`. That function walks the state transitions above, seals artifacts under your data directory, and stops at `draft_ready` (publication is a separate human-gated step).
+`runPipelineForJob()` loads the job (must be `queued`), builds pipeline dependencies (Cursor adapter, profile/app paths, signal recorder, GitHub diff fetch, provenance loaders, source materialization, and validation/sealing hooks), and runs `executePipeline()`. That function walks the state transitions above, seals artifacts under your data directory, and stops at `draft_ready` (publication is a separate human-gated step).
 
 The scheduler **does not await** the pipeline. One long-running `running_agent` phase does not block the timer; it only blocks **starting additional jobs** until a slot frees up.
 
@@ -126,7 +126,7 @@ The scheduler **does not await** the pipeline. One long-running `running_agent` 
 
 **Purpose:** Keep the UI aligned with daemon state.
 
-React updates only **in-browser** state. The daemon is a separate process writing SQLite. There is **no WebSocket or SSE** today — the UI **pulls** `/api/queue`, `/api/health`, and `/api/draft/:jobId` on a timer via React Query.
+React updates only **in-browser** state. The daemon is a separate process writing SQLite. There is **no WebSocket or SSE** today — the UI **pulls** `/api/queue`, `/api/health`, and `/api/drafts/:jobId` on a timer via React Query.
 
 | Query | Interval (tab visible) | Paused when |
 |-------|------------------------|-------------|

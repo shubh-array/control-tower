@@ -164,7 +164,7 @@ the proposal start/validate/adopt routes under `/api/proposals`.
 
 #### 3.2.7. Source + context (`src/source`, `src/context`)
 
-**Description:** Just-in-time PR-head fetches into daemon-owned admin worktrees for registered repos, followed by a source manifest; remote-evidence-only path for unregistered repos; nine-layer harness composition; coverage/provenance records; and run sealing. The current pipeline does not materialize a filtered source tree for Cursor.
+**Description:** Just-in-time PR-head fetches into daemon-owned admin worktrees for registered repos, followed by a protected-path-filtered source tree materialized into a sealed source view for Cursor and a source manifest with accurate line counts; remote-evidence-only path for unregistered repos; nine-layer harness composition; provenance catalog (commits, CI checks, PR comments, and diff hunks); coverage records finalized after diff filtering and source-tree inspection; and run sealing.
 
 **Technologies:** Git (credential-isolated fetch vs local), filesystem run artifacts
 
@@ -206,9 +206,7 @@ created by migrations. `SignalRecorder` initializes `learning_signals`.
 
 **Type:** Local filesystem
 
-**Purpose:** Immutable run attempts — harness manifest, GitHub evidence, source
-manifest metadata, Cursor transcript/output, validation, provenance, and terminal
-state.
+**Purpose:** Immutable run attempts — harness manifest, GitHub evidence (including filtered `pr-diff.patch`), source coverage and manifest metadata, Cursor transcript/output, validation, provenance, and terminal state.
 
 **Layout:** `data/jobs/<jobId>/runs/<runId>/`.
 
@@ -235,7 +233,7 @@ state.
 
 | Service | Purpose | Integration method |
 |---------|---------|--------------------|
-| **GitHub** | Discovery (PR metadata, files, checks, review requests) and gated publication | GitHub CLI (`gh`) subprocess; operator identity |
+| **GitHub** | Discovery (PR metadata, files, checks, review requests), analysis context prep (protected `gh pr diff`), and gated publication | GitHub CLI (`gh`) subprocess; operator identity |
 | **Cursor Agent CLI** | Primary review drafts | Local authenticated CLI; named model roles |
 | **Git** | Partial mirror fetch, admin worktree checkout, and source-manifest generation | Credential-isolated child env builders in `src/security/child-env.ts` |
 
@@ -280,7 +278,7 @@ deployments in this repository.
 - Phase 1 constrains agents via safety/output contracts and Cursor `--sandbox enabled` / `--mode=ask`; harness text forbids shell, write/delete, MCP, and browser/network tools. A fail-closed protected-path read hook exists only as an unmaterialized template and is not a production enforcement mechanism.
 
 **Data protection**
-- Organization `security.protectedPaths` is configuration for registered-source preparation. The planned built-in default union and streaming protected-diff filter are not wired into the current runtime.
+- Organization `security.protectedPaths` drives both registered-source tree filtering and streaming protected-diff filtering during analysis context prep (`gh pr diff` → filtered `github/pr-diff.patch`). A planned built-in default union (beyond org-configured patterns) is not yet wired into the current runtime.
 - Safe Markdown rendering + restrictive CSP against stored XSS from PR content
 
 **Key practices**
@@ -346,7 +344,7 @@ another daemon port.
 | **Project Name** | Control Tower (`control-tower`) |
 | **Repository** | `git@github.com:shubh-array/sidekick.git` (local checkout may be named `assistant`) |
 | **Primary audience** | Principal engineers operating the product locally; implementation agents extending Phase 1/2 |
-| **Date of Last Update** | 2026-07-13 |
+| **Date of Last Update** | 2026-07-14 |
 
 ---
 
@@ -365,7 +363,7 @@ another daemon port.
 | **Provenance (`pv_`)** | Application-created evidence IDs binding findings to verified file/blob/range facts |
 | **Shadow mode** | `publication.mode = shadow` — discover/analyze allowed; publisher disabled |
 | **Gated mode** | Publishing allowed only with exact per-operation human approval |
-| **Registered-source** | Review path using a configured local repo to fetch the PR head into a daemon-owned admin worktree and generate a source manifest |
+| **Registered-source** | Review path using a configured local repo to fetch the PR head into a daemon-owned admin worktree, materialize a protected-path-filtered source tree for Cursor, and generate a source manifest with allowed/omitted entries |
 | **Remote-evidence-only** | Review without admin worktree/source view (unregistered or explicit) |
 | **CanonicalPathMatcher** | Single app-owned path/glob contract for eligibility, domains, protection, materialization |
 | **Harness** | Feature-grouped prompt/skills/domain pack (`pr-review`) |

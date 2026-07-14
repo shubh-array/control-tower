@@ -19,7 +19,7 @@ Another engineer can onboard different repositories without forking the app.
 |------------|--------------|
 | **Coverage** | Authoritative coverage of configured repos and explicit review requests. Agents cannot hide items. |
 | **Inbox** | Eligible-only triage, deterministically ordered by the queue tuple. Users can optionally group it into Now / Next / Monitor lanes. |
-| **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout. It runs locally; registered-source reviews fetch the PR head into a daemon-owned worktree and record a source manifest, while unregistered repos use remote evidence. |
+| **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout. It runs locally; registered-source reviews fetch the PR head into a daemon-owned worktree, materialize an allowed file tree into a sealed source view, and record a source manifest, while unregistered repos use remote evidence. Stale drafts are flagged when the PR head moves after analysis. |
 | **Gated publication** | Exact preview + per-operation human approval before GitHub mutations |
 | **Governed learning** | Structured signals and profile-change proposals; nothing silent |
 
@@ -116,9 +116,9 @@ direct Review link resolves its job against the current queue.
 
 | Visible surface | URL | Purpose |
 |-----------------|-----|---------|
-| **Inbox** | `/inbox` | Default triage: a flat eligible Focus Queue; enable **Group by lane** to show Now / Next / Monitor |
+| **Inbox** | `/inbox` | Default triage groups eligible items into Now / Next / Monitor lanes; disable **Group by lane** for a flat ordered list |
 | **Coverage** | `/coverage` | Complete All Tracked coverage, including tracked-but-ineligible PRs |
-| **Review** | `/review/:jobId` | Inspect a draft's summary, findings, evidence, provenance, and approval operations |
+| **Review** | `/review/:jobId` | Inspect a draft's summary, findings, evidence, provenance, and approval operations; stale drafts are flagged when the PR head moves and publication is blocked until re-analysis |
 | **Propose** | `/propose` | Build, validate, preview, and adopt governed profile/policy proposals |
 
 The UI refreshes queue and health status on a timer while the tab is visible
@@ -168,7 +168,7 @@ Detailed Phase 1 design and implementation plans: `docs/superpowers/`.
 - Autonomous approvals, merges, or Linear mutations
 - A replacement for GitHub as the review system of record
 - Silent learning or agent-owned policy mutation
-- Execution of untrusted PR code/tests on your machine (Phase 1); registered-source reviews may still fetch PR heads into daemon-owned admin worktrees and generate source manifests
+- Execution of untrusted PR code/tests on your machine (Phase 1); registered-source reviews may still fetch PR heads into daemon-owned admin worktrees, copy allowed files into a materialized source view, and generate source manifests
 
 ## Roadmap posture
 

@@ -336,9 +336,9 @@ Open the printed URL (default: `http://127.0.0.1:9120`). The server binds to loo
 
 | Visible UI surface | URL | What to do |
 |--------------------|-----|----------------|
-| **Inbox** | `/inbox` | Triage the eligible Focus Queue in its default flat order. Enable **Group by lane** to show Now / Next / Monitor. Start/retry analysis; Review opens when a draft is available. |
+| **Inbox** | `/inbox` | Triage the eligible Focus Queue, grouped into Now / Next / Monitor lanes by default. Disable **Group by lane** for a flat ordered list. Start/retry analysis; Review opens when a draft is available. |
 | **Coverage** | `/coverage` | See complete coverage, including ineligible PRs through its filters, and start on-demand analysis. |
-| **Review** | `/review/:jobId` | Inspect a job's draft, findings, supporting evidence, provenance, and gated publication operations. |
+| **Review** | `/review/:jobId` | Inspect a job's draft, findings, supporting evidence, provenance, and gated publication operations. Stale drafts are flagged when the PR head moves; Approve/Publish is disabled until re-analysis. |
 | **Propose** | `/propose` | Build, validate, preview, and adopt governed profile-policy proposals from learning signals. |
 
 While the tab is visible, the queue polls every 3 seconds when a job is active
