@@ -3,6 +3,7 @@ import { pathMatchesAny } from "../paths/match-patterns.js";
 import type { EligibilityReason, ExclusionReason } from "./reasons.js";
 
 export interface EligibilityInput {
+  isDraft: boolean;
   explicitRequest: boolean;
   activeRepository: boolean;
   repositoryId: string | null;
@@ -24,6 +25,11 @@ export interface EligibilityResult {
 export function evaluateEligibility(input: EligibilityInput): EligibilityResult {
   const reasons: EligibilityReason[] = [];
   const exclusions: ExclusionReason[] = [];
+
+  if (input.isDraft) {
+    exclusions.push({ code: "is_draft" });
+    return { eligible: false, reasons, exclusions, authorOnly: false };
+  }
 
   if (input.explicitRequest) {
     reasons.push({

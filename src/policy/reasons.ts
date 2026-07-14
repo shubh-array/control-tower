@@ -32,9 +32,14 @@ export interface NoMatchExclusion {
   repositoryId: string;
 }
 
+export interface IsDraftExclusion {
+  code: 'is_draft';
+}
+
 export type ExclusionReason =
   | InactiveRepositoryExclusion
-  | NoMatchExclusion;
+  | NoMatchExclusion
+  | IsDraftExclusion;
 
 export interface DefaultPriorityReason {
   code: 'default_priority';

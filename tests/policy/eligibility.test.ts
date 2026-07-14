@@ -8,6 +8,7 @@ import type {
 interface TruthTableRow {
   name: string;
   input: {
+    isDraft: boolean;
     explicitRequest: boolean;
     activeRepo: boolean;
     registeredRepoId: string | null;
@@ -29,6 +30,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "explicit request in active repo",
     input: {
+      isDraft: false,
       explicitRequest: true,
       activeRepo: true,
       registeredRepoId: "pba-webapp",
@@ -47,6 +49,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "explicit request in inactive repo",
     input: {
+      isDraft: false,
       explicitRequest: true,
       activeRepo: false,
       registeredRepoId: "pba-webapp",
@@ -65,6 +68,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "explicit request in unregistered repo",
     input: {
+      isDraft: false,
       explicitRequest: true,
       activeRepo: false,
       registeredRepoId: null,
@@ -83,6 +87,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "active repo, path match only",
     input: {
+      isDraft: false,
       explicitRequest: false,
       activeRepo: true,
       registeredRepoId: "pba-webapp",
@@ -107,6 +112,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "active repo, author match only",
     input: {
+      isDraft: false,
       explicitRequest: false,
       activeRepo: true,
       registeredRepoId: "pba-webapp",
@@ -130,6 +136,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "active repo, path AND author match (both recorded)",
     input: {
+      isDraft: false,
       explicitRequest: false,
       activeRepo: true,
       registeredRepoId: "pba-webapp",
@@ -148,6 +155,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "active repo, neither path nor author match",
     input: {
+      isDraft: false,
       explicitRequest: false,
       activeRepo: true,
       registeredRepoId: "pba-webapp",
@@ -166,6 +174,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "inactive repo with path match - still ineligible",
     input: {
+      isDraft: false,
       explicitRequest: false,
       activeRepo: false,
       registeredRepoId: "pba-webapp",
@@ -184,6 +193,7 @@ const truthTable: TruthTableRow[] = [
   {
     name: "inactive repo with author match - still ineligible",
     input: {
+      isDraft: false,
       explicitRequest: false,
       activeRepo: false,
       registeredRepoId: "pba-webapp",
@@ -199,12 +209,51 @@ const truthTable: TruthTableRow[] = [
       exclusions: [{ code: "inactive_repository" }],
     },
   },
+  {
+    name: "draft PR with explicit request is ineligible",
+    input: {
+      isDraft: true,
+      explicitRequest: true,
+      activeRepo: true,
+      registeredRepoId: "pba-webapp",
+      changedFiles: ["src/a.ts"],
+      authorLogin: "alice",
+      eligiblePaths: ["src/**"],
+      eligibleAuthors: [],
+      operatorLogin: "shubh-array",
+      githubOwnerRepo: "Org/pba-webapp",
+    },
+    expected: {
+      eligible: false,
+      exclusions: [{ code: "is_draft" }],
+    },
+  },
+  {
+    name: "draft PR with path match is ineligible",
+    input: {
+      isDraft: true,
+      explicitRequest: false,
+      activeRepo: true,
+      registeredRepoId: "pba-webapp",
+      changedFiles: ["src/components/Button.tsx"],
+      authorLogin: "alice",
+      eligiblePaths: ["src/**"],
+      eligibleAuthors: [],
+      operatorLogin: "shubh-array",
+      githubOwnerRepo: "Org/pba-webapp",
+    },
+    expected: {
+      eligible: false,
+      exclusions: [{ code: "is_draft" }],
+    },
+  },
 ];
 
 describe("evaluateEligibility", () => {
   truthTable.forEach(({ name, input, expected }) => {
     it(name, () => {
       const result = evaluateEligibility({
+        isDraft: input.isDraft,
         explicitRequest: input.explicitRequest,
         activeRepository: input.activeRepo,
         repositoryId: input.registeredRepoId,
@@ -240,6 +289,7 @@ describe("evaluateEligibility", () => {
 
   it("records multiple path matches across different files", () => {
     const result = evaluateEligibility({
+      isDraft: false,
       explicitRequest: false,
       activeRepository: true,
       repositoryId: "pba-webapp",
@@ -258,6 +308,7 @@ describe("evaluateEligibility", () => {
 
   it("normalizes author login before author eligibility matching", () => {
     const result = evaluateEligibility({
+      isDraft: false,
       explicitRequest: false,
       activeRepository: true,
       repositoryId: "pba-webapp",

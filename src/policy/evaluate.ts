@@ -66,6 +66,7 @@ export function evaluatePolicy(input: PolicyInput): PolicyDecision {
   const isActive = input.activeRepositoryIds.includes(input.pr.repositoryId);
 
   const eligibility: EligibilityResult = evaluateEligibility({
+    isDraft: input.pr.isDraft,
     explicitRequest: input.pr.explicitRequest,
     activeRepository: isActive,
     repositoryId: input.pr.repositoryId || null,
