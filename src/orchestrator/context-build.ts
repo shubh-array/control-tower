@@ -37,8 +37,9 @@ import {
   createCommitRecord,
   createCheckRecord,
   createCommentRecord,
+  createDiffHunkRecord,
 } from "../context/provenance.js";
-import { fetchAndFilterPrDiff } from "../github/fetch-pr-diff.js";
+import { fetchAndFilterPrDiff, type ParsedDiffHunk } from "../github/fetch-pr-diff.js";
 import { computeRunInputHash } from "./run-identity.js";
 import { sha256Hex } from "../util/hash.js";
 
@@ -78,6 +79,7 @@ export interface ContextBuildInput {
   ownerRepo?: string;
   baseSha?: string;
   provenanceDeps?: ProvenanceLoadDeps;
+  diffHunks?: ParsedDiffHunk[];
 }
 
 export interface ContextBuildResult {
@@ -96,6 +98,7 @@ export interface DiffMaterializeResult {
   outcome: DiffFilterOutcome;
   omittedPaths: string[];
   diffHash: string;
+  hunks: ParsedDiffHunk[];
 }
 
 export interface CoverageFinalization {
@@ -245,6 +248,22 @@ export function buildFullProvenanceCatalog(
     }),
   ];
 
+  if (input.baseSha && input.diffHunks?.length) {
+    for (const hunk of input.diffHunks) {
+      catalog.push(
+        createDiffHunkRecord({
+          repositoryId: input.repositoryKey,
+          baseSha: input.baseSha,
+          headSha: input.headSha,
+          canonicalPath: hunk.canonicalPath,
+          hunkHash: hunk.hunkHash,
+          leftRange: hunk.leftRange,
+          rightRange: hunk.rightRange,
+        }),
+      );
+    }
+  }
+
   if (!deps) return catalog;
 
   const fetchedAt = deps.queryPrFetchedAt(input.repositoryKey, input.prNumber)
@@ -289,7 +308,7 @@ export async function materializeDiffArtifact(
   layout: RunDirectoryLayout,
 ): Promise<DiffMaterializeResult> {
   if (!input.execGhText || !input.ownerRepo || !input.githubHost) {
-    return { outcome: 'not_run', omittedPaths: [], diffHash: '' };
+    return { outcome: 'not_run', omittedPaths: [], diffHash: '', hunks: [] };
   }
 
   const result = await fetchAndFilterPrDiff(
@@ -313,6 +332,7 @@ export async function materializeDiffArtifact(
     outcome: result.outcome,
     omittedPaths: result.omittedPaths,
     diffHash: result.filtered ? sha256Hex(result.filtered) : '',
+    hunks: result.hunks,
   };
 }
 

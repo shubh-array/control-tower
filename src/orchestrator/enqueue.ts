@@ -26,7 +26,7 @@ export interface EnqueueDeps {
     state: string;
     version: number;
   } | null;
-  findActiveJobsByPr?(repositoryKey: string, prNumber: number): Array<{
+  findActiveJobsByPr(repositoryKey: string, prNumber: number): Array<{
     id: string;
     head_sha: string;
     policy_hash: string;
@@ -83,12 +83,10 @@ export function enqueueFromPolicyDecision(
     deps.supersede(existing.id, existing.version);
   }
 
-  if (deps.findActiveJobsByPr) {
-    const prJobs = deps.findActiveJobsByPr(input.repositoryKey, input.prNumber);
-    for (const prJob of prJobs) {
-      if (prJob.id !== existing?.id) {
-        deps.supersede(prJob.id, prJob.version);
-      }
+  const prJobs = deps.findActiveJobsByPr(input.repositoryKey, input.prNumber);
+  for (const prJob of prJobs) {
+    if (prJob.id !== existing?.id) {
+      deps.supersede(prJob.id, prJob.version);
     }
   }
 

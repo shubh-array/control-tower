@@ -32,6 +32,7 @@ function makeEnqueueDeps(): EnqueueDeps & { jobs: Map<string, Record<string, unk
   return {
     jobs,
     findActiveJobByIdentity() { return null; },
+    findActiveJobsByPr() { return []; },
     insertJob(row) {
       const id = `job-${nextId++}`;
       jobs.set(id, { ...row, id });

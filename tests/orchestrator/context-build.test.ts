@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchAndFilterPrDiff, type DiffFetchDeps } from '../../src/github/fetch-pr-diff.js';
+import { fetchAndFilterPrDiff, parseDiffHunks, type DiffFetchDeps } from '../../src/github/fetch-pr-diff.js';
 import {
   buildRegisteredSourceCoverage,
   buildRemoteOnlyCoverage,
@@ -46,6 +46,8 @@ describe('fetchAndFilterPrDiff', () => {
     expect(result.filtered).not.toContain('.env');
     expect(result.omittedPaths).toContain('.env');
     expect(result.outcome).toBe('succeeded');
+    expect(result.hunks).toHaveLength(1);
+    expect(result.hunks[0]?.canonicalPath).toBe('src/api/foo.ts');
   });
 
   it('returns failed outcome when gh errors', async () => {
@@ -75,6 +77,8 @@ describe('materializeDiffArtifact', () => {
 
     expect(result.outcome).toBe('succeeded');
     expect(result.filtered).toContain('src/foo.ts');
+    expect(result.hunks).toHaveLength(1);
+    expect(result.hunks[0]?.canonicalPath).toBe('src/foo.ts');
   });
 });
 
@@ -196,5 +200,32 @@ describe('buildFullProvenanceCatalog', () => {
     for (const record of catalog) {
       expect(record.id).toMatch(/^pv_/);
     }
+  });
+
+  it('includes diff-hunk records when diff hunks are provided', () => {
+    const stubDiff = [
+      'diff --git a/src/foo.ts b/src/foo.ts',
+      '--- a/src/foo.ts',
+      '+++ b/src/foo.ts',
+      '@@ -1,3 +1,4 @@',
+      ' line1',
+      '+added',
+      ' line3',
+    ].join('\n');
+    const hunks = parseDiffHunks(stubDiff);
+
+    const input = {
+      repositoryKey: 'pba-webapp',
+      prNumber: 42,
+      headSha: 'head-sha',
+      baseSha: 'base-sha',
+      diffHunks: hunks,
+    } as ContextBuildInput;
+
+    const catalog = buildFullProvenanceCatalog(input, null);
+
+    expect(catalog.length).toBe(2);
+    expect(catalog.map((r) => r.type).sort()).toEqual(['commit', 'diff_hunk']);
+    expect(catalog.find((r) => r.type === 'diff_hunk')?.data.canonicalPath).toBe('src/foo.ts');
   });
 });

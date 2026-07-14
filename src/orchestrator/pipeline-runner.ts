@@ -30,6 +30,7 @@ import {
   loadPrimaryReviewRunMeta,
 } from "../learning/pipeline-signals.js";
 import {
+  buildFullProvenanceCatalog,
   computeRunContext,
   finalizeCoverage,
   materializeDiffArtifact,
@@ -42,6 +43,7 @@ import {
 import { prepareRegisteredSource } from "./source-pipeline.js";
 import { resolveGithubRemote } from "./resolve-remote.js";
 import { computeRunId, computeRunInputHash } from "./run-identity.js";
+import { sha256Hex } from "../util/hash.js";
 import { removeRunSourcePair } from "../source/cleanup.js";
 import type { SourceManifest } from "../source/materialize.js";
 import type { ProvenanceRecord } from "../context/provenance.js";
@@ -355,6 +357,7 @@ export function buildPipelineDeps(
       });
       const runId = computeRunId(jobId, allocationRunInputHash, attemptNumber);
       activeRunId.value = runId;
+      const layout = computeRunDirectoryLayout(ctx.dataDirectory, jobId, runId);
 
       db.prepare(
         `INSERT INTO runs (id, job_id, attempt_number, run_input_hash, state, version, started_at)
@@ -376,7 +379,7 @@ export function buildPipelineDeps(
         provenanceCatalog: built.provenanceCatalog,
         sourceManifest: null,
         sourceViewRoot: null,
-        layout: built.layout,
+        layout,
         artifactSetHash: built.artifactSetHash,
         provenanceCatalogHash: built.provenanceCatalogHash,
       };
@@ -387,28 +390,57 @@ export function buildPipelineDeps(
       const contextStart = Date.now();
       const job = prepared.job ?? loadPipelineJob(db, jobId);
       if (!job) throw new Error(`job not found: ${jobId}`);
+      if (!prepared.state) {
+        throw new Error(`prepared state missing for context prep: ${jobId}`);
+      }
 
       const contextInput = buildContextInput(job, runId);
-      const built = computeRunContext(contextInput);
+      const diffResult = await materializeDiffArtifact(
+        contextInput,
+        prepared.state.layout,
+      );
+      const contextInputWithHunks: ContextBuildInput = {
+        ...contextInput,
+        diffHunks: diffResult.hunks,
+      };
+      const provenanceCatalog = buildFullProvenanceCatalog(
+        contextInputWithHunks,
+        contextInputWithHunks.provenanceDeps ?? null,
+      );
+      const provenanceCatalogHash = sha256Hex(
+        provenanceCatalog
+          .map((record) => record.id)
+          .sort()
+          .join("\n"),
+      );
 
-      materializeRunContext(contextInput, built);
+      const built: ContextBuildResult = {
+        runDir: prepared.state.layout.runDir,
+        layout: prepared.state.layout,
+        manifest: prepared.state.manifest,
+        coverage: prepared.state.coverage,
+        runInputHash: "",
+        provenanceCatalog,
+        provenanceCatalogHash,
+        artifactSetHash: prepared.state.artifactSetHash,
+        sourceHash: "",
+      };
 
-      const diffResult = await materializeDiffArtifact(contextInput, built.layout);
+      materializeRunContext(contextInputWithHunks, built);
+
       const diffOmittedPaths = diffResult.omittedPaths.map((path) => ({
         path,
         reason: "protected_path_content",
       }));
 
-      if (prepared.state) {
-        prepared.state.coverage = built.coverage;
-        prepared.state.manifest = built.manifest;
-        prepared.state.provenanceCatalog = built.provenanceCatalog;
-        prepared.state.layout = built.layout;
-        prepared.state.artifactSetHash = built.artifactSetHash;
-        prepared.state.provenanceCatalogHash = built.provenanceCatalogHash;
-        prepared.state.diffFilterOutcome = diffResult.outcome;
-        prepared.state.diffOmittedPaths = diffOmittedPaths;
-      }
+      prepared.state.coverage = built.coverage;
+      prepared.state.manifest = built.manifest;
+      prepared.state.provenanceCatalog = provenanceCatalog;
+      prepared.state.layout = built.layout;
+      prepared.state.artifactSetHash = built.artifactSetHash;
+      prepared.state.provenanceCatalogHash = provenanceCatalogHash;
+      prepared.state.diffFilterOutcome = diffResult.outcome;
+      prepared.state.diffOmittedPaths = diffOmittedPaths;
 
       let finalCoverage = built.coverage;
       if (job.sourceMode === "remote-evidence-only") {
@@ -474,8 +506,6 @@ export function buildPipelineDeps(
           path: o.path,
           reason: o.reason,
         }));
-        const contextInput = buildContextInput(job, runId);
-        const built = computeRunContext(contextInput);
         persistFinalCoverage(
           runId,
           {
@@ -488,12 +518,15 @@ export function buildPipelineDeps(
             sourceOmittedEntries: sourceOmitted,
           },
           {
-            ...built,
+            runDir: prepared.state.layout.runDir,
             layout: prepared.state.layout,
             manifest: prepared.state.manifest,
+            coverage: prepared.state.coverage,
+            runInputHash: "",
             provenanceCatalog: prepared.state.provenanceCatalog,
-            artifactSetHash: prepared.state.artifactSetHash,
             provenanceCatalogHash: prepared.state.provenanceCatalogHash,
+            artifactSetHash: prepared.state.artifactSetHash,
+            sourceHash: "",
           },
         );
       }
