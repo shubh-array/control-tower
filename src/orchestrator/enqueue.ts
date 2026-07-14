@@ -26,6 +26,14 @@ export interface EnqueueDeps {
     state: string;
     version: number;
   } | null;
+  findActiveJobsByPr?(repositoryKey: string, prNumber: number): Array<{
+    id: string;
+    head_sha: string;
+    policy_hash: string;
+    source_mode: string;
+    state: string;
+    version: number;
+  }>;
   insertJob(row: Record<string, unknown>): string;
   supersede(jobId: string, version: number): void;
   computeIdentityHash(input: Record<string, unknown>): string;
@@ -58,8 +66,8 @@ export function enqueueFromPolicyDecision(
   const policyHash = deps.computePolicyHash(input.policy);
 
   const existing = deps.findActiveJobByIdentity(identityHash);
+  let supersedeReason: string | null = null;
   if (existing) {
-    let supersedeReason: string | null = null;
     if (existing.head_sha !== input.headSha) {
       supersedeReason = 'supersede_head_sha';
     } else if (existing.policy_hash !== policyHash) {
@@ -73,25 +81,20 @@ export function enqueueFromPolicyDecision(
     }
 
     deps.supersede(existing.id, existing.version);
-
-    const jobId = deps.insertJob({
-      repositoryKey: input.repositoryKey,
-      prNumber: input.prNumber,
-      headSha: input.headSha,
-      sourceMode: input.sourceMode,
-      policyHash,
-      identityHash,
-      normalizedRepositoryIdentity: input.normalizedRepositoryIdentity,
-      prioritySortOrdinal: input.policy.prioritySortOrdinal,
-      explicitRequestSort: input.explicitRequest ? 0 : 1,
-      queuedAt: new Date().toISOString(),
-      state: 'queued',
-    });
-
-    return { enqueued: true, jobId, superseded: existing.id, reason: supersedeReason };
   }
 
-  const reason = input.explicitRequest ? 'explicit_request' : 'auto_enqueue';
+  if (deps.findActiveJobsByPr) {
+    const prJobs = deps.findActiveJobsByPr(input.repositoryKey, input.prNumber);
+    for (const prJob of prJobs) {
+      if (prJob.id !== existing?.id) {
+        deps.supersede(prJob.id, prJob.version);
+      }
+    }
+  }
+
+  const reason = supersedeReason
+    ?? (input.explicitRequest ? 'explicit_request' : 'auto_enqueue');
+
   const jobId = deps.insertJob({
     repositoryKey: input.repositoryKey,
     prNumber: input.prNumber,
@@ -106,5 +109,11 @@ export function enqueueFromPolicyDecision(
     state: 'queued',
   });
 
-  return { enqueued: true, jobId, reason };
+  const supersededId = existing?.id ?? undefined;
+  return {
+    enqueued: true,
+    jobId,
+    superseded: supersededId,
+    reason,
+  };
 }
