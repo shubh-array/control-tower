@@ -2,8 +2,15 @@
   "schemaVersion": 1,
   "profileDirectory": "~/.control-tower/profile",
   "dataDirectory": "~/.control-tower/data",
-  "workspaceRoots": [],
-  "repositoryPaths": {},
+  "workspaceRoots": [
+    "/Users/sshukla/Desktop/src/array-hq"
+  ],
+  "repositoryPaths": {
+    "pba-webapp": "/Users/sshukla/Desktop/src/array-hq/pba-webapp",
+    "pba-agents": "/Users/sshukla/Desktop/src/array-hq/pba-agents",
+    "pba-microservices": "/Users/sshukla/Desktop/src/array-hq/pba-microservices",
+    "pba-infra": "/Users/sshukla/Desktop/src/array-hq/pba-infra"
+  },
   "cursor": {
     "binary": "agent",
     "modelRoles": {
