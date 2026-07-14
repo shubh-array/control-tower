@@ -19,7 +19,7 @@ describe("runInit - step 1: create local config + profile from examples", () => 
     appRoot = makeTmpDir();
     mkdirSync(join(appRoot, "config/examples/profile"), { recursive: true });
     writeFileSync(join(appRoot, "config/examples/profile/profile.json"), JSON.stringify({ schemaVersion: 1, githubLogin: "example", displayName: "Example" }));
-    writeFileSync(join(appRoot, "config/examples/profile/policy.json"), JSON.stringify({ schemaVersion: 1, attentionAdvisor: { enabled: false }, autoAnalyze: false, repositories: {} }));
+    writeFileSync(join(appRoot, "config/examples/profile/policy.json"), JSON.stringify({ schemaVersion: 1, autoAnalyze: { explicitReviewRequests: true, priorityTiers: [] }, repositories: {} }));
     writeFileSync(join(appRoot, "config/examples/profile/persona.md"), "# Persona\n");
     writeFileSync(join(appRoot, "config/examples/local-config.json"), JSON.stringify({
       schemaVersion: 1,
@@ -222,7 +222,6 @@ describe("runInit - step 4: non-interactive confirmation via flags", () => {
       githubLogin: "shubh-array",
       activeRepos: { assistant: "/repos/assistant" },
       modelRoles: { primaryReview: { modelId: "composer-2.5-fast" } },
-      attentionAdvisorEnabled: false,
       autoAnalyze: false,
     };
     const result = runInit({

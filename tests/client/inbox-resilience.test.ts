@@ -16,6 +16,7 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     repository: "org/pba-webapp",
     prNumber: 42,
     title: "Fix bug",
+    url: "https://github.com/org/pba-webapp/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],

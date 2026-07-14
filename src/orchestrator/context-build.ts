@@ -4,6 +4,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  writeFileSync,
   writeSync,
   closeSync,
   fsyncSync,
@@ -24,6 +25,7 @@ import {
   buildRegisteredSourceCoverage,
   hashCoverage,
   type CoverageObject,
+  type DiffFilterOutcome,
 } from "../context/coverage.js";
 import {
   buildContextRefs,
@@ -31,9 +33,33 @@ import {
   type RunDirectoryLayout,
 } from "../context/prepare.js";
 import type { ProvenanceRecord } from "../context/provenance.js";
-import { createCommitRecord } from "../context/provenance.js";
+import {
+  createCommitRecord,
+  createCheckRecord,
+  createCommentRecord,
+  createDiffHunkRecord,
+} from "../context/provenance.js";
+import { fetchAndFilterPrDiff, type ParsedDiffHunk } from "../github/fetch-pr-diff.js";
 import { computeRunInputHash } from "./run-identity.js";
 import { sha256Hex } from "../util/hash.js";
+
+export interface ProvenanceLoadDeps {
+  queryPrChecks: (repositoryKey: string, prNumber: number) => Array<{
+    id: number;
+    name: string;
+    status: string;
+    conclusion: string | null;
+    details_url: string | null;
+  }>;
+  queryPrComments: (repositoryKey: string, prNumber: number) => Array<{
+    id: number;
+    author_login: string;
+    body: string;
+    created_at: string;
+    url: string | null;
+  }>;
+  queryPrFetchedAt: (repositoryKey: string, prNumber: number) => string | null;
+}
 
 export interface ContextBuildInput {
   appRoot: string;
@@ -48,6 +74,12 @@ export interface ContextBuildInput {
   policyHash: string;
   modelSpecHash: string;
   protectedPaths?: string[];
+  execGhText?: (args: string[], opts: { host: string }) => Promise<string>;
+  githubHost?: string;
+  ownerRepo?: string;
+  baseSha?: string;
+  provenanceDeps?: ProvenanceLoadDeps;
+  diffHunks?: ParsedDiffHunk[];
 }
 
 export interface ContextBuildResult {
@@ -60,6 +92,21 @@ export interface ContextBuildResult {
   provenanceCatalogHash: string;
   artifactSetHash: string;
   sourceHash: string;
+}
+
+export interface DiffMaterializeResult {
+  outcome: DiffFilterOutcome;
+  omittedPaths: string[];
+  diffHash: string;
+  hunks: ParsedDiffHunk[];
+}
+
+export interface CoverageFinalization {
+  diffFilterOutcome: DiffFilterOutcome;
+  diffOmittedPaths: Array<{ path: string; reason: string }>;
+  sourceTreeInspected: boolean;
+  sourceOmittedPaths: Array<{ path: string; reason: string }>;
+  sourceOmittedEntries: Array<{ path: string; reason: string }>;
 }
 
 function readArtifact(path: string): { content: string; hash: string; bytes: number } | null {
@@ -92,6 +139,8 @@ function buildPrMetadata(input: ContextBuildInput): {
     repositoryKey: input.repositoryKey,
     prNumber: input.prNumber,
     headSha: input.headSha,
+    baseSha: input.baseSha ?? null,
+    repository: input.ownerRepo ?? null,
     sourceMode: input.sourceMode,
   });
   return {
@@ -188,6 +237,178 @@ function buildHarnessManifestForJob(input: ContextBuildInput): HarnessManifest {
   });
 }
 
+export function buildFullProvenanceCatalog(
+  input: ContextBuildInput,
+  deps: ProvenanceLoadDeps | null,
+): ProvenanceRecord[] {
+  const catalog: ProvenanceRecord[] = [
+    createCommitRecord({
+      repositoryId: input.repositoryKey,
+      commitSha: input.headSha,
+    }),
+  ];
+
+  if (input.baseSha && input.diffHunks?.length) {
+    for (const hunk of input.diffHunks) {
+      catalog.push(
+        createDiffHunkRecord({
+          repositoryId: input.repositoryKey,
+          baseSha: input.baseSha,
+          headSha: input.headSha,
+          canonicalPath: hunk.canonicalPath,
+          hunkHash: hunk.hunkHash,
+          leftRange: hunk.leftRange,
+          rightRange: hunk.rightRange,
+        }),
+      );
+    }
+  }
+
+  if (!deps) return catalog;
+
+  const fetchedAt = deps.queryPrFetchedAt(input.repositoryKey, input.prNumber)
+    ?? new Date().toISOString();
+
+  const checks = deps.queryPrChecks(input.repositoryKey, input.prNumber);
+  for (const check of checks) {
+    catalog.push(
+      createCheckRecord({
+        checkRunId: check.id,
+        attempt: 1,
+        name: check.name,
+        status: check.status,
+        conclusion: check.conclusion,
+        url: check.details_url ?? '',
+        observedAt: fetchedAt,
+      }),
+    );
+  }
+
+  const comments = deps.queryPrComments(input.repositoryKey, input.prNumber);
+  for (const comment of comments) {
+    const bodyHash = sha256Hex(comment.body);
+    catalog.push(
+      createCommentRecord({
+        nodeId: comment.url ?? `comment:${comment.id}`,
+        databaseId: comment.id,
+        authorLogin: comment.author_login,
+        bodyHash,
+        commitAssociation: null,
+        createdAt: comment.created_at,
+        updatedAt: comment.created_at,
+      }),
+    );
+  }
+
+  return catalog;
+}
+
+export async function materializeDiffArtifact(
+  input: ContextBuildInput,
+  layout: RunDirectoryLayout,
+): Promise<DiffMaterializeResult> {
+  if (!input.execGhText || !input.ownerRepo || !input.githubHost) {
+    return { outcome: 'not_run', omittedPaths: [], diffHash: '', hunks: [] };
+  }
+
+  const result = await fetchAndFilterPrDiff(
+    {
+      execGhText: input.execGhText,
+      host: input.githubHost,
+      protectedPathPatterns: input.protectedPaths ?? [],
+    },
+    input.ownerRepo,
+    input.prNumber,
+  );
+
+  if (result.outcome === 'succeeded' && result.filtered) {
+    writeCreateOnceSync(
+      join(layout.githubDir, 'pr-diff.patch'),
+      result.filtered,
+    );
+  }
+
+  return {
+    outcome: result.outcome,
+    omittedPaths: result.omittedPaths,
+    diffHash: result.filtered ? sha256Hex(result.filtered) : '',
+    hunks: result.hunks,
+  };
+}
+
+export function finalizeCoverage(
+  sourceMode: 'registered-source' | 'remote-evidence-only',
+  finalization: CoverageFinalization,
+): CoverageObject {
+  const allOmitted = [
+    ...finalization.diffOmittedPaths,
+    ...finalization.sourceOmittedPaths,
+  ];
+
+  if (sourceMode === 'remote-evidence-only') {
+    return buildRemoteOnlyCoverage(allOmitted, finalization.diffFilterOutcome);
+  }
+
+  return buildRegisteredSourceCoverage(
+    allOmitted,
+    finalization.sourceOmittedEntries,
+    finalization.diffFilterOutcome,
+    finalization.sourceTreeInspected,
+  );
+}
+
+export function materializeFinalCoverage(
+  layout: RunDirectoryLayout,
+  coverage: CoverageObject,
+  runInputComponents: {
+    harnessManifestHash: string;
+    artifactSetHash: string;
+    provenanceCatalogHash: string;
+    modelSpecificationHash: string;
+  },
+  runMeta: { runId: string; jobId: string; modelSpecHash: string },
+  manifest: HarnessManifest,
+  provenanceCatalog: ProvenanceRecord[],
+): { runInputHash: string } {
+  const sourceHash = hashCoverage(coverage);
+  const runInputHash = computeRunInputHash({
+    ...runInputComponents,
+    sourceHash,
+  });
+
+  const coveragePath = join(layout.sourceDir, 'coverage.json');
+  mkdirSync(dirname(coveragePath), { recursive: true });
+  writeFileSync(coveragePath, JSON.stringify(coverage, null, 2));
+
+  const contextRefs = buildContextRefs(
+    manifest,
+    coverage,
+    provenanceCatalog,
+    [],
+  );
+  writeFileSync(layout.contextRefsPath, JSON.stringify(contextRefs, null, 2));
+
+  writeFileSync(
+    layout.runJsonPath,
+    JSON.stringify(
+      {
+        runId: runMeta.runId,
+        jobId: runMeta.jobId,
+        runInputHash,
+        harnessManifestHash: runInputComponents.harnessManifestHash,
+        artifactSetHash: runInputComponents.artifactSetHash,
+        sourceHash,
+        provenanceCatalogHash: runInputComponents.provenanceCatalogHash,
+        modelSpecificationHash: runInputComponents.modelSpecificationHash,
+      },
+      null,
+      2,
+    ),
+  );
+
+  return { runInputHash };
+}
+
 export function computeRunContext(input: ContextBuildInput): ContextBuildResult {
   const layout = computeRunDirectoryLayout(
     input.dataDirectory,
@@ -198,16 +419,11 @@ export function computeRunContext(input: ContextBuildInput): ContextBuildResult 
   const omittedProtected: Array<{ path: string; reason: string }> = [];
   const coverage =
     input.sourceMode === "remote-evidence-only"
-      ? buildRemoteOnlyCoverage(omittedProtected, false)
-      : buildRegisteredSourceCoverage(omittedProtected, [], false);
+      ? buildRemoteOnlyCoverage(omittedProtected, 'not_run')
+      : buildRegisteredSourceCoverage(omittedProtected, [], 'not_run', false);
 
   const prMetadata = buildPrMetadata(input);
-  const provenanceCatalog: ProvenanceRecord[] = [
-    createCommitRecord({
-      repositoryId: input.repositoryKey,
-      commitSha: input.headSha,
-    }),
-  ];
+  const provenanceCatalog = buildFullProvenanceCatalog(input, input.provenanceDeps ?? null);
   const provenanceCatalogHash = sha256Hex(
     provenanceCatalog
       .map((record) => record.id)
@@ -242,20 +458,10 @@ export function materializeRunContext(
   built: ContextBuildResult,
 ): void {
   const prMetadata = buildPrMetadata(input);
-  const contextRefs = buildContextRefs(
-    built.manifest,
-    built.coverage,
-    built.provenanceCatalog,
-    [],
-  );
 
   writeCreateOnceSync(
     built.layout.harnessManifestPath,
     JSON.stringify(built.manifest, null, 2),
-  );
-  writeCreateOnceSync(
-    join(built.layout.sourceDir, "coverage.json"),
-    JSON.stringify(built.coverage, null, 2),
   );
   writeCreateOnceSync(
     join(built.layout.githubDir, "pr-metadata.json"),
@@ -264,27 +470,5 @@ export function materializeRunContext(
   writeCreateOnceSync(
     join(built.layout.githubDir, "provenance-catalog.json"),
     JSON.stringify(built.provenanceCatalog, null, 2),
-  );
-  writeCreateOnceSync(
-    built.layout.contextRefsPath,
-    JSON.stringify(contextRefs, null, 2),
-  );
-  writeCreateOnceSync(
-    built.layout.runJsonPath,
-    JSON.stringify(
-      {
-        runId: input.runId,
-        jobId: input.jobId,
-        attemptNumber: null,
-        runInputHash: built.runInputHash,
-        harnessManifestHash: built.manifest.manifestHash,
-        artifactSetHash: built.artifactSetHash,
-        sourceHash: built.sourceHash,
-        provenanceCatalogHash: built.provenanceCatalogHash,
-        modelSpecificationHash: input.modelSpecHash,
-      },
-      null,
-      2,
-    ),
   );
 }

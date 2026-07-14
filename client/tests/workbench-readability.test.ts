@@ -52,6 +52,9 @@ const draftFixture: DraftDetail = {
   recommendedDisposition: "comment",
   validatedProvenance: [{ ref: "prov-1" }],
   operationPlan: null,
+  reviewedHeadSha: "a".repeat(40),
+  currentHeadSha: "a".repeat(40),
+  stale: false,
 };
 
 function queueItem(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
@@ -61,6 +64,7 @@ function queueItem(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     repository: "acme-corp/widgets",
     prNumber: 42,
     title: "Improve review readability",
+    url: "https://github.com/acme-corp/widgets/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],

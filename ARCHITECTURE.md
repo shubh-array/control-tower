@@ -13,15 +13,13 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 ├── src/                         # Application backend (Node/TypeScript)
 │   ├── api/                     # Loopback Hono API, CSP, sessions, projections
 │   ├── app-safety/              # Safety + output contract text/hashes for harnesses
-│   ├── attention/               # Deferred pr-attention advisor helpers
 │   ├── cli/                     # `pnpm ct` — doctor, init, daemon, publication
-│   ├── config/                  # Loaders, Zod schemas, author-login, protected paths
+│   ├── config/                  # Loaders, Zod schemas, author-login
 │   ├── context/                 # Run dirs, harness manifests, coverage, seal
-│   ├── cursor/                  # Cursor CLI adapter, pool, NDJSON, validation
+│   ├── cursor/                  # Cursor CLI adapter, NDJSON, validation
 │   ├── daemon/                  # Bootstrap, runtime loop, HTTP server wiring
 │   ├── discovery/               # Poll, checkpoints, rate-limit resilience
-│   ├── github/                  # gh process adapters, diff-filter helpers, publish
-│   ├── handoff/                 # Phase 1 baseline manifest helpers
+│   ├── github/                  # gh process adapters, search/list/view, publish
 │   ├── learning/                # Signal recording and pipeline hooks
 │   ├── normalize/               # Discovered PR → SQLite upsert
 │   ├── orchestrator/            # Jobs/runs, pipeline, scheduler, facade
@@ -32,7 +30,6 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 │   ├── security/                # Child-process env builders (credential isolation)
 │   ├── source/                  # Fetch, worktree, source-manifest, cleanup helpers
 │   ├── store/                   # SQLite open + migrations
-│   ├── tickets/                 # Deterministic ticket-id extraction (opaque)
 │   └── util/                    # Hash + canonical JSON helpers
 ├── client/                      # React loopback UI (Vite production bundle)
 │   └── src/
@@ -42,15 +39,15 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 │       └── routes/              # Inbox, Coverage, Review, and Propose route components
 ├── config/                      # Committed org catalog + harnesses + examples
 │   ├── organization.json        # Shared org/repo catalog (no secrets)
-│   ├── harnesses/               # pr-attention + pr-review prompts/skills/domains
+│   ├── harnesses/               # pr-review prompts/skills/domains
 │   └── examples/                # Starter profile + local-config templates
 ├── docs/                        # Design specs, plans, rollout checklist
-├── eval/                        # Attention + primary-review eval corpora
+├── eval/                        # Primary-review eval corpus
 ├── tests/                       # Vitest unit/integration/e2e coverage
 ├── package.json                 # Root package (`control-tower`)
 ├── README.md                    # Operator-facing overview
 ├── ONBOARDING.md                # Step-by-step local setup + customization
-└── Architecture.md              # This document
+└── ARCHITECTURE.md              # This document
 ```
 
 **Separation of concerns**
@@ -58,7 +55,7 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 | Concern | Owner |
 |---------|--------|
 | Coverage, eligibility, auto-analysis, state, publication | Application code under `src/` |
-| Review judgment, drafting, attention advice | Cursor agents via harnesses under `config/harnesses/` |
+| Review judgment and drafting | Cursor agents via harnesses under `config/harnesses/pr-review/` |
 | Org/repos/defaults | `config/organization.json` |
 | Per-engineer policy/persona | `~/.control-tower/profile/` |
 | Machine paths, models, publication mode | `~/.control-tower/config.json` |
@@ -159,33 +156,27 @@ the proposal start/validate/adopt routes under `/api/proposals`.
 
 **Technologies:** SQLite transactional pointers, immutable run directories under `data/jobs/...`
 
-#### 3.2.6. Attention advisor (`src/attention`)
+#### 3.2.6. Cursor adapter (`src/cursor`)
 
-**Description:** Deferred advisor implementation. The module contains run, validation, and ordering helpers, but the production daemon does not schedule Cursor advisor runs or persist advisor results. Current Inbox ordering falls back to the deterministic queue tuple.
-
-**Technologies:** Cursor CLI integration helpers and schema validation (not wired into the production runtime)
-
-#### 3.2.7. Cursor adapter (`src/cursor`)
-
-**Description:** Cursor argv/env construction, NDJSON transcript capture, and structured primary-review output validation. Production concurrency is enforced by the scheduler's configured `maxConcurrentAgents`; the `WorkerPool` helper is not used by the runtime.
+**Description:** Cursor argv/env construction, NDJSON transcript capture, and structured primary-review output validation. Production concurrency is enforced by the scheduler's configured `maxConcurrentAgents`.
 
 **Technologies:** Cursor Agent CLI child process
 
-#### 3.2.8. Source + context (`src/source`, `src/context`)
+#### 3.2.7. Source + context (`src/source`, `src/context`)
 
-**Description:** Just-in-time PR-head fetches into daemon-owned admin worktrees for registered repos, followed by a source manifest; remote-evidence-only path for unregistered repos; nine-layer harness composition; coverage/provenance records; and run sealing. The current pipeline does not materialize a filtered source tree for Cursor.
+**Description:** Just-in-time PR-head fetches into daemon-owned admin worktrees for registered repos, followed by a protected-path-filtered source tree materialized into a sealed source view for Cursor and a source manifest with accurate line counts; remote-evidence-only path for unregistered repos; nine-layer harness composition; provenance catalog (commits, CI checks, PR comments, and diff hunks); coverage records finalized after diff filtering and source-tree inspection; and run sealing.
 
 **Technologies:** Git (credential-isolated fetch vs local), filesystem run artifacts
 
-#### 3.2.9. Publisher (`src/publisher`)
+#### 3.2.8. Publisher (`src/publisher`)
 
 **Description:** Builds exact external operations from drafts; enforces shadow vs gated mode; single-use TTL approvals bound to operation hash, head SHA, accepted run, and run-input hash; executes via `gh`.
 
 **Technologies:** Hash-bound operation plan + GitHub publish adapter
 
-#### 3.2.10. Learning + proposals (`src/learning`, `src/proposals`)
+#### 3.2.9. Learning + proposals (`src/learning`, `src/proposals`)
 
-**Description:** Records structured pipeline, attention-outcome, and disposition signals in SQLite. Proposals are filesystem packages that require validation, historical replay, exact preview, and explicit human adoption — no silent policy mutation.
+**Description:** Records structured pipeline and disposition signals in SQLite. Proposals remain stubbed filesystem packages that require validation, historical replay, exact preview, and explicit human adoption — no silent policy mutation.
 
 **Technologies:** Filesystem proposal store under `data/proposals/`
 
@@ -215,12 +206,9 @@ created by migrations. `SignalRecorder` initializes `learning_signals`.
 
 **Type:** Local filesystem
 
-**Purpose:** Immutable run attempts — harness manifest, GitHub evidence, source
-manifest metadata, Cursor transcript/output, validation, provenance, and terminal
-state.
+**Purpose:** Immutable run attempts — harness manifest, GitHub evidence (including filtered `pr-diff.patch`), source coverage and manifest metadata, Cursor transcript/output, validation, provenance, and terminal state.
 
-**Layout:** `data/jobs/<jobId>/runs/<runId>/`. The deferred attention module has
-a helper for `data/attention-runs/`, but production does not create those runs.
+**Layout:** `data/jobs/<jobId>/runs/<runId>/`.
 
 ### 4.3. Proposal store
 
@@ -245,11 +233,11 @@ a helper for `data/attention-runs/`, but production does not create those runs.
 
 | Service | Purpose | Integration method |
 |---------|---------|--------------------|
-| **GitHub** | Discovery (PR metadata, files, checks, review requests) and gated publication | GitHub CLI (`gh`) subprocess; operator identity |
+| **GitHub** | Discovery (PR metadata, files, checks, review requests), analysis context prep (protected `gh pr diff`), and gated publication | GitHub CLI (`gh`) subprocess; operator identity |
 | **Cursor Agent CLI** | Primary review drafts | Local authenticated CLI; named model roles |
 | **Git** | Partial mirror fetch, admin worktree checkout, and source-manifest generation | Credential-isolated child env builders in `src/security/child-env.ts` |
 
-**Not integrated in the current runtime:** Cursor attention-advisor execution (the configuration and helpers are present but unscheduled), Linear resolution (ticket IDs are extracted as opaque metadata only), Slack/email, browser automation, and direct model-provider SDKs.
+**Not integrated in the current runtime:** Linear resolution, Slack/email, browser automation, and direct model-provider SDKs.
 
 ---
 
@@ -290,7 +278,7 @@ deployments in this repository.
 - Phase 1 constrains agents via safety/output contracts and Cursor `--sandbox enabled` / `--mode=ask`; harness text forbids shell, write/delete, MCP, and browser/network tools. A fail-closed protected-path read hook exists only as an unmaterialized template and is not a production enforcement mechanism.
 
 **Data protection**
-- Organization `security.protectedPaths` is configuration for registered-source preparation. The planned built-in default union and streaming protected-diff filter are not wired into the current runtime.
+- Organization `security.protectedPaths` drives both registered-source tree filtering and streaming protected-diff filtering during analysis context prep (`gh pr diff` → filtered `github/pr-diff.patch`). A planned built-in default union (beyond org-configured patterns) is not yet wired into the current runtime.
 - Safe Markdown rendering + restrictive CSP against stored XSS from PR content
 
 **Key practices**
@@ -324,7 +312,7 @@ pnpm ct start
 proxies `/api` to `http://127.0.0.1:9120` by default; set `CT_DAEMON_PORT` for
 another daemon port.
 
-**Eval corpora:** `eval/attention`, `eval/primary-review` — used for rollout quality gates
+**Eval corpora:** `eval/primary-review` — used for rollout quality gates
 
 **Code quality:** Prefer matching existing module contracts in `docs/superpowers/plans/` (shared symbols: `openDatabase`, `CanonicalPathMatcher`, config loaders, orchestrator facade). Do not invent parallel APIs or table names.
 
@@ -356,7 +344,7 @@ another daemon port.
 | **Project Name** | Control Tower (`control-tower`) |
 | **Repository** | `git@github.com:shubh-array/sidekick.git` (local checkout may be named `assistant`) |
 | **Primary audience** | Principal engineers operating the product locally; implementation agents extending Phase 1/2 |
-| **Date of Last Update** | 2026-07-13 |
+| **Date of Last Update** | 2026-07-14 |
 
 ---
 
@@ -370,17 +358,15 @@ another daemon port.
 | **Eligibility** | Deterministic rule: explicit request, or active repo + path/author match |
 | **Author-only** | Eligible via author match without path match; usually on-demand analysis |
 | **Auto-analyze** | Deterministic policy that enqueues Cursor primary review without human click |
-| **Attention advisor** | Deferred metadata-only Cursor capability; its configuration and helpers exist, but the production daemon does not execute it |
-| **Advisor order** | Ordering helper reserved for advisor results; current Inbox ordering uses the deterministic queue tuple because advisor results are not persisted |
 | **Job / Run** | Job identity is stable work item; each attempt is an immutable run |
 | **Sealed run** | Terminal run artifacts + validation committed; pointers updated after seal |
 | **Provenance (`pv_`)** | Application-created evidence IDs binding findings to verified file/blob/range facts |
 | **Shadow mode** | `publication.mode = shadow` — discover/analyze allowed; publisher disabled |
 | **Gated mode** | Publishing allowed only with exact per-operation human approval |
-| **Registered-source** | Review path using a configured local repo to fetch the PR head into a daemon-owned admin worktree and generate a source manifest |
+| **Registered-source** | Review path using a configured local repo to fetch the PR head into a daemon-owned admin worktree, materialize a protected-path-filtered source tree for Cursor, and generate a source manifest with allowed/omitted entries |
 | **Remote-evidence-only** | Review without admin worktree/source view (unregistered or explicit) |
 | **CanonicalPathMatcher** | Single app-owned path/glob contract for eligibility, domains, protection, materialization |
-| **Harness** | Feature-grouped prompt/skills/domain pack (`pr-attention`, `pr-review`) |
+| **Harness** | Feature-grouped prompt/skills/domain pack (`pr-review`) |
 | **Nine-layer composition** | Fixed harness layering order with explicit policy snapshot (no deep-merge) |
 | **Governed proposal** | Profile/policy change package requiring replay, preview, and explicit adopt |
 | **Control Tower** | This product — local PE desk for delegated, human-gated PR review |
@@ -395,8 +381,8 @@ Use this section as the practical companion to the module map above.
 
 1. **Org catalog** — add/edit repositories in `config/organization.json` (IDs are stable keys).
 2. **Active set** — choose `activeRepositoryIds` in profile.
-3. **Policy** — edit `eligiblePaths`, `eligibleAuthors`, `priorityRules`, `domainRules`, and `autoAnalyze` in profile `policy.json`. `attentionAdvisor` only preconfigures the deferred advisor feature.
-4. **Persona / harnesses** — tune `persona.md` and the active primary-review files under `config/harnesses/pr-review/`. `pr-attention` files are retained for the deferred advisor feature.
+3. **Policy** — edit `eligiblePaths`, `eligibleAuthors`, `priorityRules`, `domainRules`, and `autoAnalyze` in profile `policy.json`.
+4. **Persona / harnesses** — tune `persona.md` and the primary-review files under `config/harnesses/pr-review/`.
 5. **Models** — set named roles in local `cursor.modelRoles`; validate with `pnpm ct doctor` (no silent fallback).
 6. **Publication** — keep `shadow` until you validate draft quality; then `pnpm ct publication enable`, which runs `doctor` and requires confirmation.
 

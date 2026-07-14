@@ -19,8 +19,6 @@ export interface PipelineResult {
   finalState: string;
   /** Set on failure: 'fetch_failed' | 'materialize_failed' | 'agent_failed' | 'allocation_failed' */
   failureReason?: string;
-  /** Set when runAdvisor dep is present */
-  advisorStatus?: 'available' | 'unavailable';
   /** Set on success from agent recommendedDisposition */
   recommendedDisposition?: string;
   /** Timing captured during pipeline execution */
@@ -70,7 +68,6 @@ export interface PipelineDeps {
   cleanupSource(runId: string): void;
   getJobState(jobId: string): { state: string; version: number };
   getRunState(runId: string): { state: string; version: number };
-  runAdvisor?: (runId: string) => { advice: unknown };
   signalHooks?: SignalHooks;
   getTimingMetrics?: () => PipelineTimingMetrics;
   transitions: Array<{ jobId: string; from: string; to: string }>;
@@ -96,13 +93,11 @@ function extractRecommendedDisposition(rawOutput: string): string | undefined {
 function failResult(
   runId: string,
   failureReason: string,
-  advisorStatus?: 'available' | 'unavailable',
 ): PipelineResult {
   return {
     success: false,
     finalState: 'failed',
     failureReason,
-    advisorStatus,
     runId,
     sealed: false,
     latestRunId: runId,
@@ -115,7 +110,6 @@ export async function executePipeline(
   job: PipelineJob,
 ): Promise<PipelineResult> {
   const { runId } = deps.allocateRun(job.id);
-  let advisorStatus: 'available' | 'unavailable' | undefined;
 
   try {
     deps.transitionJob(job.id, 'queued', 'preparing_context');
@@ -158,15 +152,6 @@ export async function executePipeline(
     deps.transitionJob(job.id, 'preparing_context', 'running_agent');
   }
 
-  if (deps.runAdvisor) {
-    try {
-      deps.runAdvisor(runId);
-      advisorStatus = 'available';
-    } catch {
-      advisorStatus = 'unavailable';
-    }
-  }
-
   let agentResult;
   try {
     agentResult = await Promise.resolve(deps.runAgent(runId, context.runDir));
@@ -176,7 +161,7 @@ export async function executePipeline(
     recordPipelineFailure(deps, 'agent_failed');
     try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
-    return failResult(runId, 'agent_failed', advisorStatus);
+    return failResult(runId, 'agent_failed');
   }
 
   deps.transitionJob(job.id, 'running_agent', 'validating_output');
@@ -189,7 +174,7 @@ export async function executePipeline(
     recordPipelineFailure(deps, 'agent_failed');
     try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
-    return failResult(runId, 'agent_failed', advisorStatus);
+    return failResult(runId, 'agent_failed');
   }
 
   deps.transitionRun(runId, 'validating', 'succeeded');
@@ -220,7 +205,6 @@ export async function executePipeline(
   return {
     success: true,
     finalState: 'draft_ready',
-    advisorStatus,
     recommendedDisposition,
     timing,
     runId,

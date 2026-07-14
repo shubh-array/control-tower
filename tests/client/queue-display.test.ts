@@ -15,6 +15,7 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     repository: "org/pba-webapp",
     prNumber: 42,
     title: "Fix bug",
+    url: "https://github.com/org/pba-webapp/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
@@ -34,21 +35,6 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     advisorResult: null,
     discoveredAt: "2026-07-10T12:00:00.000Z",
     updatedAt: "2026-07-10T12:00:00.000Z",
-    ...overrides,
-  };
-}
-
-function advisor(
-  overrides: Partial<NonNullable<TrackedQueueRow["advisorResult"]>> = {},
-): NonNullable<TrackedQueueRow["advisorResult"]> {
-  return {
-    relevance: "medium",
-    risk: "medium",
-    explanation: "Review changes.",
-    recommendedAction: "review",
-    confidence: "high",
-    unknowns: [],
-    stale: false,
     ...overrides,
   };
 }
@@ -114,13 +100,12 @@ describe("deriveInboxPresentation", () => {
 });
 
 describe("sortInboxRows", () => {
-  it("sorts current advice before unadvised, then relevance, risk, and queue tuple", () => {
+  it("sorts by queue tuple order", () => {
     const items = [
       row({
         prNumber: 5,
-        advisorResult: null,
         queueOrder: {
-          prioritySortOrdinal: 0,
+          prioritySortOrdinal: 1,
           explicitRequestSort: 0,
           queueTimestamp: "2026-07-10T00:00:00.000Z",
           normalizedRepositoryIdentity: "a",
@@ -128,19 +113,7 @@ describe("sortInboxRows", () => {
         },
       }),
       row({
-        prNumber: 4,
-        advisorResult: advisor({ relevance: "low", risk: "high" }),
-        queueOrder: {
-          prioritySortOrdinal: 0,
-          explicitRequestSort: 0,
-          queueTimestamp: "2026-07-10T00:00:00.000Z",
-          normalizedRepositoryIdentity: "a",
-          prNumber: 4,
-        },
-      }),
-      row({
         prNumber: 3,
-        advisorResult: advisor({ relevance: "critical", risk: "medium" }),
         queueOrder: {
           prioritySortOrdinal: 0,
           explicitRequestSort: 0,
@@ -150,19 +123,7 @@ describe("sortInboxRows", () => {
         },
       }),
       row({
-        prNumber: 2,
-        advisorResult: advisor({ relevance: "high", risk: "critical" }),
-        queueOrder: {
-          prioritySortOrdinal: 0,
-          explicitRequestSort: 0,
-          queueTimestamp: "2026-07-10T00:00:00.000Z",
-          normalizedRepositoryIdentity: "b",
-          prNumber: 2,
-        },
-      }),
-      row({
         prNumber: 1,
-        advisorResult: advisor({ relevance: "high", risk: "critical" }),
         queueOrder: {
           prioritySortOrdinal: 0,
           explicitRequestSort: 0,
@@ -175,41 +136,8 @@ describe("sortInboxRows", () => {
 
     const input = [...items];
     const sorted = sortInboxRows(items);
-    expect(sorted.map((item) => item.prNumber)).toEqual([3, 1, 2, 4, 5]);
+    expect(sorted.map((item) => item.prNumber)).toEqual([1, 3, 5]);
     expect(items).toEqual(input);
-  });
-
-  it("treats stale advice as non-current and sorts it deterministically", () => {
-    const stale = row({
-      prNumber: 2,
-      advisorResult: advisor({
-        relevance: "critical",
-        risk: "critical",
-        stale: true,
-      }),
-      queueOrder: {
-        prioritySortOrdinal: 0,
-        explicitRequestSort: 0,
-        queueTimestamp: "2026-07-10T00:00:00.000Z",
-        normalizedRepositoryIdentity: "a",
-        prNumber: 2,
-      },
-    });
-    const current = row({
-      prNumber: 1,
-      advisorResult: advisor({ relevance: "high", risk: "critical" }),
-      queueOrder: {
-        prioritySortOrdinal: 0,
-        explicitRequestSort: 0,
-        queueTimestamp: "2026-07-10T00:00:00.000Z",
-        normalizedRepositoryIdentity: "a",
-        prNumber: 1,
-      },
-    });
-
-    expect(sortInboxRows([stale, current]).map((item) => item.prNumber)).toEqual([
-      1, 2,
-    ]);
   });
 });
 

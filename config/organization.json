@@ -5,13 +5,6 @@
     "organizations": ["Powered-By-Array"],
     "pollIntervalSeconds": 900
   },
-  "ticketExtractors": [
-    {
-      "id": "linear-key",
-      "sources": ["title", "body", "branch"],
-      "pattern": "\\b[A-Z][A-Z0-9]+-[0-9]+\\b"
-    }
-  ],
   "security": {
     "protectedPaths": [
       "**/.env",

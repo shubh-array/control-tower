@@ -2,7 +2,7 @@
 
 Step-by-step guide to run Control Tower on your machine and tailor it to the repos and review rules you care about.
 
-For product overview and design invariants, see [`README.md`](./README.md). For module map and extension rules, see [`Architecture.md`](./Architecture.md).
+For product overview and design invariants, see [`README.md`](./README.md). For module map and extension rules, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ---
 
@@ -138,7 +138,6 @@ Edit `~/.control-tower/config.json`.
   "cursor": {
     "binary": "agent",
     "modelRoles": {
-      "attention": { "modelId": "composer-2.5-fast" },
       "primaryReview": { "modelId": "composer-2.5-fast" }
     },
     "maxConcurrentAgents": 1
@@ -165,7 +164,6 @@ Notes:
 Also confirm:
 
 - `cursor.modelRoles.primaryReview.modelId` — always required
-- `cursor.modelRoles.attention.modelId` — required when `policy.json` has `attentionAdvisor.enabled: true`
 - `publication.mode` stays `"shadow"` until you intentionally enable publishing
 
 ---
@@ -236,20 +234,6 @@ Meaning in code:
 - Eligible + priority in `priorityTiers` → auto enqueue (with author-only caveats)
 - Everything else → on-demand (use **Analyze** in Coverage)
 
-### Attention advisor (deferred)
-
-```json
-"attentionAdvisor": {
-  "enabled": true,
-  "maxCandidatesPerInvocation": 50,
-  "timeoutSeconds": 90
-}
-```
-
-The current daemon does not run advisor batches or persist advisor results.
-These settings and harness files are retained for the deferred advisor feature;
-enabling them does not affect current Inbox ordering, coverage, or eligibility.
-
 ### Persona
 
 Edit `~/.control-tower/profile/persona.md` for review tone. Example starter text is copied from `config/examples/profile/persona.md`.
@@ -287,8 +271,7 @@ Then:
 Also in org config:
 
 - `github.host` / `github.organizations` / `github.pollIntervalSeconds`
-- `security.protectedPaths` — configured protection patterns. The current runtime passes these patterns to registered-source preparation, but does not yet wire the planned built-in default union or streaming diff filter.
-- `ticketExtractors` — opaque ticket IDs from title/body/branch
+- `security.protectedPaths` — configured protection patterns passed to registered-source preparation
 - `reviewDefaults` — job timeout, retention, storage cap
 
 ---
@@ -301,7 +284,6 @@ Without touching application code:
 |------|------|
 | Your voice / bar | `~/.control-tower/profile/persona.md` |
 | Primary review prompt/skills | `config/harnesses/pr-review/` |
-| Deferred attention-advisor prompt/skills | `config/harnesses/pr-attention/` (not invoked by the current daemon) |
 | Domain guidance | `config/harnesses/pr-review/domains/*.md` |
 
 ---
@@ -354,9 +336,9 @@ Open the printed URL (default: `http://127.0.0.1:9120`). The server binds to loo
 
 | Visible UI surface | URL | What to do |
 |--------------------|-----|----------------|
-| **Inbox** | `/inbox` | Triage the eligible Focus Queue in its default flat order. Enable **Group by lane** to show Now / Next / Monitor. Start/retry analysis; Review opens when a draft is available. |
+| **Inbox** | `/inbox` | Triage the eligible Focus Queue, grouped into Now / Next / Monitor lanes by default. Disable **Group by lane** for a flat ordered list. Start/retry analysis; Review opens when a draft is available. |
 | **Coverage** | `/coverage` | See complete coverage, including ineligible PRs through its filters, and start on-demand analysis. |
-| **Review** | `/review/:jobId` | Inspect a job's draft, findings, supporting evidence, provenance, and gated publication operations. |
+| **Review** | `/review/:jobId` | Inspect a job's draft, findings, supporting evidence, provenance, and gated publication operations. Stale drafts are flagged when the PR head moves; Approve/Publish is disabled until re-analysis. |
 | **Propose** | `/propose` | Build, validate, preview, and adopt governed profile-policy proposals from learning signals. |
 
 While the tab is visible, the queue polls every 3 seconds when a job is active
@@ -428,7 +410,6 @@ again.
 | Prefer certain authors | `policy.json` → `eligibleAuthors` |
 | Raise urgency for hot paths | `policy.json` → `priorityRules` |
 | Auto-run Cursor more/less | `policy.json` → `autoAnalyze` |
-| Preconfigure the deferred advisor | `policy.json` → `attentionAdvisor` (+ attention model) |
 | Change models | local `config.json` → `cursor.modelRoles` |
 | Change UI port | local `config.json` → `daemon.port` |
 | Prefer local checkout evidence | local `config.json` → `repositoryPaths` |

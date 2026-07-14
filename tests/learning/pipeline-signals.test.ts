@@ -24,10 +24,10 @@ function makeStubAgentOutput(job: PipelineJob): string {
     coverage: {
       mode: job.sourceMode,
       sourceTreeInspected: job.sourceMode === 'registered-source',
-      diffFiltered: true,
+      diffFiltered: false,
       omittedProtectedPaths: [],
       omittedSourceEntries: [],
-      missingCoverage: job.sourceMode === 'remote-evidence-only' ? ['source_tree'] : [],
+      missingCoverage: job.sourceMode === 'remote-evidence-only' ? ['source_tree'] : ['source_tree'],
     },
     summary: { intent: 'test', implementation: 'test' },
     observations: [{

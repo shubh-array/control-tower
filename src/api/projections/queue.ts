@@ -137,6 +137,7 @@ export function projectTrackedItem(
     repository: repo,
     prNumber: item.prNumber,
     title: item.title,
+    url: item.url,
     author: item.author,
     headSha: item.headSha,
     eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],

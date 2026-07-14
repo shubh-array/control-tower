@@ -168,14 +168,10 @@ export function checkModelAvailability(
 }
 
 export function checkModelRoleRequirements(
-  modelRoles: { primaryReview?: { modelId: string }; attention?: { modelId: string } },
-  opts: { attentionAdvisorEnabled: boolean },
+  modelRoles: { primaryReview?: { modelId: string } },
 ): CheckResult {
   if (!modelRoles.primaryReview) {
     return { ok: false, name: "Model roles", severity: "fail", message: "primaryReview role is always required" };
-  }
-  if (opts.attentionAdvisorEnabled && !modelRoles.attention) {
-    return { ok: false, name: "Model roles", severity: "fail", message: "attention role required when attentionAdvisor.enabled is true" };
   }
   return { ok: true, name: "Model roles", severity: "pass", message: "Model role requirements satisfied" };
 }
@@ -251,8 +247,7 @@ export interface DoctorConfig {
   daemonPort: number;
   repositoryPaths: Record<string, string>;
   repositoryCatalog: Map<string, string>;
-  modelRoles: { primaryReview?: { modelId: string }; attention?: { modelId: string } };
-  attentionAdvisorEnabled: boolean;
+  modelRoles: { primaryReview?: { modelId: string } };
   profilePath: string | null;
   policyPath: string | null;
   personaPath?: string | null;
@@ -330,14 +325,13 @@ export async function runDoctor(
     }
     const roleModelMap: Record<string, string> = {};
     if (config.modelRoles.primaryReview) roleModelMap.primaryReview = config.modelRoles.primaryReview.modelId;
-    if (config.modelRoles.attention) roleModelMap.attention = config.modelRoles.attention.modelId;
     modelAvailability = checkModelAvailability(available, roleModelMap);
     results.push(modelAvailability);
   } catch {
     results.push({ ok: false, name: "Model availability", message: "Cannot retrieve agent models", severity: "fail" });
   }
 
-  results.push(checkModelRoleRequirements(config.modelRoles, { attentionAdvisorEnabled: config.attentionAdvisorEnabled }));
+  results.push(checkModelRoleRequirements(config.modelRoles));
 
   if (modelAvailability?.ok && modelAvailability.smokeModels?.length && deps.smokeModel) {
     let smokeFailure: CheckResult | null = null;

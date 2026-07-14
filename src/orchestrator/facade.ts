@@ -30,7 +30,6 @@ export interface OrchestratorFacade {
     sourceMode?: 'registered-source' | 'remote-evidence-only';
   }): string;
   requestRetry(jobId: string): string;
-  requestAdvice(repositoryKey: string, prNumber: number): void;
 }
 
 export interface FacadeDeps {
@@ -45,7 +44,6 @@ export interface FacadeDeps {
     sourceMode?: string;
   }): string;
   enqueueRetry(jobId: string): string;
-  scheduleAdvice(repositoryKey: string, prNumber: number): void;
   getHealthStatus(): HealthStatus;
   enqueuedJobs: Array<{ repositoryKey: string; prNumber: number }>;
 }
@@ -86,10 +84,6 @@ export function createOrchestratorFacade(deps: FacadeDeps): OrchestratorFacade {
 
     requestRetry(jobId: string): string {
       return deps.enqueueRetry(jobId);
-    },
-
-    requestAdvice(repositoryKey: string, prNumber: number): void {
-      deps.scheduleAdvice(repositoryKey, prNumber);
     },
   };
 }

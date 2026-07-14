@@ -33,25 +33,14 @@ export function CoverageWarning({ coverage }: CoverageWarningProps) {
   }
 
   return (
-    <div
-      role="alert"
-      style={{
-        padding: "8px 12px",
-        marginBottom: "12px",
-        backgroundColor: "#fef3c7",
-        border: "1px solid #f59e0b",
-        borderRadius: "6px",
-        fontSize: "0.875rem",
-        color: "#92400e",
-      }}
-    >
-      <strong>Coverage notice:</strong>
-      <ul style={{ margin: "4px 0 0", paddingLeft: "20px" }}>
+    <div role="alert" className="coverage-warning">
+      <strong className="coverage-warning__title">Coverage notice</strong>
+      <ul className="coverage-warning__list">
         {warnings.map((w, i) => (
           <li key={i}>{w}</li>
         ))}
       </ul>
-      <p style={{ margin: "4px 0 0", fontSize: "0.75rem", fontStyle: "italic" }}>
+      <p className="coverage-warning__footnote">
         CI results observed. Local checks were not run.
       </p>
     </div>

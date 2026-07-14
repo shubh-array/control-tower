@@ -14,7 +14,6 @@ describe("organizationSchema", () => {
         organizations: ["acme"],
         pollIntervalSeconds: 60,
       },
-      ticketExtractors: [],
       security: {
         protectedPaths: [],
       },
@@ -75,11 +74,6 @@ describe("policySchema", () => {
   it("accepts valid minimal policy", () => {
     const minimalValid = {
       schemaVersion: 1 as const,
-      attentionAdvisor: {
-        enabled: false,
-        maxCandidatesPerInvocation: 5,
-        timeoutSeconds: 60,
-      },
       autoAnalyze: {
         explicitReviewRequests: true,
         priorityTiers: ["p0" as const],

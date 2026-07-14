@@ -19,8 +19,7 @@ Another engineer can onboard different repositories without forking the app.
 |------------|--------------|
 | **Coverage** | Authoritative coverage of configured repos and explicit review requests. Agents cannot hide items. |
 | **Inbox** | Eligible-only triage, deterministically ordered by the queue tuple. Users can optionally group it into Now / Next / Monitor lanes. |
-| **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout. It runs locally; registered-source reviews fetch the PR head into a daemon-owned worktree and record a source manifest, while unregistered repos use remote evidence. |
-| **Attention advisor** | Deferred: advisor configuration and harnesses exist, but the daemon does not yet run or persist advisor results. |
+| **Delegated review** | Cursor CLI produces evidence-backed drafts without a manual checkout. It runs locally; registered-source reviews fetch the PR head into a daemon-owned worktree, materialize an allowed file tree into a sealed source view, and record a source manifest, while unregistered repos use remote evidence. Stale drafts are flagged when the PR head moves after analysis. |
 | **Gated publication** | Exact preview + per-operation human approval before GitHub mutations |
 | **Governed learning** | Structured signals and profile-change proposals; nothing silent |
 
@@ -93,7 +92,7 @@ Three non-overlapping layers — there is no generic deep-merge.
 
 | Layer | Location | Contents |
 |-------|----------|----------|
-| **Organization catalog** | `config/organization.json` (in repo) | GitHub host/orgs, repo IDs, protected paths, ticket extractors, review defaults |
+| **Organization catalog** | `config/organization.json` (in repo) | GitHub host/orgs, repo IDs, protected paths, review defaults |
 | **Engineer profile** | `~/.control-tower/profile/` | `profile.json` (`profileId`, login, active repos), `policy.json` (eligibility/priority/domains/auto-analyze), `persona.md` |
 | **Local machine** | `~/.control-tower/config.json` | Absolute paths, workspace roots, repository paths, Cursor binary/model roles/concurrency, worktree limit, data directory, daemon port, `publication.mode` |
 
@@ -105,7 +104,7 @@ Secrets and absolute paths stay in local machine config. Shared defaults and pro
 2. Set `activeRepositoryIds` to the catalog repos you want tracked.
 3. Map repos to local checkouts in `repositoryPaths` for registered-source reviews. Without a path, analysis can still use remote-evidence-only mode.
 4. Tune `eligiblePaths`, `eligibleAuthors`, `priorityRules`, and `domainRules` in `policy.json`.
-5. Confirm Cursor `modelRoles` (`attention`, `primaryReview`) via `pnpm ct doctor`.
+5. Confirm Cursor `modelRoles.primaryReview` via `pnpm ct doctor`.
 6. Leave `publication.mode` as `"shadow"` until you are ready.
 
 Examples live under `config/examples/`. Full walkthrough with copy-paste examples: [`ONBOARDING.md`](./ONBOARDING.md).
@@ -117,18 +116,16 @@ direct Review link resolves its job against the current queue.
 
 | Visible surface | URL | Purpose |
 |-----------------|-----|---------|
-| **Inbox** | `/inbox` | Default triage: a flat eligible Focus Queue; enable **Group by lane** to show Now / Next / Monitor |
+| **Inbox** | `/inbox` | Default triage groups eligible items into Now / Next / Monitor lanes; disable **Group by lane** for a flat ordered list |
 | **Coverage** | `/coverage` | Complete All Tracked coverage, including tracked-but-ineligible PRs |
-| **Review** | `/review/:jobId` | Inspect a draft's summary, findings, evidence, provenance, and approval operations |
+| **Review** | `/review/:jobId` | Inspect a draft's summary, findings, evidence, provenance, and approval operations; stale drafts are flagged when the PR head moves and publication is blocked until re-analysis |
 | **Propose** | `/propose` | Build, validate, preview, and adopt governed profile/policy proposals |
 
-The queue and health status refresh while the tab is visible: the queue every
-3 seconds while a job is active and every 30 seconds otherwise, and health
-every 30 seconds. An unavailable Review draft also retries every 3 seconds.
-These polls pause in background tabs; the queue refetches when the tab becomes
-visible and all queries refetch on window focus. The header also provides a
-manual **Refresh** action for queue and health status, plus connection and
-stale-data status.
+The UI refreshes queue and health status on a timer while the tab is visible
+(3s when jobs are active, 30s when idle). See [`POLLING.md`](./POLLING.md) for
+how discovery, the job scheduler, the analysis pipeline, and client refresh fit
+together end-to-end. The header **Refresh** action and connection/stale-data
+indicators are also available.
 
 ## CLI reference
 
@@ -159,7 +156,9 @@ proxies `/api` to `http://127.0.0.1:9120` by default; set
 
 Operator setup and customization: see [`ONBOARDING.md`](./ONBOARDING.md).
 
-Architecture, module map, and extension guidance: see [`Architecture.md`](./Architecture.md).
+Architecture, module map, and extension guidance: see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+Polling, jobs, and the analysis pipeline: see [`POLLING.md`](./POLLING.md).
 
 Detailed Phase 1 design and implementation plans: `docs/superpowers/`.
 
@@ -169,7 +168,7 @@ Detailed Phase 1 design and implementation plans: `docs/superpowers/`.
 - Autonomous approvals, merges, or Linear mutations
 - A replacement for GitHub as the review system of record
 - Silent learning or agent-owned policy mutation
-- Execution of untrusted PR code/tests on your machine (Phase 1); registered-source reviews may still fetch PR heads into daemon-owned admin worktrees and generate source manifests
+- Execution of untrusted PR code/tests on your machine (Phase 1); registered-source reviews may still fetch PR heads into daemon-owned admin worktrees, copy allowed files into a materialized source view, and generate source manifests
 
 ## Roadmap posture
 

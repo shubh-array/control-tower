@@ -13,6 +13,7 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     repository: "org/repo",
     prNumber: 42,
     title: "Improve review flow",
+    url: "https://github.com/org/repo/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],

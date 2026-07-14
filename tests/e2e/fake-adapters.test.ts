@@ -142,7 +142,7 @@ function buildFakeDeps(opts: {
     },
     recoverOrphanedStates() {
       return {
-        failedJobs: [], failedRuns: [], failedAdvisorRuns: [],
+        failedJobs: [], failedRuns: [],
         autoRetried: [], failureReasons: new Map(), publishingReconciled: [],
       };
     },
@@ -158,7 +158,6 @@ function buildFakeDeps(opts: {
       }
       return { jobsToStart, reason: jobsToStart.length > 0 ? 'eligible' : 'none' };
     },
-    runAttentionBatch() {},
     createFacade(): OrchestratorFacade {
       const facadeDeps: FacadeDeps = {
         getAllTracked: () => [],
@@ -199,6 +198,9 @@ function buildFakeDeps(opts: {
             recommendedDisposition: d.recommendedDisposition,
             validatedProvenance: [],
             operationPlan: null,
+            reviewedHeadSha: PR_SHA,
+            currentHeadSha: PR_SHA,
+            stale: false,
           };
         },
         getHealthStatus: () => ({ activeJobs: 0, queuedJobs: 0, failedJobsLast24h: 0, uptime: 100, lastPollTimestamp: '2026-07-10T00:00:00.000Z' }),
@@ -220,7 +222,6 @@ function buildFakeDeps(opts: {
           }
           return rid;
         },
-        scheduleAdvice() {},
         enqueuedJobs: [],
       };
       return createOrchestratorFacade(facadeDeps);
@@ -257,7 +258,7 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
     publisher = new FakePublisher();
 
     handle = await startRuntime(
-      { port: 0, schedulerIntervalMs: 60_000, attentionIntervalMs: 60_000, dataDirectory: ':memory:', apiServerEnabled: false },
+      { port: 0, schedulerIntervalMs: 60_000, dataDirectory: ':memory:', apiServerEnabled: false },
       buildFakeDeps({ gh, git, cursor, publisher, db }),
     );
   });

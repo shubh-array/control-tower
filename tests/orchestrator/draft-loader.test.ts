@@ -76,6 +76,11 @@ describe("loadDraftBundle", () => {
     ).run("a".repeat(40));
 
     db.prepare(
+      `INSERT INTO prs (repository_id, pr_number, head_sha, base_sha, title, author_login, state, github_updated, fetched_at)
+       VALUES ('pba-webapp', 42, ?, ?, 'Test PR', 'author', 'open', ?, ?)`,
+    ).run("a".repeat(40), "b".repeat(40), new Date().toISOString(), new Date().toISOString());
+
+    db.prepare(
       `INSERT INTO runs (id, job_id, attempt_number, run_input_hash, state, version)
        VALUES ('run-1', 'job-1', 1, 'input-1', 'succeeded', 1)`,
     ).run();
@@ -127,5 +132,21 @@ describe("loadDraftBundle", () => {
     for (const hash of responseHashes) {
       expect(guardStore.getContext(hash)).not.toBeNull();
     }
+  });
+
+  it('marks draft stale when job head_sha differs from prs.head_sha', () => {
+    db.prepare(
+      `UPDATE prs SET head_sha = ? WHERE repository_id = ? AND pr_number = ?`,
+    ).run("c".repeat(40), "pba-webapp", 42);
+
+    const bundle = loadDraftBundle(db, "job-1", {
+      dataDirectory: dataDir,
+      principalLogin: "shubh-array",
+    });
+
+    expect(bundle).not.toBeNull();
+    expect(bundle!.detail.stale).toBe(true);
+    expect(bundle!.detail.reviewedHeadSha).toBe("a".repeat(40));
+    expect(bundle!.detail.currentHeadSha).toBe("c".repeat(40));
   });
 });

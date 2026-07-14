@@ -86,7 +86,7 @@ export interface SourceManifestInput {
   rootTreeSha: string;
   matcherVersion: string;
   protectedPatternSetHash: string;
-  allowed: Array<{ path: string; blobSha: string; size: number; mode: string }>;
+  allowed: Array<{ path: string; blobSha: string; size: number; mode: string; lineCount: number }>;
   omitted: Array<{ path: string; reason: string }>;
 }
 
@@ -97,13 +97,13 @@ export interface SourceManifest {
   matcherVersion: string;
   protectedPatternSetHash: string;
   contentHash: string;
-  allowed: Array<{ path: string; blobSha: string; size: number; mode: string }>;
+  allowed: Array<{ path: string; blobSha: string; size: number; mode: string; lineCount: number }>;
   omitted: Array<{ path: string; reason: string }>;
 }
 
 export function buildSourceManifest(input: SourceManifestInput): SourceManifest {
   const hashInput = JSON.stringify({
-    allowed: input.allowed.map(a => `${a.path}:${a.blobSha}:${a.size}:${a.mode}`).sort(),
+    allowed: input.allowed.map(a => `${a.path}:${a.blobSha}:${a.size}:${a.mode}:${a.lineCount}`).sort(),
     headCommit: input.headCommit,
     matcherVersion: input.matcherVersion,
     omitted: input.omitted.map(o => `${o.path}:${o.reason}`).sort(),

@@ -32,6 +32,7 @@ function makeEnqueueDeps(): EnqueueDeps & { jobs: Map<string, Record<string, unk
   return {
     jobs,
     findActiveJobByIdentity() { return null; },
+    findActiveJobsByPr() { return []; },
     insertJob(row) {
       const id = `job-${nextId++}`;
       jobs.set(id, { ...row, id });
@@ -143,6 +144,9 @@ describe('Integration: pipeline fake → draft_ready → facade.getDraft returns
       recommendedDisposition: 'approve',
       validatedProvenance: [],
       operationPlan: null,
+      reviewedHeadSha: 'a'.repeat(40),
+      currentHeadSha: 'a'.repeat(40),
+      stale: false,
     };
 
     const stubJob: JobDetail = {
@@ -164,7 +168,6 @@ describe('Integration: pipeline fake → draft_ready → facade.getDraft returns
       getAuditTrail: () => [],
       enqueueAnalysis: () => 'job-new',
       enqueueRetry: () => 'retry-1',
-      scheduleAdvice: () => {},
       getHealthStatus: () => ({ activeJobs: 0, queuedJobs: 0, failedJobsLast24h: 0, uptime: 100, lastPollTimestamp: '2026-07-10T00:00:00.000Z' }),
       enqueuedJobs: [],
     };
@@ -190,7 +193,6 @@ describe('Integration: restart recovery then catch-up', () => {
         return {
           failedJobs: ['job-orphan-1'],
           failedRuns: ['run-orphan-1'],
-          failedAdvisorRuns: [],
           autoRetried: [],
           failureReasons: new Map([['job-orphan-1', 'daemon_restart']]),
           publishingReconciled: [],
@@ -203,7 +205,6 @@ describe('Integration: restart recovery then catch-up', () => {
         schedulerTicks++;
         return { jobsToStart: [], reason: 'no_eligible_candidates' };
       },
-      runAttentionBatch() {},
       createFacade() {
         return {
           getAllTracked: () => [],
@@ -214,7 +215,6 @@ describe('Integration: restart recovery then catch-up', () => {
           getAuditTrail: () => [],
           requestAnalyze: () => 'job-1',
           requestRetry: () => 'run-1',
-          requestAdvice: () => {},
         };
       },
     };
@@ -223,7 +223,6 @@ describe('Integration: restart recovery then catch-up', () => {
       port: 9120,
       apiServerEnabled: false,
       schedulerIntervalMs: 100,
-      attentionIntervalMs: 100000,
       dataDirectory: '/tmp/test-integration',
     };
 

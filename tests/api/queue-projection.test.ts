@@ -14,6 +14,7 @@ function stubItem(): AllTrackedItem {
     headSha: "a".repeat(40),
     baseSha: "b".repeat(40),
     title: "Fix bug",
+    url: "https://github.com/org/pba-webapp/pull/42",
     author: "dev",
     draft: false,
     labels: [],
@@ -95,6 +96,7 @@ describe("queue projection", () => {
     expect(row.jobId).toBe("job-1");
     expect(row.repositoryKey).toBe("pba-webapp");
     expect(row.repository).toBe("org/pba-webapp");
+    expect(row.url).toBe("https://github.com/org/pba-webapp/pull/42");
     expect(row.queueOrder).toEqual({
       prioritySortOrdinal: 1,
       explicitRequestSort: 0,

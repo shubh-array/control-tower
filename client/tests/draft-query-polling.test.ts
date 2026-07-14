@@ -30,6 +30,9 @@ const draft: DraftDetail = {
   recommendedDisposition: "needs_human",
   validatedProvenance: [],
   operationPlan: null,
+  reviewedHeadSha: "a".repeat(40),
+  currentHeadSha: "a".repeat(40),
+  stale: false,
 };
 
 function DraftProbe() {

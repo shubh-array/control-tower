@@ -1,8 +1,8 @@
-import type { AdvisorResult, FocusQueueRow } from "./api.js";
+import type { FocusQueueRow } from "./api.js";
 import { summarizeReasons } from "./queue-display.js";
 
 export interface InboxContextItem {
-  label: "Priority" | "Attention reason" | "Advisor";
+  label: "Priority" | "Attention reason";
   value: string;
 }
 
@@ -36,19 +36,6 @@ function formatAttentionReason(raw: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-function formatAdvisorValue(result: AdvisorResult | null): string {
-  if (!result) {
-    return "Not available";
-  }
-
-  const explanation = result.explanation.trim();
-  const advice =
-    explanation.length > 0
-      ? explanation
-      : result.recommendedAction.replaceAll("_", " ");
-  return result.stale ? `Stale advice — ${advice}` : advice;
-}
-
 export function buildInboxContext(item: FocusQueueRow): InboxContextItem[] {
   return [
     { label: "Priority", value: formatPriority(item.priority) },
@@ -56,6 +43,5 @@ export function buildInboxContext(item: FocusQueueRow): InboxContextItem[] {
       label: "Attention reason",
       value: formatAttentionReason(summarizeReasons(item)),
     },
-    { label: "Advisor", value: formatAdvisorValue(item.advisorResult) },
   ];
 }

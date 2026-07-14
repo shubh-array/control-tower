@@ -26,7 +26,7 @@ function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
   };
 }
 
-function makeDeps(existingJob?: { id: string; headSha: string; policyHash: string; sourceMode: string; state: string }): EnqueueDeps {
+function makeDeps(existingJob?: { id: string; headSha: string; policyHash: string; sourceMode: string; state: string; repositoryKey?: string; prNumber?: number }): EnqueueDeps {
   const jobs = new Map<string, Record<string, unknown>>();
   if (existingJob) {
     jobs.set(existingJob.id, {
@@ -36,6 +36,8 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
       source_mode: existingJob.sourceMode,
       state: existingJob.state,
       version: 1,
+      repository_key: existingJob.repositoryKey ?? 'pba-webapp',
+      pr_number: existingJob.prNumber ?? 42,
     });
   }
   let nextId = 100;
@@ -48,9 +50,22 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
       }
       return null;
     },
+    findActiveJobsByPr(repositoryKey: string, prNumber: number) {
+      const matches: Array<{ id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number }> = [];
+      for (const [, job] of jobs) {
+        if (
+          job.repository_key === repositoryKey &&
+          job.pr_number === prNumber &&
+          !['superseded', 'cancelled', 'published'].includes(job.state as string)
+        ) {
+          matches.push(job as { id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number });
+        }
+      }
+      return matches;
+    },
     insertJob(row: Record<string, unknown>) {
       const id = `job-${nextId++}`;
-      jobs.set(id, { ...row, id });
+      jobs.set(id, { ...row, id, repository_key: row.repositoryKey, pr_number: row.prNumber });
       return id;
     },
     supersede(jobId: string, _version: number) {
@@ -216,5 +231,65 @@ describe('enqueueFromPolicyDecision', () => {
     expect(result.enqueued).toBe(false);
     expect(result.reason).toBe('existing_job_current');
     expect(result.jobId).toBe('job-old');
+  });
+});
+
+describe('PR-scoped supersede', () => {
+  it('supersedes prior active job for same PR when head SHA changes (PR-scoped)', () => {
+    const jobs = new Map<string, Record<string, unknown>>();
+    jobs.set('job-old', {
+      id: 'job-old',
+      repository_key: 'pba-webapp',
+      pr_number: 42,
+      head_sha: 'a'.repeat(40),
+      policy_hash: 'policy-p1-auto',
+      source_mode: 'registered-source',
+      state: 'draft_ready',
+      version: 1,
+    });
+
+    let nextId = 200;
+    const deps: EnqueueDeps = {
+      findActiveJobByIdentity(_identityHash: string) {
+        return null;
+      },
+      findActiveJobsByPr(repositoryKey: string, prNumber: number) {
+        const matches: Array<{ id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number }> = [];
+        for (const [, job] of jobs) {
+          if (
+            job.repository_key === repositoryKey &&
+            job.pr_number === prNumber &&
+            !['superseded', 'cancelled', 'published'].includes(job.state as string)
+          ) {
+            matches.push(job as { id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number });
+          }
+        }
+        return matches;
+      },
+      insertJob(row: Record<string, unknown>) {
+        const id = `job-${nextId++}`;
+        jobs.set(id, { ...row, id });
+        return id;
+      },
+      supersede(jobId: string, _version: number) {
+        const j = jobs.get(jobId);
+        if (j) j.state = 'superseded';
+      },
+      computeIdentityHash(input: Record<string, unknown>) {
+        return `hash-${input.repositoryKey}-${input.prNumber}-${input.headSha}`;
+      },
+      computePolicyHash(decision: PolicyDecision) {
+        return `policy-${decision.priorityStatus}-${decision.analysisMode}`;
+      },
+    };
+
+    const input = makeInput({
+      headSha: 'b'.repeat(40),
+      policy: stubPolicy({ analysisMode: 'auto' }),
+    });
+    const result = enqueueFromPolicyDecision(deps, input);
+
+    expect(result.enqueued).toBe(true);
+    expect(jobs.get('job-old')?.state).toBe('superseded');
   });
 });

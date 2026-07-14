@@ -9,6 +9,7 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     repository: "org/pba-webapp",
     prNumber: 42,
     title: "Fix bug",
+    url: "https://github.com/org/pba-webapp/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
@@ -33,7 +34,7 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
 }
 
 describe("buildInboxContext", () => {
-  it("returns labeled priority, attention reason, and advisor availability", () => {
+  it("returns labeled priority and attention reason", () => {
     expect(
       buildInboxContext(
         row({
@@ -43,29 +44,6 @@ describe("buildInboxContext", () => {
     ).toEqual([
       { label: "Priority", value: "P1" },
       { label: "Attention reason", value: "Explicit review request" },
-      { label: "Advisor", value: "Not available" },
-    ]);
-  });
-
-  it("includes advisor advice when present", () => {
-    expect(
-      buildInboxContext(
-        row({
-          advisorResult: {
-            relevance: "high",
-            risk: "medium",
-            explanation: "Review auth changes.",
-            recommendedAction: "review",
-            confidence: "high",
-            unknowns: [],
-            stale: false,
-          },
-        }),
-      ),
-    ).toEqual([
-      { label: "Priority", value: "P1" },
-      { label: "Attention reason", value: "No eligibility reason recorded" },
-      { label: "Advisor", value: "Review auth changes." },
     ]);
   });
 });

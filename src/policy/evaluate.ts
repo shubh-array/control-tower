@@ -60,6 +60,7 @@ export interface AllTrackedItem {
   headSha: string;
   baseSha: string;
   title: string;
+  url: string;
   author: string;
   draft: boolean;
   labels: string[];

@@ -192,35 +192,17 @@ composer-2.5-fast - Composer 2.5 Fast
 });
 
 describe("checkModelRoleRequirements", () => {
-  it("passes when primaryReview present and attention omitted with advisor disabled", () => {
-    const r = checkModelRoleRequirements(
-      { primaryReview: { modelId: "composer-2.5-fast" } },
-      { attentionAdvisorEnabled: false },
-    );
+  it("passes when primaryReview is present", () => {
+    const r = checkModelRoleRequirements({
+      primaryReview: { modelId: "composer-2.5-fast" },
+    });
     expect(r.ok).toBe(true);
   });
 
   it("fails when primaryReview is missing", () => {
-    const r = checkModelRoleRequirements({}, { attentionAdvisorEnabled: false });
+    const r = checkModelRoleRequirements({});
     expect(r.ok).toBe(false);
     expect(r.message).toContain("primaryReview");
-  });
-
-  it("fails when attention is omitted but advisor is enabled", () => {
-    const r = checkModelRoleRequirements(
-      { primaryReview: { modelId: "composer-2.5-fast" } },
-      { attentionAdvisorEnabled: true },
-    );
-    expect(r.ok).toBe(false);
-    expect(r.message).toContain("attention");
-  });
-
-  it("passes when attention is present and advisor is enabled", () => {
-    const r = checkModelRoleRequirements(
-      { primaryReview: { modelId: "composer-2.5-fast" }, attention: { modelId: "composer-2.5-fast" } },
-      { attentionAdvisorEnabled: true },
-    );
-    expect(r.ok).toBe(true);
   });
 });
 
@@ -244,11 +226,6 @@ describe("checkSchemaValidity", () => {
   it("validates policy schema", () => {
     const validPolicy = {
       schemaVersion: 1,
-      attentionAdvisor: {
-        enabled: false,
-        maxCandidatesPerInvocation: 5,
-        timeoutSeconds: 60,
-      },
       autoAnalyze: {
         explicitReviewRequests: true,
         priorityTiers: ["p0"],
@@ -361,7 +338,6 @@ describe("runDoctor (integration with fake deps)", () => {
     repositoryPaths: {},
     repositoryCatalog: new Map(),
     modelRoles: { primaryReview: { modelId: "composer-2.5-fast" } },
-    attentionAdvisorEnabled: false,
     profilePath: null,
     policyPath: null,
     harnessManifests: [],

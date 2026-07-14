@@ -91,7 +91,7 @@ describe('filterTreeEntry', () => {
 describe('buildSourceManifest', () => {
   it('records allowed entries with path, sha, size, mode', () => {
     const allowed = [
-      { path: 'src/a.ts', blobSha: 'sha-a', size: 100, mode: '100644' },
+      { path: 'src/a.ts', blobSha: 'sha-a', size: 100, mode: '100644', lineCount: 10 },
     ];
     const omitted = [
       { path: '.env', reason: 'protected_path_content' },

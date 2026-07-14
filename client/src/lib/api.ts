@@ -150,6 +150,7 @@ export interface TrackedQueueRow {
   repository: string;
   prNumber: number;
   title: string;
+  url: string;
   author: string;
   headSha: string;
   eligibilityReasons: EligibilityReason[];
@@ -233,6 +234,9 @@ export interface DraftDetail {
   recommendedDisposition: string;
   validatedProvenance: Record<string, unknown>[];
   operationPlan: OperationPlanSummary | null;
+  reviewedHeadSha: string;
+  currentHeadSha: string;
+  stale: boolean;
 }
 
 export interface Finding {

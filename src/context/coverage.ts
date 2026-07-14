@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+export type DiffFilterOutcome = 'not_run' | 'failed' | 'succeeded';
+
 export interface CoverageObject {
   mode: 'registered-source' | 'remote-evidence-only';
   sourceTreeInspected: boolean;
@@ -12,16 +14,18 @@ export interface CoverageObject {
 export function buildRegisteredSourceCoverage(
   omittedProtectedPaths: Array<{ path: string; reason: string }>,
   omittedSourceEntries: Array<{ path: string; reason: string }>,
-  diffFilterFailed: boolean,
+  diffFilterOutcome: DiffFilterOutcome,
+  sourceTreeInspected: boolean,
 ): CoverageObject {
   const missingCoverage: string[] = [];
-  if (diffFilterFailed) missingCoverage.push('diff_filter_failed');
+  if (!sourceTreeInspected) missingCoverage.push('source_tree');
+  if (diffFilterOutcome === 'failed') missingCoverage.push('diff_filter_failed');
   if (omittedProtectedPaths.length > 0) missingCoverage.push('protected_path_content');
 
   return {
     mode: 'registered-source',
-    sourceTreeInspected: true,
-    diffFiltered: !diffFilterFailed,
+    sourceTreeInspected,
+    diffFiltered: diffFilterOutcome === 'succeeded',
     omittedProtectedPaths,
     omittedSourceEntries,
     missingCoverage,
@@ -30,16 +34,16 @@ export function buildRegisteredSourceCoverage(
 
 export function buildRemoteOnlyCoverage(
   omittedProtectedPaths: Array<{ path: string; reason: string }>,
-  diffFilterFailed: boolean,
+  diffFilterOutcome: DiffFilterOutcome,
 ): CoverageObject {
   const missingCoverage: string[] = ['source_tree'];
-  if (diffFilterFailed) missingCoverage.push('diff_filter_failed');
+  if (diffFilterOutcome === 'failed') missingCoverage.push('diff_filter_failed');
   if (omittedProtectedPaths.length > 0) missingCoverage.push('protected_path_content');
 
   return {
     mode: 'remote-evidence-only',
     sourceTreeInspected: false,
-    diffFiltered: !diffFilterFailed,
+    diffFiltered: diffFilterOutcome === 'succeeded',
     omittedProtectedPaths,
     omittedSourceEntries: [],
     missingCoverage,

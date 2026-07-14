@@ -50,9 +50,7 @@ import { SignalRecorder } from "../learning/record.js";
 import { FilesystemProposalStore } from "../proposals/store.js";
 import { sha256Hex } from "../util/hash.js";
 import {
-  createAttentionSignalHooks,
   createPrimaryReviewSignalHooks,
-  mapAdvisorToAttentionOutcome,
   mapOperationTypeToDisposition,
 } from "../learning/pipeline-signals.js";
 import { startProposalFromSignals } from "../proposals/start.js";
@@ -121,6 +119,23 @@ function buildEnqueueDeps(db: Database.Database) {
           version: number;
         } | undefined) ?? null
       );
+    },
+    findActiveJobsByPr(repositoryKey: string, prNumber: number) {
+      return db
+        .prepare(
+          `SELECT id, head_sha, policy_hash, source_mode, state, version
+           FROM jobs
+           WHERE repository_key = ? AND pr_number = ?
+             AND state NOT IN ('superseded', 'cancelled', 'published')`,
+        )
+        .all(repositoryKey, prNumber) as Array<{
+          id: string;
+          head_sha: string;
+          policy_hash: string;
+          source_mode: string;
+          state: string;
+          version: number;
+        }>;
     },
     insertJob(row: Record<string, unknown>): string {
       const id = randomUUID();
@@ -198,7 +213,7 @@ function buildFacadeDeps(
         publicationMode: context.publicationMode,
         authenticatedLogin: context.authenticatedLogin,
         configuredOperator: context.configuredOperator,
-        currentHeadSha: bundle.headSha,
+        currentHeadSha: bundle.detail.currentHeadSha,
         reviewedHeadSha: bundle.headSha,
         acceptedRunId: bundle.acceptedRunId,
         approvedRunInputHash: bundle.runInputHash,
@@ -297,41 +312,6 @@ function buildFacadeDeps(
       return result.jobId ?? randomUUID();
     },
     enqueueRetry: (jobId: string) => createRetryAttempt(db, jobId),
-    scheduleAdvice: (repositoryKey, prNumber) => {
-      const att = db
-        .prepare(
-          `SELECT id, advisor_relevance, advisor_risk, advisor_recommended_action
-           FROM attention_items
-           WHERE repository_key = ? AND pr_number = ?`,
-        )
-        .get(repositoryKey, prNumber) as
-        | {
-            id: string;
-            advisor_relevance: string | null;
-            advisor_risk: string | null;
-            advisor_recommended_action: string | null;
-          }
-        | undefined;
-      if (!att) return;
-
-      const attentionModelSpec =
-        _local.cursor.modelRoles.attention?.modelId ?? "attention-default";
-      const hooks = createAttentionSignalHooks(
-        db,
-        context.signalRecorder,
-        repositoryKey,
-        prNumber,
-        att.id,
-        sha256Hex(attentionModelSpec),
-      );
-      hooks.onAttentionOutcome(
-        mapAdvisorToAttentionOutcome({
-          advisorRelevance: att.advisor_relevance,
-          advisorRisk: att.advisor_risk,
-          advisorRecommendedAction: att.advisor_recommended_action,
-        }),
-      );
-    },
     getHealthStatus: () => {
       const activeJobs =
         (
@@ -382,7 +362,7 @@ export function createBootstrap(input: BootstrapInput): {
   const policyPath = join(local.profileDirectory, "policy.json");
   const policy = existsSync(policyPath)
     ? loadPolicyConfig(policyPath)
-    : ({ repositories: {}, autoAnalyze: { explicitReviewRequests: true, priorityTiers: ["p0", "p1"] }, attentionAdvisor: { enabled: false, maxCandidatesPerInvocation: 5, timeoutSeconds: 90 } } as PolicyConfig);
+    : ({ repositories: {}, autoAnalyze: { explicitReviewRequests: true, priorityTiers: ["p0", "p1"] } } as PolicyConfig);
 
   const dbPath = join(local.dataDirectory, "control-tower.sqlite");
   const db = openDatabase(dbPath);
@@ -473,7 +453,6 @@ export function createBootstrap(input: BootstrapInput): {
   const config: RuntimeConfig = {
     port: local.daemon?.port ?? 9120,
     schedulerIntervalMs: 5_000,
-    attentionIntervalMs: 60_000,
     dataDirectory: local.dataDirectory,
   };
 
@@ -618,11 +597,17 @@ export function createBootstrap(input: BootstrapInput): {
             profileDirectory: context.profileDirectory,
             repositoryPaths: currentLocal.repositoryPaths,
             protectedPaths: org.security.protectedPaths,
+            catalogRepositories: org.repositories.map((r) => ({
+              id: r.id,
+              github: r.github,
+            })),
             cursorBinary: currentLocal.cursor.binary,
             cursorModelId:
               currentLocal.cursor.modelRoles.primaryReview?.modelId,
             cursorHomePath: process.env.HOME,
             sshAuthSock: process.env.SSH_AUTH_SOCK,
+            execGhText: (args, opts) => execGhText(args, opts),
+            githubHost: org.github.host,
           },
           jobId,
         ).catch((err) => {
@@ -630,10 +615,6 @@ export function createBootstrap(input: BootstrapInput): {
         });
       }
       return decision;
-    },
-    runAttentionBatch() {
-      if (!policy.attentionAdvisor?.enabled) return;
-      // Advisor batch invocation deferred; focus queue supports client-side advisor ordering.
     },
     createFacade() {
       return createOrchestratorFacade(facadeDeps);
@@ -693,7 +674,7 @@ export function createBootstrap(input: BootstrapInput): {
           recorder: context.signalRecorder,
           currentFiles,
           profileDir: context.profileDirectory,
-          corpusCases: loadCorpusCases(context.appRoot, "attention"),
+          corpusCases: loadCorpusCases(context.appRoot, "primaryReview"),
           modelSpec,
           evaluator: defaultProposalEvaluator(),
           cursorAdapter,
