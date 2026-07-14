@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, openSync, writeSync, closeSync, fsyncSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, writeSync, closeSync, fsyncSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { CanonicalPathMatcher } from "../paths/matcher.js";
@@ -295,6 +295,41 @@ export async function prepareRegisteredSource(
       }
     }
 
+    const allowedWithCounts: Array<{
+      path: string;
+      blobSha: string;
+      size: number;
+      mode: string;
+      lineCount: number;
+    }> = [];
+
+    for (const entry of allowed) {
+      const adminFilePath = join(adminPath, entry.path);
+      const sourceFilePath = join(sourcePath, entry.path);
+
+      if (existsSync(adminFilePath)) {
+        mkdirSync(dirname(sourceFilePath), { recursive: true });
+        const content = readFileSync(adminFilePath);
+        writeFileSync(sourceFilePath, content);
+        const lineCount = content.toString('utf-8').split('\n').length;
+        allowedWithCounts.push({
+          path: entry.path,
+          blobSha: entry.blobSha,
+          size: content.length,
+          mode: entry.mode,
+          lineCount,
+        });
+      } else {
+        allowedWithCounts.push({
+          path: entry.path,
+          blobSha: entry.blobSha,
+          size: 0,
+          mode: entry.mode,
+          lineCount: 0,
+        });
+      }
+    }
+
     mkdirSync(sourcePath, { recursive: true });
     const sourceManifest = buildSourceManifest({
       repositoryId: input.repositoryKey,
@@ -302,7 +337,7 @@ export async function prepareRegisteredSource(
       rootTreeSha: input.headSha,
       matcherVersion: String(protectedMatcher.version),
       protectedPatternSetHash: protectedMatcher.contentHash,
-      allowed,
+      allowed: allowedWithCounts,
       omitted,
     });
 
