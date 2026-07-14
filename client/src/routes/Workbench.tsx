@@ -238,6 +238,15 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
 
       <CoverageWarning coverage={draft.coverage} />
 
+      {draft.stale && (
+        <div className="error-banner" role="alert">
+          <strong>Stale review</strong> — The PR head has moved from{" "}
+          <code>{draft.reviewedHeadSha.slice(0, 8)}</code> to{" "}
+          <code>{draft.currentHeadSha.slice(0, 8)}</code>.
+          This draft may not reflect the current code. Re-analyze to update.
+        </div>
+      )}
+
       <Tabs
         tabs={[
           { id: "understand", label: "Understand" },
@@ -532,12 +541,12 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
                         type="button"
                         busy={publishing}
                         busyLabel="Publishing…"
-                        disabled={publishing}
+                        disabled={publishing || draft.stale}
                         onClick={() =>
                           void handleApproveAndPublish(op.operationHash, null)
                         }
                       >
-                        Approve & Publish
+                        {draft.stale ? "Stale — Re-analyze" : "Approve & Publish"}
                       </ActionButton>
                     </div>
                   ))}
