@@ -143,6 +143,9 @@ describe('Integration: pipeline fake → draft_ready → facade.getDraft returns
       recommendedDisposition: 'approve',
       validatedProvenance: [],
       operationPlan: null,
+      reviewedHeadSha: 'a'.repeat(40),
+      currentHeadSha: 'a'.repeat(40),
+      stale: false,
     };
 
     const stubJob: JobDetail = {

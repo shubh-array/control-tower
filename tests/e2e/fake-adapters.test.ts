@@ -198,6 +198,9 @@ function buildFakeDeps(opts: {
             recommendedDisposition: d.recommendedDisposition,
             validatedProvenance: [],
             operationPlan: null,
+            reviewedHeadSha: PR_SHA,
+            currentHeadSha: PR_SHA,
+            stale: false,
           };
         },
         getHealthStatus: () => ({ activeJobs: 0, queuedJobs: 0, failedJobsLast24h: 0, uptime: 100, lastPollTimestamp: '2026-07-10T00:00:00.000Z' }),

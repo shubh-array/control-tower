@@ -234,6 +234,9 @@ export interface DraftDetail {
   recommendedDisposition: string;
   validatedProvenance: Record<string, unknown>[];
   operationPlan: OperationPlanSummary | null;
+  reviewedHeadSha: string;
+  currentHeadSha: string;
+  stale: boolean;
 }
 
 export interface Finding {

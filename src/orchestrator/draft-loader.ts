@@ -143,6 +143,15 @@ export function loadDraftBundle(
     return null;
   }
 
+  const prRow = db
+    .prepare(
+      `SELECT head_sha FROM prs WHERE repository_id = ? AND pr_number = ?`,
+    )
+    .get(job.repository_key, job.pr_number) as { head_sha: string } | undefined;
+
+  const currentHeadSha = prRow?.head_sha ?? job.head_sha;
+  const stale = currentHeadSha !== job.head_sha;
+
   const run = db
     .prepare(`SELECT id, run_input_hash FROM runs WHERE id = ?`)
     .get(job.accepted_run_id) as
@@ -203,6 +212,9 @@ export function loadDraftBundle(
     recommendedDisposition: output.recommendedDisposition,
     validatedProvenance,
     operationPlan,
+    reviewedHeadSha: job.head_sha,
+    currentHeadSha,
+    stale,
   };
 
   return {
