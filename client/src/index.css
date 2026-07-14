@@ -743,53 +743,6 @@ a.pr-link:focus-visible::after {
   cursor: not-allowed;
 }
 
-/* Coverage */
-
-.coverage-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
-.coverage-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.coverage-table th,
-.coverage-table td {
-  padding: 0.625rem 0.875rem;
-  text-align: left;
-  border-bottom: 1px solid var(--line);
-}
-
-.coverage-table th {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-muted);
-  background: var(--surface-muted);
-}
-
-.coverage-table tr:last-child td {
-  border-bottom: none;
-}
-
-.coverage-table tbody tr:hover {
-  background: var(--surface-muted);
-}
-
 /* Review */
 
 .review-page {
@@ -1230,100 +1183,6 @@ a.pr-link:focus-visible::after {
   font-size: 0.875rem;
 }
 
-/* Propose */
-
-.proposal-page {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-
-.proposal-page .page-heading {
-  margin-bottom: 1.5rem;
-}
-
-.proposal-section {
-  margin-bottom: 1.5rem;
-}
-
-.proposal-section h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.05rem;
-}
-
-.proposal-list {
-  list-style: none;
-  margin: 0 0 0.75rem;
-  padding: 0.5rem;
-  max-height: 15rem;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.proposal-list__item {
-  margin: 0.25rem 0;
-}
-
-.proposal-list__item label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.5rem;
-  border-radius: calc(var(--radius) - 4px);
-  cursor: pointer;
-}
-
-.proposal-list__item label:hover {
-  background: var(--surface-muted);
-}
-
-.proposal-list__item .mono {
-  font-size: 0.8125rem;
-  color: var(--ink);
-}
-
-.proposal-card {
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-muted);
-}
-
-.proposal-card__target {
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.proposal-preview {
-  margin: 0.5rem 0 0;
-  padding: 0.5rem;
-  max-height: 10rem;
-  overflow: auto;
-  font-size: 0.75rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
-.proposal-previews {
-  margin-top: 1rem;
-}
-
-.preview-line--added {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, white);
-}
-
-.preview-line--removed {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, white);
-  text-decoration: line-through;
-}
-
 /* Responsive */
 
 @media (max-width: 760px) {
@@ -1376,11 +1235,6 @@ a.pr-link:focus-visible::after {
   .inbox-row__meta {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .coverage-controls {
-    flex-direction: column;
-    align-items: stretch;
   }
 
   .review-header {

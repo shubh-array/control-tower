@@ -18,7 +18,7 @@ describe("migration runner", () => {
   it("applies initial migration to empty database", () => {
     runMigrations(db);
     const version = getCurrentVersion(db);
-    expect(version).toBe(2);
+    expect(version).toBe(1);
   });
 
   it("creates expected tables", () => {
@@ -29,21 +29,27 @@ describe("migration runner", () => {
       )
       .all() as Array<{ name: string }>;
     const names = tables.map((t) => t.name);
-    expect(names).toContain("repositories");
-    expect(names).toContain("prs");
-    expect(names).toContain("pr_files");
-    expect(names).toContain("pr_checks");
-    expect(names).toContain("pr_reviews");
-    expect(names).toContain("pr_comments");
-    expect(names).toContain("review_requests");
-    expect(names).toContain("discovery_checkpoints");
-    expect(names).toContain("attention_items");
-    expect(names).toContain("jobs");
-    expect(names).toContain("runs");
-    expect(names).toContain("advisor_runs");
-    expect(names).toContain("audit_events");
-    expect(names).toContain("schema_migrations");
-    expect(names).not.toContain("pull_requests");
+    expect(names).toEqual([
+      "audit_events",
+      "discovery_checkpoints",
+      "jobs",
+      "pr_checks",
+      "pr_comments",
+      "prs",
+      "repositories",
+      "runs",
+      "schema_migrations",
+    ]);
+  });
+
+  it("prs includes policy snapshot columns", () => {
+    runMigrations(db);
+    const prColumns = (
+      db.prepare("PRAGMA table_info(prs)").all() as Array<{ name: string }>
+    ).map((column) => column.name);
+    expect(prColumns).toEqual(expect.arrayContaining([
+      "policy_json", "policy_hash", "explicit_request", "github_updated",
+    ]));
   });
 
   it("jobs and runs have CAS/orchestrator columns", () => {
@@ -74,21 +80,7 @@ describe("migration runner", () => {
   it("is idempotent", () => {
     runMigrations(db);
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(2);
-  });
-
-  it("adds projection columns in migration 002", () => {
-    runMigrations(db);
-    const attentionCols = (
-      db.prepare("PRAGMA table_info(attention_items)").all() as Array<{ name: string }>
-    ).map((c) => c.name);
-    expect(attentionCols).toContain("policy_json");
-    expect(attentionCols).toContain("policy_hash");
-
-    const prCols = (
-      db.prepare("PRAGMA table_info(prs)").all() as Array<{ name: string }>
-    ).map((c) => c.name);
-    expect(prCols).toContain("labels_json");
+    expect(getCurrentVersion(db)).toBe(1);
   });
 
   it("records migration in schema_migrations", () => {
@@ -96,20 +88,42 @@ describe("migration runner", () => {
     const rows = db
       .prepare("SELECT version, name FROM schema_migrations ORDER BY version")
       .all() as Array<{ version: number; name: string }>;
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(1);
     expect(rows[0]!.version).toBe(1);
     expect(rows[0]!.name).toBe("001_initial");
-    expect(rows[1]!.version).toBe(2);
-    expect(rows[1]!.name).toBe("002_projection_columns");
+  });
+
+  it("rejects a legacy database and instructs the operator to reset", () => {
+    db.exec("CREATE TABLE attention_items (id TEXT PRIMARY KEY)");
+    expect(() => runMigrations(db)).toThrow(
+      "Legacy Control Tower data detected; run `pnpm ct reset --all --yes`, then `pnpm ct init`",
+    );
+  });
+
+  it("rejects legacy data when no migrations are pending", () => {
+    db.exec(`
+      CREATE TABLE schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      )
+    `);
+    db.prepare(
+      "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+    ).run(1, "001_initial");
+    db.exec("CREATE TABLE attention_items (id TEXT PRIMARY KEY)");
+    expect(() => runMigrations(db)).toThrow(
+      "Legacy Control Tower data detected; run `pnpm ct reset --all --yes`, then `pnpm ct init`",
+    );
   });
 });
 
 describe("openDatabase", () => {
-  it("opens database, runs migrations, and reports version 2", () => {
+  it("opens database, runs migrations, and reports version 1", () => {
     const db = openDatabase(":memory:");
     try {
       runMigrations(db);
-      expect(getCurrentVersion(db)).toBe(2);
+      expect(getCurrentVersion(db)).toBe(1);
     } finally {
       db.close();
     }

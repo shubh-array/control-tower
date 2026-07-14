@@ -19,11 +19,6 @@
       "**/deploy.*.parameters.jsonc"
     ]
   },
-  "reviewDefaults": {
-    "jobTimeoutSeconds": 1200,
-    "retentionDays": 30,
-    "maxStorageBytes": 10737418240
-  },
   "repositories": [
     {
       "id": "pba-webapp",

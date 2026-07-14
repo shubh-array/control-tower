@@ -4,8 +4,8 @@ import { ROUTES } from "../../client/src/lib/routes.js";
 describe("client routes", () => {
   it("defines canonical primary pages", () => {
     expect(ROUTES.inbox).toBe("/inbox");
-    expect(ROUTES.coverage).toBe("/coverage");
-    expect(ROUTES.propose).toBe("/propose");
+    expect(ROUTES).not.toHaveProperty("coverage");
+    expect(ROUTES).not.toHaveProperty("propose");
   });
 
   it("builds encoded review deep links", () => {

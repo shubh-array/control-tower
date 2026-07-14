@@ -52,8 +52,25 @@ function makeDeps(overrides?: Partial<ResilientPollDeps>): ResilientPollDeps {
     ]),
     listRepoPrs: vi.fn().mockResolvedValue([]),
     upsertRepository: vi.fn(),
-    upsertPr: vi.fn().mockReturnValue(1),
-    evaluateAndEnqueue: vi.fn().mockReturnValue(undefined),
+    upsertEligiblePr: vi.fn().mockReturnValue(1),
+    retireReviewPr: vi.fn().mockResolvedValue(undefined),
+    listPersistedReviewPrs: vi.fn().mockReturnValue([]),
+    enqueueEligible: vi.fn(),
+    evaluatePolicy: vi.fn().mockReturnValue({
+      eligible: true,
+      eligibilityReasons: [],
+      exclusionReasons: [],
+      authorOnly: false,
+      priorityStatus: "p1" as const,
+      prioritySortOrdinal: 1,
+      priorityReasons: [],
+      allPriorityReasons: [],
+      selectedPriorityReason: null,
+      analysisMode: "auto" as const,
+      autoAnalyzeReasons: [],
+      selectedDomains: [],
+      allDomainReasons: [],
+    }),
     countKnownPrs: vi.fn().mockReturnValue(3),
     getFreshnessAt: vi.fn().mockReturnValue("2026-07-10T11:55:00.000Z"),
     setFreshnessAt: vi.fn(),
@@ -120,8 +137,8 @@ describe("ResilientPoller — network / gh throw", () => {
     expect(result.hostHealthy).toBe(true);
     expect(result.freshnessAt).toBe("2026-07-10T11:55:00.000Z");
     expect(deps.countKnownPrs).toHaveBeenCalled();
-    expect(deps.upsertPr).not.toHaveBeenCalled();
-    expect(deps.evaluateAndEnqueue).not.toHaveBeenCalled();
+    expect(deps.upsertEligiblePr).not.toHaveBeenCalled();
+    expect(deps.enqueueEligible).not.toHaveBeenCalled();
     expect(deps.setFreshnessAt).not.toHaveBeenCalled();
     expect(deps.scheduleNextPoll).toHaveBeenCalledOnce();
     const scheduledMs = (deps.scheduleNextPoll as ReturnType<typeof vi.fn>).mock
@@ -142,7 +159,7 @@ describe("ResilientPoller — network / gh throw", () => {
     expect(result.coverageComplete).toBe(false);
     expect(result.freshnessAt).toBe("2026-07-10T11:55:00.000Z");
     expect(result.knownPrCount).toBe(3);
-    expect(deps.evaluateAndEnqueue).not.toHaveBeenCalled();
+    expect(deps.enqueueEligible).not.toHaveBeenCalled();
     expect(deps.scheduleNextPoll).toHaveBeenCalledOnce();
   });
 });
@@ -177,7 +194,7 @@ describe("ResilientPoller — rate limit", () => {
     expect(result.reason).toMatch(/rate.?limit/i);
     expect(deps.searchReviewRequested).not.toHaveBeenCalled();
     expect(deps.listRepoPrs).not.toHaveBeenCalled();
-    expect(deps.evaluateAndEnqueue).not.toHaveBeenCalled();
+    expect(deps.enqueueEligible).not.toHaveBeenCalled();
     expect(deps.scheduleNextPoll).toHaveBeenCalledOnce();
     expect(rateLimits.isAvailable("search")).toBe(false);
     expect(rateLimits.resetTime("search")).toBeInstanceOf(Date);
@@ -205,7 +222,7 @@ describe("ResilientPoller — rate limit", () => {
     expect(result.coverageComplete).toBe(false);
     expect(result.freshnessAt).toBe("2026-07-10T11:55:00.000Z");
     expect(refresh).toHaveBeenCalled();
-    expect(deps.evaluateAndEnqueue).not.toHaveBeenCalled();
+    expect(deps.enqueueEligible).not.toHaveBeenCalled();
     expect(deps.scheduleNextPoll).toHaveBeenCalledOnce();
   });
 });
@@ -225,8 +242,8 @@ describe("ResilientPoller — operator identity mismatch", () => {
     expect(result.reason).toMatch(/mismatch|unhealthy/i);
     expect(deps.searchReviewRequested).not.toHaveBeenCalled();
     expect(deps.listRepoPrs).not.toHaveBeenCalled();
-    expect(deps.evaluateAndEnqueue).not.toHaveBeenCalled();
-    expect(deps.upsertPr).not.toHaveBeenCalled();
+    expect(deps.enqueueEligible).not.toHaveBeenCalled();
+    expect(deps.upsertEligiblePr).not.toHaveBeenCalled();
     expect(deps.setFreshnessAt).not.toHaveBeenCalled();
   });
 });
@@ -258,7 +275,7 @@ describe("ResilientPoller — success path", () => {
       ["Powered-By-Array"],
     );
     expect(deps.listRepoPrs).toHaveBeenCalledWith("Powered-By-Array/pba-webapp");
-    expect(deps.evaluateAndEnqueue).toHaveBeenCalled();
+    expect(deps.enqueueEligible).toHaveBeenCalled();
     expect(deps.setFreshnessAt).toHaveBeenCalledWith(
       "github.com",
       expect.any(String),
@@ -266,7 +283,7 @@ describe("ResilientPoller — success path", () => {
     expect(deps.scheduleNextPoll).not.toHaveBeenCalled();
   });
 
-  it("forwards evaluatePolicy + persistDecision into DiscoveryPoller", async () => {
+  it("forwards evaluatePolicy into DiscoveryPoller and enqueues eligible PRs once", async () => {
     const decision = {
       eligible: true,
       eligibilityReasons: [],
@@ -283,17 +300,40 @@ describe("ResilientPoller — success path", () => {
       allDomainReasons: [],
     };
     const evaluatePolicy = vi.fn().mockReturnValue(decision);
-    const persistDecision = vi.fn();
-    const deps = makeDeps({ evaluatePolicy, persistDecision });
+    const enqueueEligible = vi.fn();
+    const deps = makeDeps({ evaluatePolicy, enqueueEligible });
     const poller = new ResilientPoller(deps);
 
     await poller.poll();
 
-    expect(evaluatePolicy).toHaveBeenCalled();
-    expect(persistDecision).toHaveBeenCalledWith(
+    expect(evaluatePolicy).toHaveBeenCalledOnce();
+    expect(enqueueEligible).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ prNumber: 101 }),
       decision,
     );
+  });
+
+  it("does not reconcile persisted cache rows when discovery throws", async () => {
+    const listPersistedReviewPrs = vi.fn().mockReturnValue([
+      {
+        repositoryId: "pba-webapp",
+        github: "Powered-By-Array/pba-webapp",
+        prNumber: 99,
+      },
+    ]);
+    const deps = makeDeps({
+      searchReviewRequested: vi
+        .fn()
+        .mockRejectedValue(new Error("ENOTFOUND api.github.com")),
+      listPersistedReviewPrs,
+    });
+    const poller = new ResilientPoller(deps);
+
+    const result = await poller.poll();
+
+    expect(result.coverageComplete).toBe(false);
+    expect(listPersistedReviewPrs).not.toHaveBeenCalled();
+    expect(deps.setFreshnessAt).not.toHaveBeenCalled();
   });
 });

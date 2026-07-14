@@ -45,28 +45,3 @@ export async function invalidateAfterPublish(
     queryClient.invalidateQueries({ queryKey: queryKeys.draft(jobId) }),
   ]);
 }
-
-export async function invalidateAfterStartProposal(
-  queryClient: InvalidatableQueryClient,
-  signalLimit: number,
-): Promise<void> {
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.signals(signalLimit),
-  });
-}
-
-export async function invalidateAfterValidateProposal(
-  _queryClient: InvalidatableQueryClient,
-): Promise<void> {
-  return;
-}
-
-export async function invalidateAfterAdoptProposal(
-  queryClient: InvalidatableQueryClient,
-  signalLimit: number,
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.signals(signalLimit) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.queue }),
-  ]);
-}

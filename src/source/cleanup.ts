@@ -1,17 +1,6 @@
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 
-export interface CleanupConfig {
-  dataDirectory: string;
-  maxMaterialized: number;
-  maxStorageBytes: number;
-}
-
-export interface CleanupResult {
-  removedPairs: string[];
-  removedMirrors: string[];
-}
-
 export async function removeRunSourcePair(
   dataDirectory: string,
   jobId: string,
@@ -31,26 +20,4 @@ export async function removeRunSourcePair(
   } catch {
     // directory already gone
   }
-}
-
-export async function cleanupAbandonedPairs(
-  dataDirectory: string,
-  activeJobIds: Set<string>,
-): Promise<CleanupResult> {
-  const result: CleanupResult = { removedPairs: [], removedMirrors: [] };
-  const worktreesDir = join(dataDirectory, 'worktrees');
-
-  try {
-    const entries = await fs.readdir(worktreesDir);
-    for (const entry of entries) {
-      if (!activeJobIds.has(entry)) {
-        await fs.rm(join(worktreesDir, entry), { recursive: true, force: true });
-        result.removedPairs.push(entry);
-      }
-    }
-  } catch {
-    // worktrees directory may not exist yet
-  }
-
-  return result;
 }

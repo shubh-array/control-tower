@@ -5,8 +5,10 @@ describe("shouldServeSpaFallback", () => {
   it("allows client routes such as review deep links", () => {
     expect(shouldServeSpaFallback("/review/job-123")).toBe(true);
     expect(shouldServeSpaFallback("/inbox")).toBe(true);
-    expect(shouldServeSpaFallback("/coverage")).toBe(true);
-    expect(shouldServeSpaFallback("/propose")).toBe(true);
+  });
+
+  it("rejects removed client routes", () => {
+    expect(shouldServeSpaFallback("/propose")).toBe(false);
   });
 
   it("rejects API paths", () => {

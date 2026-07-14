@@ -154,7 +154,7 @@ describe("checkModelAvailability", () => {
 
   it("fails when a role model is missing", () => {
     const agentModels = ["composer-2.5", "gpt-5.4-high-1m"];
-    const roleModels = { primaryReview: "composer-2.5-fast", attention: "composer-2.5" };
+    const roleModels = { primaryReview: "composer-2.5-fast", concurrencyReview: "composer-2.5" };
     const r = checkModelAvailability(agentModels, roleModels);
     expect(r.ok).toBe(false);
     expect(r.message).toContain("composer-2.5-fast");
@@ -162,7 +162,7 @@ describe("checkModelAvailability", () => {
 
   it("deduplicates smoke checks for same model across roles", () => {
     const agentModels = ["composer-2.5-fast"];
-    const roleModels = { primaryReview: "composer-2.5-fast", attention: "composer-2.5-fast" };
+    const roleModels = { primaryReview: "composer-2.5-fast", concurrencyReview: "composer-2.5-fast" };
     const r = checkModelAvailability(agentModels, roleModels);
     expect(r.ok).toBe(true);
     expect(r.smokeModels).toHaveLength(1);

@@ -6,11 +6,7 @@ import { openDatabase } from '../../src/store/db.js';
 import { runMigrations } from '../../src/store/migrate.js';
 import {
   upsertRepository,
-  upsertPr,
-  upsertPrFiles,
-  upsertPrChecks,
-  upsertReviewRequests,
-  upsertAttentionItem,
+  upsertEligiblePr,
 } from '../../src/normalize/upsert.js';
 import type { PolicyDecision } from '../../src/policy/evaluate.js';
 import type { DiscoveredPr } from '../../src/github/types.js';
@@ -63,7 +59,7 @@ function makeDiscoveredPr(overrides: Partial<DiscoveredPr> = {}): DiscoveredPr {
   };
 }
 
-function seedTrackedItem(
+function seedEligiblePr(
   db: Database.Database,
   prNumber: number,
   policy: PolicyDecision,
@@ -78,11 +74,7 @@ function seedTrackedItem(
   });
 
   const pr = makeDiscoveredPr({ prNumber, ...prOverrides });
-  const prId = upsertPr(db, pr);
-  upsertPrFiles(db, prId, pr.changedFiles, pr.unsafeFiles);
-  upsertPrChecks(db, prId, pr.checks);
-  upsertReviewRequests(db, prId, pr.reviewRequests);
-  upsertAttentionItem(db, prId, pr, policy, 'pba-webapp', 'registered-source');
+  upsertEligiblePr(db, pr, policy);
 }
 
 describe('WorkGraph (real DB)', () => {
@@ -97,61 +89,38 @@ describe('WorkGraph (real DB)', () => {
     db.close();
   });
 
-  describe('getAllTracked', () => {
-    it('returns all PRs including ineligible ones', () => {
-      seedTrackedItem(db, 1, stubPolicy({ eligible: true }));
-      seedTrackedItem(
-        db,
-        2,
-        stubPolicy({
-          eligible: false,
-          prioritySortOrdinal: 4,
-          priorityStatus: 'unranked',
-        }),
-      );
-
-      const graph = new WorkGraph(db);
-      const tracked = graph.getAllTracked();
-
-      expect(tracked).toHaveLength(2);
-      expect(tracked.find((t) => t.prNumber === 2)).toBeDefined();
-      expect(tracked.find((t) => t.prNumber === 2)!.policy.eligible).toBe(false);
-    });
-
-    it('projects real schema columns to AllTrackedItem fields', () => {
-      seedTrackedItem(
-        db,
-        1,
-        stubPolicy(),
-        {
-          headSha: 'c'.repeat(40),
-          labels: ['enhancement'],
-          body: 'x'.repeat(9000),
-          reviewRequests: [],
-        },
-      );
-
-      const item = new WorkGraph(db).getAllTracked()[0]!;
-
-      expect(item.headSha).toBe('c'.repeat(40));
-      expect(item.author).toBe('dev');
-      expect(item.labels).toEqual(['enhancement']);
-      expect(item.reviewRequested).toBe(false);
-      expect(item.changedFiles).toEqual(['src/index.ts']);
-      expect(item.checkSummary).toEqual([
-        { name: 'ci', status: 'COMPLETED', conclusion: 'SUCCESS' },
-      ]);
-      expect(item.updatedAt).toBe('2026-07-10T00:00:00.000Z');
-      expect(item.sourceMode).toBe('registered-source');
-      expect(item.bodyTruncated.length).toBeLessThanOrEqual(8 * 1024);
-      expect(Buffer.byteLength(item.bodyTruncated, 'utf-8')).toBeLessThanOrEqual(8 * 1024);
-    });
+  it('does not expose getAllTracked', () => {
+    const graph = new WorkGraph(db);
+    expect(graph).not.toHaveProperty('getAllTracked');
   });
 
   describe('getFocusQueue', () => {
+    it('reads eligible prs directly and projects ReviewQueueItem fields', () => {
+      seedEligiblePr(
+        db,
+        1,
+        stubPolicy({ prioritySortOrdinal: 1, priorityStatus: 'p1' }),
+        {
+          headSha: 'c'.repeat(40),
+          title: 'Eligible PR',
+          url: 'https://github.com/Org/pba-webapp/pull/1',
+        },
+      );
+
+      const queue = new WorkGraph(db).getFocusQueue();
+      const item = queue.now[0]!;
+
+      expect(item.headSha).toBe('c'.repeat(40));
+      expect(item.author).toBe('dev');
+      expect(item.title).toBe('Eligible PR');
+      expect(item.url).toBe('https://github.com/Org/pba-webapp/pull/1');
+      expect(item.updatedAt).toBe('2026-07-10T00:00:00.000Z');
+      expect(item.policy.priorityStatus).toBe('p1');
+    });
+
     it('excludes unranked items (prioritySortOrdinal >= 4)', () => {
-      seedTrackedItem(db, 1, stubPolicy({ prioritySortOrdinal: 1, priorityStatus: 'p1' }));
-      seedTrackedItem(
+      seedEligiblePr(db, 1, stubPolicy({ prioritySortOrdinal: 1, priorityStatus: 'p1' }));
+      seedEligiblePr(
         db,
         2,
         stubPolicy({ prioritySortOrdinal: 4, priorityStatus: 'unranked' }),
@@ -165,9 +134,9 @@ describe('WorkGraph (real DB)', () => {
     });
 
     it('places p0/p1 in now, p2 in next, p3 in monitor', () => {
-      seedTrackedItem(db, 10, stubPolicy({ prioritySortOrdinal: 0, priorityStatus: 'p0' }));
-      seedTrackedItem(db, 20, stubPolicy({ prioritySortOrdinal: 2, priorityStatus: 'p2' }));
-      seedTrackedItem(db, 30, stubPolicy({ prioritySortOrdinal: 3, priorityStatus: 'p3' }));
+      seedEligiblePr(db, 10, stubPolicy({ prioritySortOrdinal: 0, priorityStatus: 'p0' }));
+      seedEligiblePr(db, 20, stubPolicy({ prioritySortOrdinal: 2, priorityStatus: 'p2' }));
+      seedEligiblePr(db, 30, stubPolicy({ prioritySortOrdinal: 3, priorityStatus: 'p3' }));
 
       const queue = new WorkGraph(db).getFocusQueue();
 

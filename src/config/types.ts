@@ -8,11 +8,6 @@ export interface OrganizationConfig {
   security: {
     protectedPaths: string[];
   };
-  reviewDefaults: {
-    jobTimeoutSeconds: number;
-    retentionDays: number;
-    maxStorageBytes: number;
-  };
   repositories: Array<{
     id: string;
     github: string;

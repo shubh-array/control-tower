@@ -79,10 +79,7 @@ function queueItem(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
       prNumber: 42,
     },
     domains: [],
-    attentionState: "ready_for_analysis",
     jobState: "draft_ready",
-    advisorResult: null,
-    discoveredAt: "2026-07-13T09:00:00.000Z",
     updatedAt: "2026-07-13T10:00:00.000Z",
     ...overrides,
   };

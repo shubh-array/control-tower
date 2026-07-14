@@ -6,6 +6,8 @@ import type Database from "better-sqlite3";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, "migrations");
 
+const LEGACY_TABLES = ["attention_items", "advisor_runs", "learning_signals"];
+
 interface MigrationFile {
   version: number;
   name: string;
@@ -44,17 +46,32 @@ export function getCurrentVersion(db: Database.Database): number {
   return row.v ?? 0;
 }
 
+export function assertReviewCoreSchema(db: Database.Database): void {
+  const legacy = db.prepare(
+    `SELECT name FROM sqlite_master
+     WHERE type = 'table' AND name IN (${LEGACY_TABLES.map(() => "?").join(",")})`,
+  ).all(...LEGACY_TABLES) as Array<{ name: string }>;
+
+  if (legacy.length > 0) {
+    throw new Error(
+      "Legacy Control Tower data detected; run `pnpm ct reset --all --yes`, then `pnpm ct init` before starting this version.",
+    );
+  }
+}
+
 export function runMigrations(db: Database.Database): void {
   const migrations = loadMigrationFiles();
   const current = getCurrentVersion(db);
 
   const pending = migrations.filter((m) => m.version > current);
-  if (pending.length === 0) return;
-
-  for (const migration of pending) {
-    db.exec(migration.sql);
-    db.prepare(
-      "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
-    ).run(migration.version, migration.name);
+  if (pending.length > 0) {
+    for (const migration of pending) {
+      db.exec(migration.sql);
+      db.prepare(
+        "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+      ).run(migration.version, migration.name);
+    }
   }
+
+  assertReviewCoreSchema(db);
 }

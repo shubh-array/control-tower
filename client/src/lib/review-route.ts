@@ -29,13 +29,11 @@ export function collectQueueRows(queue: {
     next: FocusQueueRow[];
     monitor: FocusQueueRow[];
   };
-  allTracked: FocusQueueRow[];
 }): FocusQueueRow[] {
   return [
     ...queue.focusQueue.now,
     ...queue.focusQueue.next,
     ...queue.focusQueue.monitor,
-    ...queue.allTracked,
   ];
 }
 

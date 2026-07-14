@@ -6,7 +6,6 @@ import {
 
 function makeReviewInput(): ManifestBuildInput {
   return {
-    role: 'primaryReview',
     safetyContract: { content: 'safety rules', hash: 'safety-hash', bytes: 12 },
     outputContract: { content: 'output schema', hash: 'output-hash', bytes: 13 },
     policySnapshot: { content: '{}', hash: 'policy-hash', bytes: 2 },
@@ -27,27 +26,8 @@ function makeReviewInput(): ManifestBuildInput {
   };
 }
 
-function makeAttentionInput(): ManifestBuildInput {
-  return {
-    role: 'attention',
-    safetyContract: { content: 'safety rules', hash: 'safety-hash', bytes: 12 },
-    outputContract: { content: 'output schema', hash: 'output-hash', bytes: 13 },
-    policySnapshot: { content: '{}', hash: 'policy-hash', bytes: 2 },
-    orgFeaturePrompt: { content: 'org prompt', hash: 'org-prompt-hash', bytes: 10 },
-    orgFeatureSkill: null,
-    orgDomainGuidance: [],
-    repositoryGuidance: null,
-    engineerFeaturePrompt: { content: 'eng prompt', hash: 'eng-prompt-hash', bytes: 10 },
-    engineerFeatureSkill: null,
-    engineerDomainGuidance: [],
-    persona: { content: 'persona', hash: 'persona-hash', bytes: 7 },
-    prInputs: [{ logicalPath: 'candidates.json', hash: 'cand-hash', bytes: 500 }],
-    provenanceCatalog: null,
-  };
-}
-
 describe('buildHarnessManifest', () => {
-  it('assigns nine layers with correct ordinals for primaryReview', () => {
+  it('assigns nine layers with correct ordinals for primary review', () => {
     const manifest = buildHarnessManifest(makeReviewInput());
     const layers = new Set(manifest.entries.map(e => e.layerOrdinal));
     expect(layers).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]));
@@ -69,23 +49,13 @@ describe('buildHarnessManifest', () => {
     expect(layer2[0]!.logicalPath).toBe('policy.snapshot.json');
   });
 
-  it('CRITICAL: layers 4, 5, and 7 are empty for attention role', () => {
-    const manifest = buildHarnessManifest(makeAttentionInput());
-    const layer4 = manifest.entries.filter(e => e.layerOrdinal === 4);
-    const layer5 = manifest.entries.filter(e => e.layerOrdinal === 5);
-    const layer7 = manifest.entries.filter(e => e.layerOrdinal === 7);
-    expect(layer4).toHaveLength(0);
-    expect(layer5).toHaveLength(0);
-    expect(layer7).toHaveLength(0);
+  it('uses pr-review feature paths throughout', () => {
+    const manifest = buildHarnessManifest(makeReviewInput());
+    expect(manifest.entries.every((entry) => entry.feature === 'pr-review')).toBe(true);
+    expect(manifest.entries.some((entry) => entry.logicalPath.includes('pr-review'))).toBe(true);
   });
 
-  it('attention manifest has no provenance catalog in layer 9', () => {
-    const manifest = buildHarnessManifest(makeAttentionInput());
-    const layer9 = manifest.entries.filter(e => e.layerOrdinal === 9);
-    expect(layer9.every(e => !e.logicalPath.includes('provenance'))).toBe(true);
-  });
-
-  it('primaryReview layer 9 ends with provenance catalog', () => {
+  it('primary review layer 9 ends with provenance catalog', () => {
     const manifest = buildHarnessManifest(makeReviewInput());
     const layer9 = manifest.entries.filter(e => e.layerOrdinal === 9);
     const last = layer9[layer9.length - 1]!;

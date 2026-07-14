@@ -8,6 +8,7 @@ export interface EnqueueInput {
   policy: PolicyDecision;
   normalizedRepositoryIdentity: string;
   explicitRequest: boolean;
+  manualRequest: boolean;
 }
 
 export interface EnqueueResult {
@@ -49,6 +50,7 @@ export function enqueueFromPolicyDecision(
   }
 
   const shouldEnqueue =
+    input.manualRequest ||
     input.policy.analysisMode === 'auto' ||
     (input.policy.analysisMode === 'on_demand' && input.explicitRequest);
 
@@ -56,14 +58,15 @@ export function enqueueFromPolicyDecision(
     return { enqueued: false, reason: 'on_demand_no_request' };
   }
 
+  const policyHash = deps.computePolicyHash(input.policy);
+
   const identityHash = deps.computeIdentityHash({
     repositoryKey: input.repositoryKey,
     prNumber: input.prNumber,
     headSha: input.headSha,
     sourceMode: input.sourceMode,
+    policyDecisionHash: policyHash,
   });
-
-  const policyHash = deps.computePolicyHash(input.policy);
 
   const existing = deps.findActiveJobByIdentity(identityHash);
   let supersedeReason: string | null = null;
@@ -91,7 +94,11 @@ export function enqueueFromPolicyDecision(
   }
 
   const reason = supersedeReason
-    ?? (input.explicitRequest ? 'explicit_request' : 'auto_enqueue');
+    ?? (input.manualRequest
+      ? 'manual_request'
+      : input.explicitRequest
+        ? 'explicit_request'
+        : 'auto_enqueue');
 
   const jobId = deps.insertJob({
     repositoryKey: input.repositoryKey,

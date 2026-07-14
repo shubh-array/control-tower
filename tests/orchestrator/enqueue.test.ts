@@ -26,7 +26,7 @@ function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
   };
 }
 
-function makeDeps(existingJob?: { id: string; headSha: string; policyHash: string; sourceMode: string; state: string; repositoryKey?: string; prNumber?: number }): EnqueueDeps {
+function makeDeps(existingJob?: { id: string; headSha: string; policyHash: string; sourceMode: string; state: string; repositoryKey?: string; prNumber?: number; identityHash?: string }): EnqueueDeps {
   const jobs = new Map<string, Record<string, unknown>>();
   if (existingJob) {
     jobs.set(existingJob.id, {
@@ -38,13 +38,17 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
       version: 1,
       repository_key: existingJob.repositoryKey ?? 'pba-webapp',
       pr_number: existingJob.prNumber ?? 42,
+      identity_hash: existingJob.identityHash ?? `hash-${existingJob.repositoryKey ?? 'pba-webapp'}-42-${existingJob.headSha}-${existingJob.policyHash}`,
     });
   }
   let nextId = 100;
   return {
-    findActiveJobByIdentity(_identityHash: string) {
+    findActiveJobByIdentity(identityHash: string) {
       for (const [, job] of jobs) {
-        if (!['published', 'cancelled', 'superseded', 'failed'].includes(job.state as string)) {
+        if (
+          job.identity_hash === identityHash &&
+          !['published', 'cancelled', 'superseded'].includes(job.state as string)
+        ) {
           return job as { id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number };
         }
       }
@@ -56,7 +60,7 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
         if (
           job.repository_key === repositoryKey &&
           job.pr_number === prNumber &&
-          !['superseded', 'cancelled', 'published'].includes(job.state as string)
+          !['superseded', 'cancelled', 'published', 'failed'].includes(job.state as string)
         ) {
           matches.push(job as { id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number });
         }
@@ -65,7 +69,13 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
     },
     insertJob(row: Record<string, unknown>) {
       const id = `job-${nextId++}`;
-      jobs.set(id, { ...row, id, repository_key: row.repositoryKey, pr_number: row.prNumber });
+      jobs.set(id, {
+        ...row,
+        id,
+        repository_key: row.repositoryKey,
+        pr_number: row.prNumber,
+        identity_hash: row.identityHash,
+      });
       return id;
     },
     supersede(jobId: string, _version: number) {
@@ -73,7 +83,7 @@ function makeDeps(existingJob?: { id: string; headSha: string; policyHash: strin
       if (j) j.state = 'superseded';
     },
     computeIdentityHash(input: Record<string, unknown>) {
-      return `hash-${input.repositoryKey}-${input.prNumber}-${input.headSha}`;
+      return `hash-${input.repositoryKey}-${input.prNumber}-${input.headSha}-${input.policyDecisionHash}`;
     },
     computePolicyHash(decision: PolicyDecision) {
       return `policy-${decision.priorityStatus}-${decision.analysisMode}`;
@@ -90,6 +100,7 @@ function makeInput(overrides: Partial<EnqueueInput> = {}): EnqueueInput {
     policy: stubPolicy(),
     normalizedRepositoryIdentity: 'github:github.com/org/pba-webapp',
     explicitRequest: false,
+    manualRequest: false,
     ...overrides,
   };
 }
@@ -127,6 +138,19 @@ describe('enqueueFromPolicyDecision', () => {
 
     expect(result.enqueued).toBe(true);
     expect(result.reason).toBe('explicit_request');
+  });
+
+  it('enqueues on_demand author-only when manualRequest is true', () => {
+    const deps = makeDeps();
+    const input = makeInput({
+      policy: stubPolicy({ analysisMode: 'on_demand', authorOnly: true }),
+      explicitRequest: false,
+      manualRequest: true,
+    });
+    const result = enqueueFromPolicyDecision(deps, input);
+
+    expect(result.enqueued).toBe(true);
+    expect(result.reason).toBe('manual_request');
   });
 
   it('does not enqueue ineligible PRs', () => {
@@ -176,8 +200,8 @@ describe('enqueueFromPolicyDecision', () => {
     const result = enqueueFromPolicyDecision(deps, input);
 
     expect(result.enqueued).toBe(true);
-    expect(result.superseded).toBe('job-old');
-    expect(result.reason).toBe('supersede_head_sha');
+    expect(result.jobId).not.toBe('job-old');
+    expect(result.reason).toBe('auto_enqueue');
   });
 
   it('supersedes existing job when policy_hash changes', () => {
@@ -194,8 +218,8 @@ describe('enqueueFromPolicyDecision', () => {
     const result = enqueueFromPolicyDecision(deps, input);
 
     expect(result.enqueued).toBe(true);
-    expect(result.superseded).toBe('job-old');
-    expect(result.reason).toBe('supersede_policy_hash');
+    expect(result.jobId).not.toBe('job-old');
+    expect(result.reason).toBe('auto_enqueue');
   });
 
   it('supersedes existing job when sourceMode changes', () => {
@@ -217,15 +241,36 @@ describe('enqueueFromPolicyDecision', () => {
     expect(result.reason).toBe('supersede_source_mode');
   });
 
+  it('reuses failed job identity without inserting duplicate', () => {
+    const policy = stubPolicy({ analysisMode: 'auto' });
+    const policyHash = 'policy-p1-auto';
+    const deps = makeDeps({
+      id: 'job-failed',
+      headSha: 'a'.repeat(40),
+      policyHash,
+      sourceMode: 'registered-source',
+      state: 'failed',
+      identityHash: `hash-pba-webapp-42-${'a'.repeat(40)}-${policyHash}`,
+    });
+    const result = enqueueFromPolicyDecision(deps, makeInput({ policy }));
+
+    expect(result.enqueued).toBe(false);
+    expect(result.reason).toBe('existing_job_current');
+    expect(result.jobId).toBe('job-failed');
+  });
+
   it('reuses existing job when nothing changed', () => {
+    const policy = stubPolicy({ analysisMode: 'auto' });
+    const policyHash = 'policy-p1-auto';
     const deps = makeDeps({
       id: 'job-old',
       headSha: 'a'.repeat(40),
-      policyHash: 'policy-p1-auto',
+      policyHash,
       sourceMode: 'registered-source',
       state: 'queued',
+      identityHash: `hash-pba-webapp-42-${'a'.repeat(40)}-${policyHash}`,
     });
-    const input = makeInput({ policy: stubPolicy({ analysisMode: 'auto' }) });
+    const input = makeInput({ policy });
     const result = enqueueFromPolicyDecision(deps, input);
 
     expect(result.enqueued).toBe(false);
@@ -259,7 +304,7 @@ describe('PR-scoped supersede', () => {
           if (
             job.repository_key === repositoryKey &&
             job.pr_number === prNumber &&
-            !['superseded', 'cancelled', 'published'].includes(job.state as string)
+            !['superseded', 'cancelled', 'published', 'failed'].includes(job.state as string)
           ) {
             matches.push(job as { id: string; head_sha: string; policy_hash: string; source_mode: string; state: string; version: number });
           }
@@ -276,7 +321,7 @@ describe('PR-scoped supersede', () => {
         if (j) j.state = 'superseded';
       },
       computeIdentityHash(input: Record<string, unknown>) {
-        return `hash-${input.repositoryKey}-${input.prNumber}-${input.headSha}`;
+        return `hash-${input.repositoryKey}-${input.prNumber}-${input.headSha}-${input.policyDecisionHash}`;
       },
       computePolicyHash(decision: PolicyDecision) {
         return `policy-${decision.priorityStatus}-${decision.analysisMode}`;

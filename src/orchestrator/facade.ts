@@ -1,4 +1,4 @@
-import type { AllTrackedItem } from '../policy/evaluate.js';
+import type { ReviewQueueItem } from '../policy/evaluate.js';
 import type { DraftDetail, JobDetail } from '../api/contracts.js';
 
 export type { JobDetail, DraftDetail };
@@ -18,8 +18,7 @@ export interface AuditEvent {
 }
 
 export interface OrchestratorFacade {
-  getAllTracked(): AllTrackedItem[];
-  getFocusQueue(): { now: AllTrackedItem[]; next: AllTrackedItem[]; monitor: AllTrackedItem[] };
+  getFocusQueue(): { now: ReviewQueueItem[]; next: ReviewQueueItem[]; monitor: ReviewQueueItem[] };
   getJob(id: string): JobDetail | null;
   getDraft(jobId: string): DraftDetail | null;
   getHealthStatus(): HealthStatus;
@@ -27,21 +26,18 @@ export interface OrchestratorFacade {
   requestAnalyze(input: {
     repositoryKey: string;
     prNumber: number;
-    sourceMode?: 'registered-source' | 'remote-evidence-only';
   }): string;
   requestRetry(jobId: string): string;
 }
 
 export interface FacadeDeps {
-  getAllTracked(): AllTrackedItem[];
-  getFocusQueue(): { now: AllTrackedItem[]; next: AllTrackedItem[]; monitor: AllTrackedItem[] };
+  getFocusQueue(): { now: ReviewQueueItem[]; next: ReviewQueueItem[]; monitor: ReviewQueueItem[] };
   getJob(id: string): JobDetail | null;
   getDraft(jobId: string): DraftDetail | null;
   getAuditTrail(jobId: string): AuditEvent[];
   enqueueAnalysis(input: {
     repositoryKey: string;
     prNumber: number;
-    sourceMode?: string;
   }): string;
   enqueueRetry(jobId: string): string;
   getHealthStatus(): HealthStatus;
@@ -50,10 +46,6 @@ export interface FacadeDeps {
 
 export function createOrchestratorFacade(deps: FacadeDeps): OrchestratorFacade {
   return {
-    getAllTracked(): AllTrackedItem[] {
-      return deps.getAllTracked();
-    },
-
     getFocusQueue() {
       return deps.getFocusQueue();
     },
@@ -78,7 +70,6 @@ export function createOrchestratorFacade(deps: FacadeDeps): OrchestratorFacade {
       return deps.enqueueAnalysis({
         repositoryKey: input.repositoryKey,
         prNumber: input.prNumber,
-        sourceMode: input.sourceMode,
       });
     },
 

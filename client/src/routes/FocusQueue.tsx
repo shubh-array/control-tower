@@ -131,7 +131,7 @@ function InboxList({
       return (
         <EmptyState
           title="Inbox is clear"
-          body="No pull requests need attention right now."
+          body="No pull requests need review right now."
         />
       );
     }
@@ -338,7 +338,7 @@ export function FocusQueue({
     >
       <PageHeader
         title="Inbox"
-        subtitle={`${actionableCount} items need attention · ordered by priority and queue tuple`}
+        subtitle={`${actionableCount} items ready for review · ordered by priority and queue tuple`}
       />
       <label className="lane-toggle">
         <input
@@ -353,7 +353,7 @@ export function FocusQueue({
         <div className="inbox-lanes">
           <InboxLaneSection
             title="Now"
-            description="Needs attention now"
+            description="Ready for review now"
             count={groupedItems.now.length}
           >
             <InboxList

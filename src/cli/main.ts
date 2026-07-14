@@ -25,11 +25,6 @@ const program = new Command();
 function buildHarnessManifests() {
   return [
     {
-      id: "pr-attention",
-      prompt: join(appRoot, "config/harnesses/pr-attention/prompt.md"),
-      skills: [join(appRoot, "config/harnesses/pr-attention/skills/pr-attention/SKILL.md")],
-    },
-    {
       id: "pr-review",
       prompt: join(appRoot, "config/harnesses/pr-review/prompt.md"),
       skills: [join(appRoot, "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],

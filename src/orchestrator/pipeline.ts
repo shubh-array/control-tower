@@ -1,7 +1,4 @@
 import { classifySourceFailure } from '../source/errors.js';
-import type { SignalHooks } from '../learning/signal-hooks.js';
-import type { PipelineTimingMetrics } from '../learning/pipeline-signals.js';
-import { mapFailureReason, mapRecommendedDisposition } from '../learning/pipeline-signals.js';
 
 export interface PipelineJob {
   id: string;
@@ -21,8 +18,6 @@ export interface PipelineResult {
   failureReason?: string;
   /** Set on success from agent recommendedDisposition */
   recommendedDisposition?: string;
-  /** Timing captured during pipeline execution */
-  timing?: PipelineTimingMetrics;
   runId: string;
   sealed: boolean;
   latestRunId: string;
@@ -68,17 +63,8 @@ export interface PipelineDeps {
   cleanupSource(runId: string): void;
   getJobState(jobId: string): { state: string; version: number };
   getRunState(runId: string): { state: string; version: number };
-  signalHooks?: SignalHooks;
-  getTimingMetrics?: () => PipelineTimingMetrics;
   transitions: Array<{ jobId: string; from: string; to: string }>;
   runTransitions: Array<{ runId: string; from: string; to: string }>;
-}
-
-function recordPipelineFailure(
-  deps: PipelineDeps,
-  failureReason: string,
-): void {
-  deps.signalHooks?.onPipelineFailure(mapFailureReason(failureReason));
 }
 
 function extractRecommendedDisposition(rawOutput: string): string | undefined {
@@ -116,7 +102,6 @@ export async function executePipeline(
     deps.transitionRun(runId, 'allocated', 'running');
   } catch {
     deps.transitionJob(job.id, 'queued', 'failed');
-    recordPipelineFailure(deps, 'allocation_failed');
     return failResult(runId, 'allocation_failed');
   }
 
@@ -125,7 +110,6 @@ export async function executePipeline(
     context = await Promise.resolve(deps.prepareContext(job.id, runId));
   } catch {
     deps.transitionJob(job.id, 'preparing_context', 'failed');
-    recordPipelineFailure(deps, 'materialize_failed');
     try { await deps.sealRun(runId, ''); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
     return failResult(runId, 'materialize_failed');
@@ -143,7 +127,6 @@ export async function executePipeline(
       } catch {
         deps.transitionJob(job.id, 'preparing_context', 'failed');
       }
-      recordPipelineFailure(deps, failureReason);
       try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
       try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
       return failResult(runId, failureReason);
@@ -158,7 +141,6 @@ export async function executePipeline(
   } catch {
     deps.transitionRun(runId, 'running', 'failed');
     deps.transitionJob(job.id, 'running_agent', 'failed');
-    recordPipelineFailure(deps, 'agent_failed');
     try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
     return failResult(runId, 'agent_failed');
@@ -171,7 +153,6 @@ export async function executePipeline(
   if (!validation.valid) {
     deps.transitionRun(runId, 'validating', 'failed');
     deps.transitionJob(job.id, 'validating_output', 'failed');
-    recordPipelineFailure(deps, 'agent_failed');
     try { await deps.sealRun(runId, context.runDir); } catch { /* best-effort seal */ }
     try { deps.cleanupSource(runId); } catch { /* best-effort cleanup */ }
     return failResult(runId, 'agent_failed');
@@ -186,27 +167,12 @@ export async function executePipeline(
 
   deps.cleanupSource(runId);
 
-  const timing = deps.getTimingMetrics?.();
   const recommendedDisposition = extractRecommendedDisposition(agentResult.rawOutput);
-  if (deps.signalHooks && timing) {
-    deps.signalHooks.onPipelineSeal({
-      queueWaitMs: timing.queueWaitMs,
-      contextPrepMs: timing.contextPrepMs,
-      agentDurationMs: timing.agentDurationMs,
-      humanVerificationMs: null,
-      publicationMs: null,
-      cursorUsage: timing.cursorUsage,
-    });
-    deps.signalHooks.onDisposition(
-      mapRecommendedDisposition(recommendedDisposition ?? 'needs_human'),
-    );
-  }
 
   return {
     success: true,
     finalState: 'draft_ready',
     recommendedDisposition,
-    timing,
     runId,
     sealed,
     latestRunId: pointers.latestRunId,

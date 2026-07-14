@@ -161,3 +161,12 @@ The original `makeDeps` helper in `tests/orchestrator/enqueue.test.ts` still exc
 Agent times out; job → `failed`. Head unchanged.  
 **Today:** discovery skips enqueue (`existing_job_current`).  
 **Expected:** new attempt scheduled, or failed job superseded and re-queued.
+
+---
+
+## Phase 2C — Delivery Intelligence boundary
+
+Delivery Intelligence will be a separately scoped, read-only workflow. It may
+collect GitHub/Linear observations and retain its own time-aware linkage ledger.
+It must not reuse the review queue or cause non-reviewable PRs to be persisted
+by the review-core database.

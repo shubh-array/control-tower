@@ -44,25 +44,22 @@ export interface ResilientPollDeps {
     defaultBranch?: string;
     resourceClass?: string;
   }) => void;
-  upsertPr: (
-    raw: unknown,
+  upsertEligiblePr: (pr: DiscoveredPr, decision: PolicyDecision) => number;
+  retireReviewPr: (
     repositoryId: string,
-    explicitRequest: boolean,
-  ) => number;
-  /** Plan 03 enqueue boundary — must NOT be called on failure / identity mismatch. */
-  evaluateAndEnqueue: (
-    prId: number,
-    raw: unknown,
-    explicitRequest: boolean,
-  ) => void;
-  /** Real policy evaluator; required for attention persistence / WorkGraph projection. */
-  evaluatePolicy?: (pr: DiscoveredPr) => PolicyDecision;
-  /** Persist PolicyDecision into attention_items (e.g. createPersistDecision). */
-  persistDecision?: (
+    prNumber: number,
+  ) => void | Promise<void>;
+  enqueueEligible: (
     prId: number,
     pr: DiscoveredPr,
     decision: PolicyDecision,
   ) => void;
+  evaluatePolicy: (pr: DiscoveredPr) => PolicyDecision;
+  listPersistedReviewPrs: () => Array<{
+    repositoryId: string;
+    github: string;
+    prNumber: number;
+  }>;
   countKnownPrs: () => number;
   getFreshnessAt: (host: string) => string | null;
   setFreshnessAt: (host: string, at: string) => void;
@@ -205,23 +202,11 @@ export class ResilientPoller {
           explicitRequest,
         ),
       upsertRepository: this.deps.upsertRepository,
-      upsertPr: (discovered) => {
-        const prId = this.deps.upsertPr(
-          discovered,
-          discovered.repositoryId,
-          discovered.explicitRequest,
-        );
-        this.deps.evaluateAndEnqueue(
-          prId,
-          discovered,
-          discovered.explicitRequest,
-        );
-        return prId;
-      },
-      evaluatePolicy:
-        this.deps.evaluatePolicy ??
-        (() => ({}) as PolicyDecision),
-      persistDecision: this.deps.persistDecision,
+      upsertEligiblePr: this.deps.upsertEligiblePr,
+      retireReviewPr: this.deps.retireReviewPr,
+      enqueueEligible: this.deps.enqueueEligible,
+      evaluatePolicy: this.deps.evaluatePolicy,
+      listPersistedReviewPrs: this.deps.listPersistedReviewPrs,
       checkpoint: {
         getLastPollTime: this.deps.getFreshnessAt,
         setLastPollTime: (host) => {

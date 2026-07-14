@@ -20,7 +20,6 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
-    exclusionReasons: [],
     priority: "p1",
     priorityReasons: [],
     queueOrder: {
@@ -31,10 +30,7 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
       prNumber: 42,
     },
     domains: [],
-    attentionState: "ready_for_analysis",
     jobState: null,
-    advisorResult: null,
-    discoveredAt: "2026-07-10T12:00:00.000Z",
     updatedAt: "2026-07-10T12:00:00.000Z",
     ...overrides,
   };

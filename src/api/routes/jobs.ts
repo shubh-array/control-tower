@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { ActionTokenStore } from "../action-token.js";
 import type { JobDetail } from "../contracts.js";
+import { PrNotEligibleForReviewError } from "../../orchestrator/analyze-errors.js";
 
 export interface JobsDeps {
   actionTokens: ActionTokenStore;
@@ -8,7 +9,6 @@ export interface JobsDeps {
   requestAnalyze: (input: {
     repositoryKey: string;
     prNumber: number;
-    sourceMode?: "registered-source" | "remote-evidence-only";
   }) => string;
   requestRetry: (jobId: string) => string;
 }
@@ -25,7 +25,6 @@ export function jobsRoutes(deps: JobsDeps) {
     const body = await c.req.json<{
       repositoryKey: string;
       prNumber: number;
-      sourceMode?: "registered-source" | "remote-evidence-only";
       actionToken: string;
     }>();
 
@@ -33,8 +32,18 @@ export function jobsRoutes(deps: JobsDeps) {
       return c.json({ error: "Invalid or expired action token" }, 403);
     }
 
-    const jobId = deps.requestAnalyze(body);
-    return c.json({ jobId });
+    try {
+      const jobId = deps.requestAnalyze({
+        repositoryKey: body.repositoryKey,
+        prNumber: body.prNumber,
+      });
+      return c.json({ jobId });
+    } catch (error) {
+      if (error instanceof PrNotEligibleForReviewError) {
+        return c.json({ error: error.message }, 422);
+      }
+      throw error;
+    }
   });
 
   app.post("/api/jobs/:id/retry", async (c) => {
@@ -42,8 +51,8 @@ export function jobsRoutes(deps: JobsDeps) {
     if (!deps.actionTokens.consume(body.actionToken)) {
       return c.json({ error: "Invalid or expired action token" }, 403);
     }
-    const newRunId = deps.requestRetry(c.req.param("id"));
-    return c.json({ runId: newRunId });
+    const jobId = deps.requestRetry(c.req.param("id"));
+    return c.json({ jobId });
   });
 
   return app;

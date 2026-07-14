@@ -8,9 +8,22 @@ For product overview and design invariants, see [`README.md`](./README.md). For 
 
 ## What you get after setup
 
-1. A local daemon that polls GitHub for PRs in your active repos (and PRs that request your review).
-2. A loopback React UI at `http://127.0.0.1:9120` (default), with **Inbox**, **Coverage**, **Review**, and **Propose** surfaces.
-3. Cursor-backed review drafts. GitHub comments / approvals stay off until you enable gated publication and approve each operation.
+1. A local daemon (foreground `pnpm ct start`) that polls GitHub on a ~15-minute discovery cadence for open PRs in your active catalog repos plus open explicit-review requests for your login within configured organizations.
+2. A loopback React UI at `http://127.0.0.1:9120` (default), with **Inbox** (`/inbox`) and **Review** (`/review/:jobId`) only.
+3. Cursor-backed review drafts (`primaryReview` model role). GitHub comments / approvals stay off until you enable gated publication and approve each operation.
+
+---
+
+## Review-core schema reset
+
+This development version uses the review-core schema. **Stop the daemon**, then run a full reset and re-bootstrap:
+
+```bash
+pnpm ct reset --all --yes
+pnpm ct init
+```
+
+`reset` attempts to stop a running daemon before wiping files. `--all` recursively deletes the configured **data** directory (`control-tower.sqlite`, sealed runs, checkpoints), **profile** directory, and **local config file**; repo harnesses are kept. No backward compatibility is preserved — legacy keys such as `cursor.modelRoles.attention` are removed and must be recreated by `init`. After `init`, start Control Tower again.
 
 ---
 
@@ -114,8 +127,10 @@ Starter catalog IDs today: `pba-webapp`, `pba-agents`, `pba-microservices`, `pba
 
 Discovery polls:
 
-- Open PRs in each **active** catalog repo
-- Plus PRs that **explicitly request your review** (even outside the active set, if GitHub returns them)
+- **Open PRs** in each **active** catalog repo (`activeRepositoryIds`)
+- Plus **open** PRs that **explicitly request your review**, searched per org in `config/organization.json` → `github.organizations` (may be outside the catalog, but must be in a configured org)
+
+Policy runs before persistence — ineligible PRs are never written to SQLite `prs`.
 
 ---
 
@@ -163,7 +178,7 @@ Notes:
 
 Also confirm:
 
-- `cursor.modelRoles.primaryReview.modelId` — always required
+- `cursor.modelRoles.primaryReview.modelId` — always required (only supported model role)
 - `publication.mode` stays `"shadow"` until you intentionally enable publishing
 
 ---
@@ -175,13 +190,13 @@ Edit `~/.control-tower/profile/policy.json`.
 ### Eligibility (what can enter Inbox)
 
 An explicit GitHub review request is eligible even when the repository is not
-active. For an active repo, a PR is also eligible if either of these holds:
+active. For an active repo, a PR is also eligible if any of these holds:
 
 1. GitHub requested **your** review (`explicit_review_request`) — always eligible
 2. A changed file matches `eligiblePaths`
 3. The author is in `eligibleAuthors`
 
-Otherwise the PR stays tracked but ineligible (visible in **Coverage**).
+Otherwise the PR is policy-ineligible: it is not persisted and does not appear in Inbox.
 
 **Example — only frontend paths in `pba-webapp`:**
 
@@ -217,7 +232,7 @@ Allowed tiers: `p0`, `p1`, `p2`, `p3`.
 | `p0`, `p1` | **Now** |
 | `p2` | **Next** |
 | `p3` (default when eligible but no rule matches) | **Monitor** |
-| ineligible / `unranked` | Not shown in Inbox (still visible in Coverage) |
+| ineligible / `unranked` | Not persisted; does not appear in Inbox |
 
 ### Auto-analyze
 
@@ -232,7 +247,7 @@ Meaning in code:
 
 - Eligible + explicit review request + `explicitReviewRequests: true` → auto enqueue Cursor primary review
 - Eligible + priority in `priorityTiers` → auto enqueue (with author-only caveats)
-- Everything else → on-demand (use **Analyze** in Coverage)
+- Everything else → on-demand (use **Analyze** in Inbox)
 
 ### Persona
 
@@ -272,7 +287,6 @@ Also in org config:
 
 - `github.host` / `github.organizations` / `github.pollIntervalSeconds`
 - `security.protectedPaths` — configured protection patterns passed to registered-source preparation
-- `reviewDefaults` — job timeout, retention, storage cap
 
 ---
 
@@ -300,12 +314,13 @@ Typical failures:
 
 - `gh` not authenticated to the configured host
 - GitHub login ≠ `profile.githubLogin`
-- Cursor CLI version, authentication, or configured model smoke check fails
+- Cursor CLI version or authentication failure
+- **Model availability** — configured `primaryReview` model not listed by `agent models` (separate from **Model smoke**, which re-validates each distinct configured model ID against Cursor CLI-reported models; it does not run inference)
 - `repositoryPaths` entry missing, not a Git repo, or wrong `origin`
 - Invalid profile/policy JSON schema
 - Missing `persona.md` or empty persona
 - Missing harness files or invalid policy globs
-- Data directory missing, not writable, or with insufficient free space
+- Data directory missing, not writable, or with **less than 10 GB** free space
 - Daemon port already in use
 
 If the UI cannot load after start, rebuild it with:
@@ -332,21 +347,16 @@ pnpm ct doctor
 pnpm ct start
 ```
 
-Open the printed URL (default: `http://127.0.0.1:9120`). The server binds to loopback only.
+`start` runs the daemon in the **foreground** (loopback only). Use another terminal for `status` / `stop`.
+
+Open the printed URL (default: `http://127.0.0.1:9120`).
 
 | Visible UI surface | URL | What to do |
 |--------------------|-----|----------------|
-| **Inbox** | `/inbox` | Triage the eligible Focus Queue, grouped into Now / Next / Monitor lanes by default. Disable **Group by lane** for a flat ordered list. Start/retry analysis; Review opens when a draft is available. |
-| **Coverage** | `/coverage` | See complete coverage, including ineligible PRs through its filters, and start on-demand analysis. |
-| **Review** | `/review/:jobId` | Inspect a job's draft, findings, supporting evidence, provenance, and gated publication operations. Stale drafts are flagged when the PR head moves; Approve/Publish is disabled until re-analysis. |
-| **Propose** | `/propose` | Build, validate, preview, and adopt governed profile-policy proposals from learning signals. |
+| **Inbox** | `/inbox` | Triage the eligible Focus Queue. **Group by lane** maps `p0`/`p1` → Now, `p2` → Next, `p3` → Monitor; disable it for a flat ordered list. **Analyze** requires a persisted eligible PR (422 otherwise). Start/retry analysis; Review opens when a draft is available. |
+| **Review** | `/review/:jobId` | Inspect a job's draft, findings, evidence, provenance, per-run **coverage notice** (when evidence is incomplete), and gated publication operations. Staleness is checked when the draft is loaded or refetched against the current PR head; Approve/Publish is disabled until re-analysis when stale. |
 
-While the tab is visible, the queue polls every 3 seconds when a job is active
-and every 30 seconds otherwise; health polls every 30 seconds; and an
-unavailable Review draft retries every 3 seconds. These polls pause in
-background tabs, the queue refetches when the tab becomes visible, and all
-queries refetch on window focus. The header provides a **Refresh** action for
-queue and health status and reports connection and stale-data state.
+While the tab is visible, the **queue** polls every **3 seconds** when a job is in an active pipeline state and every **30 seconds** when idle; **health** polls every **30 seconds** (independent of queue cadence); an unavailable Review draft retries every **3 seconds**. These polls pause in background tabs, the queue refetches when the tab becomes visible, and all queries refetch on window focus. Discovery itself runs on the daemon's ~**15-minute** schedule, not the UI timers.
 
 Useful commands:
 
@@ -381,22 +391,25 @@ Even in gated mode, every GitHub mutation requires an exact per-operation approv
 
 ## 11. Reset local state
 
-Use reset only when you intend to discard local Control Tower state. It
-recursively deletes the configured data directory and, with `--all`, the
-configured profile directory and local config file. Verify that those configured
-paths do not point at a source checkout or repository harness before running it.
+Use reset only when you intend to discard local Control Tower state. `reset` attempts to **stop the daemon** first, then recursively deletes configured paths. Verify that data/profile/config paths do not point at a source checkout before running.
 
 ```bash
-# Remove only local runtime data (database, runs, signals, and proposals).
+# Remove only local runtime data (SQLite, run artifacts, discovery checkpoints).
 pnpm ct reset
 
 # Also remove the configured profile directory and local config file.
 pnpm ct reset --all
 ```
 
-Both commands prompt for confirmation. Add `--yes` only when running an
-intentional non-interactive reset. After `reset --all`, run `pnpm ct init`
-again.
+Both commands prompt for confirmation. Add `--yes` only for intentional non-interactive reset. After `reset --all`, run `pnpm ct init` again.
+
+---
+
+## Phase posture
+
+**Phase 1 (current):** Review-core delegated PR review — eligible-only discovery cache, `primaryReview` analysis, Inbox/Review UI, gated publication API. No proposals, learning, attention, all-tracked feed, or Delivery Intelligence.
+
+**Phase 2C (future, separately scoped):** Delivery Intelligence may observe GitHub/Linear read-only with its own ledger; it must not reuse the review queue or persist non-reviewable PRs in review-core SQLite.
 
 ---
 

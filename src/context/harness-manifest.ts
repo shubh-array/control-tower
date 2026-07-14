@@ -20,7 +20,6 @@ export interface InputArtifact {
 }
 
 export interface ManifestBuildInput {
-  role: 'primaryReview' | 'attention';
   safetyContract: ArtifactRef;
   outputContract: ArtifactRef;
   policySnapshot: ArtifactRef;
@@ -55,8 +54,9 @@ export interface HarnessManifest {
 export function buildHarnessManifest(input: ManifestBuildInput): HarnessManifest {
   const entries: ManifestEntry[] = [];
   let ordinal = 0;
+  const feature = 'pr-review';
 
-  function add(layer: number, layerName: string, logicalPath: string, hash: string, bytes: number, feature: string, domain: string | null) {
+  function add(layer: number, layerName: string, logicalPath: string, hash: string, bytes: number, domain: string | null) {
     entries.push({
       layerOrdinal: layer,
       layerName,
@@ -69,52 +69,46 @@ export function buildHarnessManifest(input: ManifestBuildInput): HarnessManifest
     });
   }
 
-  const feature = input.role === 'primaryReview' ? 'pr-review' : 'pr-attention';
+  add(1, 'application_safety', 'safety-contract.md', input.safetyContract.hash, input.safetyContract.bytes, null);
+  add(1, 'application_safety', 'output-contract.md', input.outputContract.hash, input.outputContract.bytes, null);
 
-  add(1, 'application_safety', 'safety-contract.md', input.safetyContract.hash, input.safetyContract.bytes, feature, null);
-  add(1, 'application_safety', 'output-contract.md', input.outputContract.hash, input.outputContract.bytes, feature, null);
-
-  add(2, 'policy_snapshot', 'policy.snapshot.json', input.policySnapshot.hash, input.policySnapshot.bytes, feature, null);
+  add(2, 'policy_snapshot', 'policy.snapshot.json', input.policySnapshot.hash, input.policySnapshot.bytes, null);
 
   if (input.orgFeaturePrompt) {
-    add(3, 'org_feature_guidance', `harnesses/${feature}/prompt.md`, input.orgFeaturePrompt.hash, input.orgFeaturePrompt.bytes, feature, null);
+    add(3, 'org_feature_guidance', `harnesses/${feature}/prompt.md`, input.orgFeaturePrompt.hash, input.orgFeaturePrompt.bytes, null);
   }
   if (input.orgFeatureSkill) {
-    add(3, 'org_feature_guidance', `harnesses/${feature}/skills/skill/SKILL.md`, input.orgFeatureSkill.hash, input.orgFeatureSkill.bytes, feature, null);
+    add(3, 'org_feature_guidance', `harnesses/${feature}/skills/skill/SKILL.md`, input.orgFeatureSkill.hash, input.orgFeatureSkill.bytes, null);
   }
 
-  if (input.role === 'primaryReview') {
-    for (const dg of input.orgDomainGuidance) {
-      add(4, 'org_domain_guidance', `harnesses/pr-review/domains/${dg.domain}.md`, dg.hash, dg.bytes, feature, dg.domain);
-    }
+  for (const dg of input.orgDomainGuidance) {
+    add(4, 'org_domain_guidance', `harnesses/pr-review/domains/${dg.domain}.md`, dg.hash, dg.bytes, dg.domain);
   }
 
-  if (input.role === 'primaryReview' && input.repositoryGuidance) {
-    add(5, 'repository_guidance', 'repository-guidance.md', input.repositoryGuidance.hash, input.repositoryGuidance.bytes, feature, null);
+  if (input.repositoryGuidance) {
+    add(5, 'repository_guidance', 'repository-guidance.md', input.repositoryGuidance.hash, input.repositoryGuidance.bytes, null);
   }
 
   if (input.engineerFeaturePrompt) {
-    add(6, 'engineer_feature_guidance', `profile/harnesses/${feature}/prompt.md`, input.engineerFeaturePrompt.hash, input.engineerFeaturePrompt.bytes, feature, null);
+    add(6, 'engineer_feature_guidance', `profile/harnesses/${feature}/prompt.md`, input.engineerFeaturePrompt.hash, input.engineerFeaturePrompt.bytes, null);
   }
   if (input.engineerFeatureSkill) {
-    add(6, 'engineer_feature_guidance', `profile/harnesses/${feature}/skills/skill/SKILL.md`, input.engineerFeatureSkill.hash, input.engineerFeatureSkill.bytes, feature, null);
+    add(6, 'engineer_feature_guidance', `profile/harnesses/${feature}/skills/skill/SKILL.md`, input.engineerFeatureSkill.hash, input.engineerFeatureSkill.bytes, null);
   }
 
-  if (input.role === 'primaryReview') {
-    for (const dg of input.engineerDomainGuidance) {
-      add(7, 'engineer_domain_guidance', `profile/harnesses/pr-review/domains/${dg.domain}.md`, dg.hash, dg.bytes, feature, dg.domain);
-    }
+  for (const dg of input.engineerDomainGuidance) {
+    add(7, 'engineer_domain_guidance', `profile/harnesses/pr-review/domains/${dg.domain}.md`, dg.hash, dg.bytes, dg.domain);
   }
 
   if (input.persona) {
-    add(8, 'persona', 'persona.md', input.persona.hash, input.persona.bytes, feature, null);
+    add(8, 'persona', 'persona.md', input.persona.hash, input.persona.bytes, null);
   }
 
   for (const prInput of input.prInputs) {
-    add(9, 'pr_inputs', prInput.logicalPath, prInput.hash, prInput.bytes, feature, null);
+    add(9, 'pr_inputs', prInput.logicalPath, prInput.hash, prInput.bytes, null);
   }
-  if (input.role === 'primaryReview' && input.provenanceCatalog) {
-    add(9, 'pr_inputs', input.provenanceCatalog.logicalPath, input.provenanceCatalog.hash, input.provenanceCatalog.bytes, feature, null);
+  if (input.provenanceCatalog) {
+    add(9, 'pr_inputs', input.provenanceCatalog.logicalPath, input.provenanceCatalog.hash, input.provenanceCatalog.bytes, null);
   }
 
   const manifestHash = computeManifestHash(entries);

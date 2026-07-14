@@ -416,7 +416,7 @@
         <span>Architecture guide · not implemented-product documentation</span>
       </div>
       <h1>Principal Engineer Control Tower</h1>
-      <p class="lede">A local-first engineering control plane for complete PR attention coverage, evidence-backed delegated review, and independently evaluated delivery capabilities.</p>
+      <p class="lede">A local-first engineering control plane for eligible PR review, evidence-backed delegated review, and independently evaluated delivery capabilities.</p>
       <div class="axiom">Deterministic coverage and authority; agentic judgment and advice.</div>
       <div class="phase-note">
         <strong>PHASE MODEL</strong>
@@ -452,7 +452,7 @@
         <article class="flow-col">
           <h3>Deterministic control plane <span>APPLICATION</span></h3>
           <ul>
-            <li>GitHub/provider acquisition and All Tracked coverage</li>
+            <li>GitHub/provider acquisition and eligible-review cache</li>
             <li>Eligibility, priority, auto-analysis, domains, triggers</li>
             <li>Canonical path filtering and protected-byte exclusion</li>
             <li>Application-created provenance/facts and validation</li>
@@ -463,11 +463,9 @@
         <article class="flow-col">
           <h3>Cursor roles <span>ADVICE</span></h3>
           <ul>
-            <li>Attention relevance, risk, reasons, and next-step advice</li>
             <li>Primary evidence-backed review</li>
             <li>Specialist review advice and analysis when 2A allows</li>
             <li>Delivery interpretation when 2C allows</li>
-            <li>Policy-improvement proposals—never adoption</li>
           </ul>
         </article>
         <article class="flow-col">
@@ -476,7 +474,6 @@
             <li>Manual analysis, specialist, and sandbox starts</li>
             <li>Explicit reduced-related-source decisions</li>
             <li>Exact, single-use approval per external operation</li>
-            <li>Proposal review and explicit adoption</li>
             <li>Capability selection, gates, pilots, acceptance, disable</li>
           </ul>
         </article>
@@ -484,14 +481,14 @@
 
       <div class="callout warn">
         <h3>Advice never becomes authority</h3>
-        <p>Agent confidence, relevance, risk, recommended action, and recommended disposition are context for the human. They cannot make a PR eligible, enqueue work, pass a gate, execute a check, publish, adopt a proposal, or advance autonomy.</p>
+        <p>Agent confidence, relevance, risk, recommended action, and recommended disposition are context for the human. They cannot make a PR eligible, enqueue work, pass a gate, execute a check, publish, or advance autonomy.</p>
       </div>
 
       <div class="section-title">
         <h3>Baseline and independent capability lanes</h3>
         <p>Each lane owns configuration, migrations, lifecycle, identity, epoch, gates, pilot evidence, acceptance, and disable controls.</p>
       </div>
-      <div class="baseline">Phase 1 · deterministic attention coverage + delegated PR review + governed human publication</div>
+      <div class="baseline">Phase 1 · eligible review inbox + delegated PR review + governed human publication</div>
       <div class="flow-arrow">feeds relevant inherited contracts into ↓</div>
       <div class="lanes">
         <article class="lane">
@@ -521,9 +518,9 @@
         <p>The revised design adds contracts that materially change the information architecture.</p>
       </div>
       <div class="grid three">
-        <div class="panel"><h3>Coverage &amp; advice</h3><ul><li>Explicit configured-operator author discovery</li><li>Optional metadata-only agent attention</li><li>All Tracked remains authoritative</li></ul></div>
+        <div class="panel"><h3>Review inbox</h3><ul><li>Eligible-only durable cache</li><li>Deterministic queue ordering</li><li>Manual analyze for persisted eligible PRs</li></ul></div>
         <div class="panel"><h3>Harness &amp; evidence</h3><ul><li>Feature-grouped harness domains</li><li>Exact nine-layer composition</li><li>Application-created provenance</li></ul></div>
-        <div class="panel"><h3>Authority &amp; learning</h3><ul><li>Per-operation approval</li><li>Governed learning proposals</li><li>No silent profile mutation</li></ul></div>
+        <div class="panel"><h3>Authority</h3><ul><li>Per-operation approval</li><li>No silent profile mutation</li><li>Human-gated publication</li></ul></div>
         <div class="panel"><h3>Parallel Phase 2</h3><ul><li>Four independent capabilities</li><li>Identity and epoch per capability</li><li>No “Phase 2 complete” state</li></ul></div>
         <div class="panel"><h3>Delivery gate</h3><ul><li>Live read-only data assessment first</li><li>Operator-defined closed thresholds</li><li>Gate loss clears current authority</li></ul></div>
         <div class="panel"><h3>Hardened sandbox</h3><ul><li>Concrete check and CI gap required</li><li>Immutable supervisor and quiescence</li><li>Live no-follow artifact collection</li></ul></div>
@@ -536,14 +533,14 @@
           <div class="eyebrow">Proposed baseline contract</div>
           <h2>Phase 1 · delegated PR review</h2>
         </div>
-        <p>CI-first and local-first. It covers every tracked PR, selectively executes one primary review role, validates all evidence, and publishes only through exact principal approval.</p>
+        <p>CI-first and local-first. It persists only eligible PRs, executes one primary review role, validates all evidence, and publishes only through exact principal approval.</p>
       </header>
 
-      <div class="section-title"><h3>Coverage, eligibility, and attention</h3><p>Tracking is intentionally broader than eligibility; eligibility is intentionally broader than automatic execution.</p></div>
+      <div class="section-title"><h3>Eligibility and review queue</h3><p>Only eligible PRs are persisted in the review-core database. Ineligible PR metadata is not durable product state.</p></div>
       <div class="grid two">
         <article class="panel">
-          <h3>All Tracked is authoritative</h3>
-          <p>Every open PR in active repositories plus every explicit review request to the exact normalized configured operator appears, including tracked-but-ineligible items. Human filters may narrow a view; advisor output never hides an item or changes the total.</p>
+          <h3>Eligible review cache is authoritative</h3>
+          <p>Eligible open PRs and explicit review requests to the configured operator are persisted with a policy snapshot for Inbox ordering. Non-reviewable PRs are not written to the review queue.</p>
           <div class="formula">explicit request to configured operator OR (active repository AND (eligible path OR exact normalized eligible author))</div>
           <ul>
             <li>Every explicit request to the configured operator is eligible—even inactive or unregistered, when readable.</li>
@@ -554,8 +551,7 @@
         <article class="panel">
           <h3>Priority and execution are separate</h3>
           <div class="formula">p0 &gt; p1 &gt; p2 &gt; p3 &gt; unranked</div>
-          <p>Every eligible PR defaults to <code>p3</code>. Tracked-ineligible PRs are <code>unranked</code>, which is a sort sentinel—not a tier—and can never auto-analyze or enter Focus Queue.</p>
-          <p>Author-only eligibility is on-demand unless another deterministic auto-analysis rule independently matches. Agent advice never becomes such a rule.</p>
+          <p>Every eligible PR defaults to <code>p3</code>. Ineligible PRs are not persisted. Author-only eligibility is on-demand unless another deterministic auto-analysis rule independently matches.</p>
         </article>
       </div>
       <div class="grid two" style="margin-top:1rem">
@@ -566,13 +562,7 @@
             <li><strong>Next:</strong> other eligible items, including on-demand candidates.</li>
             <li><strong>Monitor:</strong> eligible items temporarily non-actionable.</li>
           </ul>
-          <p>Deterministic order is default. A human may select optional Advisor order; it never changes membership.</p>
-        </article>
-        <article class="panel">
-          <h3><code>pr-attention</code> · bounded metadata only</h3>
-          <p>Returns relevance, risk, explanation, recommended action, confidence, and unknowns for a deterministic bounded candidate batch.</p>
-          <div class="badge-row"><span class="badge good">no diff</span><span class="badge good">no source</span><span class="badge good">no worktree</span><span class="badge good">no shell/write/MCP</span></div>
-          <p>It has no scheduling or publication authority. Currentness binds PR metadata, policy, guidance, persona, and exact model. Failure is visible, has no automatic retry, and never blocks deterministic auto-analysis.</p>
+          <p>Deterministic order is default.</p>
         </article>
       </div>
 
@@ -639,21 +629,22 @@
         <p>The first publication attempt consumes that operation’s approval before subprocess launch—success, failure, timeout, or indeterminate response. Partial continuation requires fresh approval for each incomplete operation. Completed operations are never replayed.</p>
       </div>
 
-      <div class="section-title"><h3>Governed learning and local operation</h3></div>
+      <div class="section-title"><h3>Local operation</h3></div>
       <div class="grid two">
         <article class="panel">
-          <h3>Structured signals, no silent learning</h3>
-          <p>Append-only signals record attention outcome, draft outcome and edits, disposition, hashes, timing/usage, failures, retries, and supersession.</p>
-          <p>A profile proposal starts only from a human-selected bounded history. It targets allowlisted engineer-owned files, passes schema/base-hash validation and affected-role replay, shows an exact line preview and deltas, then requires explicit single-use adoption. Rejected, stale, or failed proposals change nothing.</p>
-        </article>
-        <article class="panel">
           <h3>Loopback and local audit storage</h3>
-          <p>One local TypeScript application serves a loopback UI/API, stores structured state in SQLite, and stores bounded content-hashed evidence, jobs, attempts, transcripts, and proposals on disk.</p>
+          <p>One local TypeScript application serves a loopback UI/API, stores structured state in SQLite, and stores bounded content-hashed evidence, jobs, attempts, and transcripts on disk.</p>
           <pre>pnpm ct doctor
 pnpm ct init
 pnpm ct start
 pnpm ct stop
-pnpm ct status</pre>
+pnpm ct status
+pnpm ct reset --all --yes
+pnpm ct init</pre>
+        </article>
+        <article class="panel">
+          <h3>Review-core reset</h3>
+          <p>Stop the daemon, run <code>pnpm ct reset --all --yes</code>, then <code>pnpm ct init</code>. This clears local config, profile, and data; no backward compatibility is preserved.</p>
         </article>
       </div>
     </section>
@@ -777,9 +768,6 @@ pnpm ct status</pre>
         <article class="panel">
           <h3>Organization-owned guidance</h3>
           <div class="tree">config/harnesses/
-├── pr-attention/
-│   ├── prompt.md
-│   └── skills/pr-attention/SKILL.md
 ├── pr-review/
 │   ├── prompt.md
 │   ├── skills/control-tower-pr-review/SKILL.md
@@ -796,7 +784,7 @@ pnpm ct status</pre>
 ├── policy.json
 ├── persona.md
 ├── harnesses/
-│   ├── pr-attention/{prompt.md, skills/...}
+│   ├── pr-review/{prompt.md, skills/...}
 │   ├── pr-review/{prompt.md, skills/..., domains/...}
 │   ├── concurrency-review/{prompt.md, skills/...}
 │   ├── cross-repository-review/{prompt.md, skills/...}
@@ -821,7 +809,7 @@ pnpm ct status</pre>
       </div>
       <div class="grid two" style="margin-top:1rem">
         <div class="callout"><h3>Review-domain layers</h3><p><code>primaryReview</code>, <code>concurrencyReview</code>, and <code>crossRepositoryReview</code> may use deterministically selected review domains and approved repository guidance. Agents cannot select additional domains.</p></div>
-        <div class="callout"><h3>Intentionally empty layers</h3><p><code>attention</code>, <code>deliveryInterpretation</code>, and <code>policyImprovement</code> have empty nonapplicable domain and repository layers. Phase 1 <code>pr-attention</code> specifically keeps layers 4, 5, and 7 empty.</p></div>
+        <div class="callout"><h3>Intentionally empty layers</h3><p><code>deliveryInterpretation</code> and <code>policyImprovement</code> have empty nonapplicable domain and repository layers in future capabilities.</p></div>
       </div>
       <div class="callout bad" style="margin-top:1rem"><h3>Engineer guidance cannot override authority</h3><p>It may change judgment, style, priorities, explanation, and recommendations. It cannot weaken safety, permissions, protected paths, provenance, output schemas, deterministic eligibility, auto-analysis, triggers, or publication/execution authority.</p></div>
 
@@ -850,8 +838,7 @@ profile/capabilities/&lt;capability&gt;.json
         <table>
           <thead><tr><th>Role</th><th>Capability</th><th>Specification contract</th><th>Fallback?</th></tr></thead>
           <tbody>
-            <tr><td><code>attention</code></td><td>Phase 1 optional advisor</td><td>Phase 1 baseline example: exact <code>{"modelId":"composer-2.5-fast"}</code></td><td>No</td></tr>
-            <tr><td><code>primaryReview</code></td><td>Phase 1 review + profile proposals</td><td>Phase 1 baseline example: exact <code>{"modelId":"composer-2.5-fast"}</code></td><td>No</td></tr>
+            <tr><td><code>primaryReview</code></td><td>Phase 1 delegated PR review</td><td>Phase 1 baseline example: exact <code>{"modelId":"composer-2.5-fast"}</code></td><td>No</td></tr>
             <tr><td><code>concurrencyReview</code></td><td>2A</td><td rowspan="4">Operator supplies concrete exact <code>modelId</code>, <code>effort</code>, and <code>context</code> supported by the delivered Cursor adapter. The design intentionally specifies no universal value or model-price/cost assumption.</td><td>No</td></tr>
             <tr><td><code>crossRepositoryReview</code></td><td>2A</td><td>No</td></tr>
             <tr><td><code>deliveryInterpretation</code></td><td>2C</td><td>No</td></tr>
@@ -916,7 +903,7 @@ profile/capabilities/&lt;capability&gt;.json
       <div class="section-title"><h3>Safe browser rendering</h3></div>
       <div class="grid three">
         <article class="panel"><h3>Loopback boundary</h3><p>The product binds only to loopback. It rejects non-loopback host headers and cross-origin requests. State changes require same-origin checks and a short-lived, single-use action token created by an explicit gesture.</p></article>
-        <article class="panel"><h3>Untrusted content</h3><p>PR, provider, specialist, bot, sandbox, proposal, and agent text is untrusted. Plain fields use text nodes. Markdown has raw HTML off, a strict sanitizer, and only relative/fragment/<code>https:</code>/<code>mailto:</code> URLs.</p></article>
+        <article class="panel"><h3>Untrusted content</h3><p>PR, provider, specialist, bot, sandbox, and agent text is untrusted. Plain fields use text nodes. Markdown has raw HTML off, a strict sanitizer, and only relative/fragment/<code>https:</code>/<code>mailto:</code> URLs.</p></article>
         <article class="panel"><h3>Defense in depth</h3><p>Restrictive CSP; no <code>eval</code>/<code>Function</code>; no runtime-generated script/style URLs or controls from untrusted content; no forms, iframes, objects, SVG, script, style, or active media.</p></article>
       </div>
 
@@ -968,9 +955,9 @@ profile/capabilities/&lt;capability&gt;.json
 
       <div class="section-title"><h3>Phase 1 rollout</h3></div>
       <div class="grid three">
-        <article class="panel"><h3>1 · Offline</h3><ul><li>Deterministic fixtures and security proofs</li><li>Separate <code>attention</code> and <code>primaryReview</code> corpora</li><li>Exact models, manifests, provenance, browser and publisher guards</li></ul></article>
-        <article class="panel"><h3>2 · Replay &amp; shadow</h3><ul><li>Historical replay against closed PRs</li><li>Live authoritative All Tracked and auto-analysis</li><li>Advisor, drafts, recovery, signals, XSS probes; publisher disabled</li></ul></article>
-        <article class="panel"><h3>3 · Gated publication</h3><ul><li>Only after quality and security gates pass</li><li>Per-operation principal approval remains mandatory</li><li><code>pr-attention</code> may remain disabled independently</li></ul></article>
+        <article class="panel"><h3>1 · Offline</h3><ul><li>Deterministic fixtures and security proofs</li><li><code>primaryReview</code> eval corpus</li><li>Exact models, manifests, provenance, browser and publisher guards</li></ul></article>
+        <article class="panel"><h3>2 · Replay &amp; shadow</h3><ul><li>Historical replay against closed PRs</li><li>Live eligible Inbox and auto-analysis</li><li>Drafts, recovery, XSS probes; publisher disabled</li></ul></article>
+        <article class="panel"><h3>3 · Gated publication</h3><ul><li>Only after quality and security gates pass</li><li>Per-operation principal approval remains mandatory</li></ul></article>
       </div>
       <div class="table-wrap" style="margin-top:1rem">
         <table>

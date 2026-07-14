@@ -130,13 +130,27 @@ function buildFakeDeps(opts: {
   cursor: FakeCursorAdapter;
   publisher: FakePublisher;
   db: Database.Database;
-}): RuntimeDeps {
+}): RuntimeDeps & {
+  jobs: Map<string, { state: string; runIds: string[]; prNumber: number; repositoryKey: string }>;
+  startQueuedJobs(): Promise<void>;
+} {
   let jobCounter = 0;
   let runCounter = 0;
   const jobs = new Map<string, { state: string; runIds: string[]; prNumber: number; repositoryKey: string }>();
   const drafts = new Map<string, FakeCursorOutput>();
 
+  async function startQueuedJobs(): Promise<void> {
+    for (const [id, job] of jobs) {
+      if (job.state !== 'queued') continue;
+      const rid = `run_${++runCounter}`;
+      job.runIds.push(rid);
+      await runFakePipeline(id, rid, opts.cursor, jobs, drafts);
+    }
+  }
+
   return {
+    jobs,
+    startQueuedJobs,
     migrate() {
       opts.db.exec('CREATE TABLE IF NOT EXISTS e2e_jobs (id TEXT PRIMARY KEY, state TEXT)');
     },
@@ -156,11 +170,11 @@ function buildFakeDeps(opts: {
           jobsToStart.push(id);
         }
       }
+      void startQueuedJobs();
       return { jobsToStart, reason: jobsToStart.length > 0 ? 'eligible' : 'none' };
     },
     createFacade(): OrchestratorFacade {
       const facadeDeps: FacadeDeps = {
-        getAllTracked: () => [],
         getFocusQueue: () => ({ now: [], next: [], monitor: [] }),
         getJob: (id) => {
           const j = jobs.get(id);
@@ -213,14 +227,15 @@ function buildFakeDeps(opts: {
           return jid;
         },
         enqueueRetry(jobId) {
-          const rid = `run_${++runCounter}`;
           const j = jobs.get(jobId);
-          if (j) {
-            j.runIds.push(rid);
-            j.state = 'queued';
-            void runFakePipeline(jobId, rid, opts.cursor, jobs, drafts);
+          if (!j) {
+            throw new Error(`enqueueRetry: job not found: ${jobId}`);
           }
-          return rid;
+          if (j.state !== 'failed') {
+            throw new Error(`enqueueRetry: job ${jobId} is ${j.state}, expected failed`);
+          }
+          j.state = 'queued';
+          return jobId;
         },
         enqueuedJobs: [],
       };
@@ -236,6 +251,7 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
   let cursor: FakeCursorAdapter;
   let publisher: FakePublisher;
   let handle: RuntimeHandle;
+  let fakeRuntime: ReturnType<typeof buildFakeDeps>;
 
   beforeEach(async () => {
     db = new Database(':memory:');
@@ -257,9 +273,11 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
     });
     publisher = new FakePublisher();
 
+    fakeRuntime = buildFakeDeps({ gh, git, cursor, publisher, db });
+
     handle = await startRuntime(
       { port: 0, schedulerIntervalMs: 60_000, dataDirectory: ':memory:', apiServerEnabled: false },
-      buildFakeDeps({ gh, git, cursor, publisher, db }),
+      fakeRuntime,
     );
   });
 
@@ -307,7 +325,7 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
     expect(publisher.published[0]!.event).toBe('COMMENT');
   });
 
-  it('facade.requestRetry creates a new run for an existing job', async () => {
+  it('facade.requestRetry requeues failed job and scheduler allocates one new run', async () => {
     const facade = handle.facade;
     const jobId = facade.requestAnalyze({
       repositoryKey: 'org/pba-webapp',
@@ -315,9 +333,20 @@ describe('End-to-End via OrchestratorFacade with Fake Adapters', () => {
     });
     await new Promise(r => setTimeout(r, 10));
 
-    const newRunId = facade.requestRetry(jobId);
-    expect(newRunId).toMatch(/^run_/);
-    await new Promise(r => setTimeout(r, 10));
+    const jobBeforeRetry = facade.getJob(jobId);
+    expect(jobBeforeRetry).not.toBeNull();
+    expect(jobBeforeRetry!.runs).toHaveLength(1);
+
+    fakeRuntime.jobs.get(jobId)!.state = 'failed';
+
+    const retriedJobId = facade.requestRetry(jobId);
+    expect(retriedJobId).toBe(jobId);
+
+    const queuedJob = fakeRuntime.jobs.get(jobId)!;
+    expect(queuedJob.state).toBe('queued');
+    expect(queuedJob.runIds).toHaveLength(1);
+
+    await fakeRuntime.startQueuedJobs();
 
     const job = facade.getJob(jobId);
     expect(job!.runs).toHaveLength(2);
