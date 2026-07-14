@@ -120,6 +120,23 @@ function buildEnqueueDeps(db: Database.Database) {
         } | undefined) ?? null
       );
     },
+    findActiveJobsByPr(repositoryKey: string, prNumber: number) {
+      return db
+        .prepare(
+          `SELECT id, head_sha, policy_hash, source_mode, state, version
+           FROM jobs
+           WHERE repository_key = ? AND pr_number = ?
+             AND state NOT IN ('superseded', 'cancelled', 'published')`,
+        )
+        .all(repositoryKey, prNumber) as Array<{
+          id: string;
+          head_sha: string;
+          policy_hash: string;
+          source_mode: string;
+          state: string;
+          version: number;
+        }>;
+    },
     insertJob(row: Record<string, unknown>): string {
       const id = randomUUID();
       db.prepare(
@@ -196,7 +213,7 @@ function buildFacadeDeps(
         publicationMode: context.publicationMode,
         authenticatedLogin: context.authenticatedLogin,
         configuredOperator: context.configuredOperator,
-        currentHeadSha: bundle.headSha,
+        currentHeadSha: bundle.detail.currentHeadSha,
         reviewedHeadSha: bundle.headSha,
         acceptedRunId: bundle.acceptedRunId,
         approvedRunInputHash: bundle.runInputHash,
@@ -580,11 +597,17 @@ export function createBootstrap(input: BootstrapInput): {
             profileDirectory: context.profileDirectory,
             repositoryPaths: currentLocal.repositoryPaths,
             protectedPaths: org.security.protectedPaths,
+            catalogRepositories: org.repositories.map((r) => ({
+              id: r.id,
+              github: r.github,
+            })),
             cursorBinary: currentLocal.cursor.binary,
             cursorModelId:
               currentLocal.cursor.modelRoles.primaryReview?.modelId,
             cursorHomePath: process.env.HOME,
             sshAuthSock: process.env.SSH_AUTH_SOCK,
+            execGhText: (args, opts) => execGhText(args, opts),
+            githubHost: org.github.host,
           },
           jobId,
         ).catch((err) => {
