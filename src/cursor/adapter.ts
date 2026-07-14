@@ -5,17 +5,14 @@ import { parseNdjsonLine, validateInitEvent, extractResultFromTerminal, isInitEv
 
 export const STREAM_TRUNCATE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-const ROLE_TIMEOUTS: Record<string, number> = {
-  attention: 90_000,
-  primaryReview: 20 * 60 * 1000,
-};
+const PRIMARY_REVIEW_TIMEOUT_MS = 20 * 60 * 1000;
 
-export function getTimeoutForRole(role: string, overrideMs?: number): number {
-  return overrideMs ?? ROLE_TIMEOUTS[role] ?? ROLE_TIMEOUTS['primaryReview']!;
+export function getTimeoutForRole(_role: string, overrideMs?: number): number {
+  return overrideMs ?? PRIMARY_REVIEW_TIMEOUT_MS;
 }
 
 export interface AdapterRunInput {
-  role: 'attention' | 'primaryReview';
+  role: 'primaryReview';
   binary: string;
   runDirectory: string;
   modelId: string;

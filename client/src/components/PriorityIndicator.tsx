@@ -2,15 +2,8 @@ interface PriorityIndicatorProps {
   priority: string;
 }
 
-function formatPriorityLabel(priority: string): string {
-  if (priority === "unranked") {
-    return "Unranked";
-  }
-  return priority.toUpperCase();
-}
-
 export function PriorityIndicator({ priority }: PriorityIndicatorProps) {
-  const label = formatPriorityLabel(priority);
+  const label = priority.toUpperCase();
 
   return (
     <span

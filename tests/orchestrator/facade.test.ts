@@ -4,7 +4,8 @@ import {
   createOrchestratorFacade,
   type FacadeDeps,
 } from '../../src/orchestrator/facade.js';
-import type { AllTrackedItem, PolicyDecision } from '../../src/policy/evaluate.js';
+import { PrNotEligibleForReviewError } from '../../src/orchestrator/analyze-errors.js';
+import type { ReviewQueueItem, PolicyDecision } from '../../src/policy/evaluate.js';
 import type { DraftDetail, JobDetail } from '../../src/api/contracts.js';
 
 function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
@@ -26,27 +27,18 @@ function stubPolicy(overrides: Partial<PolicyDecision> = {}): PolicyDecision {
   };
 }
 
-function makeTrackedItem(overrides: Partial<AllTrackedItem> = {}): AllTrackedItem {
+function makeQueueItem(overrides: Partial<ReviewQueueItem> = {}): ReviewQueueItem {
   return {
     repositoryKey: 'pba-webapp',
     prNumber: 1,
     headSha: 'a'.repeat(40),
-    baseSha: 'b'.repeat(40),
     title: 'Test PR',
     url: 'https://github.com/pba-webapp/pull/1',
     author: 'dev',
-    draft: false,
-    labels: [],
-    additions: 10,
-    deletions: 5,
-    changedFiles: ['src/index.ts'],
-    reviewRequested: true,
-    checkSummary: [],
     updatedAt: '2026-07-10T00:00:00.000Z',
+    explicitRequest: true,
     explicitRequestTimestamp: null,
     policy: stubPolicy(),
-    sourceMode: 'registered-source',
-    bodyTruncated: '',
     ...overrides,
   };
 }
@@ -62,35 +54,33 @@ interface MockAuditEvent {
 }
 
 function makeFacadeDeps(options: {
-  tracked?: AllTrackedItem[];
+  queueItems?: ReviewQueueItem[];
   jobs?: Map<string, MockJob>;
   drafts?: Map<string, MockDraft>;
   auditTrail?: Map<string, MockAuditEvent[]>;
+  enqueueAnalysis?: FacadeDeps['enqueueAnalysis'];
 } = {}): FacadeDeps {
-  const tracked = options.tracked ?? [makeTrackedItem()];
+  const queueItems = options.queueItems ?? [makeQueueItem()];
   const jobs = options.jobs ?? new Map();
   const drafts = options.drafts ?? new Map();
   const auditTrail = options.auditTrail ?? new Map();
   const enqueuedJobs: Array<{ repositoryKey: string; prNumber: number }> = [];
 
   return {
-    getAllTracked: () => tracked,
     getFocusQueue: () => ({
-      now: tracked.filter(i => i.policy.prioritySortOrdinal <= 1),
-      next: tracked.filter(i => i.policy.prioritySortOrdinal === 2),
-      monitor: tracked.filter(i => i.policy.prioritySortOrdinal === 3),
+      now: queueItems.filter(i => i.policy.prioritySortOrdinal <= 1),
+      next: queueItems.filter(i => i.policy.prioritySortOrdinal === 2),
+      monitor: queueItems.filter(i => i.policy.prioritySortOrdinal === 3),
     }),
     getJob: (id: string) => jobs.get(id) ?? null,
     getDraft: (jobId: string) => drafts.get(jobId) ?? null,
     getAuditTrail: (jobId: string) => auditTrail.get(jobId) ?? [],
-    enqueueAnalysis: (input: { repositoryKey: string; prNumber: number; sourceMode?: string }) => {
+    enqueueAnalysis: options.enqueueAnalysis ?? ((input) => {
       const id = `job-${enqueuedJobs.length + 1}`;
       enqueuedJobs.push({ repositoryKey: input.repositoryKey, prNumber: input.prNumber });
       return id;
-    },
-    enqueueRetry: (jobId: string) => {
-      return `retry-${jobId}`;
-    },
+    }),
+    enqueueRetry: (jobId: string) => jobId,
     getHealthStatus: () => ({
       activeJobs: jobs.size,
       queuedJobs: 0,
@@ -103,24 +93,18 @@ function makeFacadeDeps(options: {
 }
 
 describe('OrchestratorFacade', () => {
-  describe('getAllTracked', () => {
-    it('returns all tracked items from work graph', () => {
-      const items = [makeTrackedItem({ prNumber: 1 }), makeTrackedItem({ prNumber: 2 })];
-      const deps = makeFacadeDeps({ tracked: items });
-      const facade = createOrchestratorFacade(deps);
-
-      expect(facade.getAllTracked()).toHaveLength(2);
-    });
+  it('does not expose getAllTracked', () => {
+    const facade = createOrchestratorFacade(makeFacadeDeps());
+    expect(facade).not.toHaveProperty('getAllTracked');
   });
 
   describe('getFocusQueue', () => {
     it('returns bucketed focus queue', () => {
       const items = [
-        makeTrackedItem({ prNumber: 1, policy: stubPolicy({ prioritySortOrdinal: 0 }) }),
-        makeTrackedItem({ prNumber: 2, policy: stubPolicy({ prioritySortOrdinal: 2 }) }),
+        makeQueueItem({ prNumber: 1, policy: stubPolicy({ prioritySortOrdinal: 0 }) }),
+        makeQueueItem({ prNumber: 2, policy: stubPolicy({ prioritySortOrdinal: 2 }) }),
       ];
-      const deps = makeFacadeDeps({ tracked: items });
-      const facade = createOrchestratorFacade(deps);
+      const facade = createOrchestratorFacade(makeFacadeDeps({ queueItems: items }));
       const queue = facade.getFocusQueue();
 
       expect(queue.now).toHaveLength(1);
@@ -143,33 +127,31 @@ describe('OrchestratorFacade', () => {
       expect(deps.enqueuedJobs[0]!.prNumber).toBe(42);
     });
 
-    it('passes sourceMode to enqueue', () => {
-      const deps = makeFacadeDeps();
-      const facade = createOrchestratorFacade(deps);
-      facade.requestAnalyze({
-        repositoryKey: 'pba-webapp',
-        prNumber: 42,
-        sourceMode: 'remote-evidence-only',
-      });
+    it('propagates ineligible errors from enqueue', () => {
+      const facade = createOrchestratorFacade(
+        makeFacadeDeps({
+          enqueueAnalysis: () => {
+            throw new PrNotEligibleForReviewError();
+          },
+        }),
+      );
 
-      expect(deps.enqueuedJobs).toHaveLength(1);
+      expect(() =>
+        facade.requestAnalyze({ repositoryKey: 'repo-a', prNumber: 7 }),
+      ).toThrow('PR is not eligible for review');
     });
   });
 
   describe('requestRetry', () => {
-    it('creates a new run for the given job', () => {
-      const deps = makeFacadeDeps();
-      const facade = createOrchestratorFacade(deps);
-      const newRunId = facade.requestRetry('job-1');
-
-      expect(newRunId).toBe('retry-job-1');
+    it('requeues the failed job and returns its job id', () => {
+      const facade = createOrchestratorFacade(makeFacadeDeps());
+      expect(facade.requestRetry('job-1')).toBe('job-1');
     });
   });
 
   describe('getHealthStatus', () => {
     it('returns runtime health snapshot', () => {
-      const deps = makeFacadeDeps();
-      const facade = createOrchestratorFacade(deps);
+      const facade = createOrchestratorFacade(makeFacadeDeps());
       const health = facade.getHealthStatus();
 
       expect(health.uptime).toBeGreaterThanOrEqual(0);
@@ -179,11 +161,8 @@ describe('OrchestratorFacade', () => {
 
   describe('getAuditTrail', () => {
     it('returns empty array when no events', () => {
-      const deps = makeFacadeDeps();
-      const facade = createOrchestratorFacade(deps);
-      const trail = facade.getAuditTrail('unknown-job');
-
-      expect(trail).toEqual([]);
+      const facade = createOrchestratorFacade(makeFacadeDeps());
+      expect(facade.getAuditTrail('unknown-job')).toEqual([]);
     });
   });
 });

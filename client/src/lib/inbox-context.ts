@@ -2,7 +2,7 @@ import type { FocusQueueRow } from "./api.js";
 import { summarizeReasons } from "./queue-display.js";
 
 export interface InboxContextItem {
-  label: "Priority" | "Attention reason";
+  label: "Priority" | "Review reason";
   value: string;
 }
 
@@ -13,7 +13,7 @@ function formatPriority(priority: string): string {
   return priority.toUpperCase();
 }
 
-function formatAttentionReason(raw: string): string {
+function formatReviewReason(raw: string): string {
   if (raw === "explicit review request") {
     return "Explicit review request";
   }
@@ -40,8 +40,8 @@ export function buildInboxContext(item: FocusQueueRow): InboxContextItem[] {
   return [
     { label: "Priority", value: formatPriority(item.priority) },
     {
-      label: "Attention reason",
-      value: formatAttentionReason(summarizeReasons(item)),
+      label: "Review reason",
+      value: formatReviewReason(summarizeReasons(item)),
     },
   ];
 }

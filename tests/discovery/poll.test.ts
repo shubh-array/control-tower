@@ -52,7 +52,10 @@ function makeDeps(overrides?: Partial<DiscoveryDeps>): DiscoveryDeps {
       explicitRequest: false,
     } satisfies DiscoveredPr),
     upsertRepository: vi.fn(),
-    upsertPr: vi.fn().mockReturnValue(1),
+    upsertEligiblePr: vi.fn().mockReturnValue(1),
+    retireReviewPr: vi.fn().mockResolvedValue(undefined),
+    listPersistedReviewPrs: vi.fn().mockReturnValue([]),
+    enqueueEligible: vi.fn(),
     evaluatePolicy: vi.fn().mockReturnValue({
       eligible: true,
       eligibilityReasons: [],
@@ -161,7 +164,7 @@ describe("DiscoveryPoller", () => {
 
     await poller.poll();
 
-    expect(deps.upsertPr).toHaveBeenCalledOnce();
+    expect(deps.upsertEligiblePr).toHaveBeenCalledOnce();
   });
 
   it("upserts repository before PR for FK safety", async () => {
@@ -182,7 +185,7 @@ describe("DiscoveryPoller", () => {
       host: "github.com",
     });
     expect(deps.upsertRepository).toHaveBeenCalledBefore(
-      deps.upsertPr as ReturnType<typeof vi.fn>,
+      deps.upsertEligiblePr as ReturnType<typeof vi.fn>,
     );
   });
 
@@ -227,15 +230,73 @@ describe("DiscoveryPoller", () => {
     );
   });
 
-  it("calls persistDecision when provided", async () => {
+  it("does not persist or enqueue when policy marks PR ineligible", async () => {
     const prItem = {
       number: 42,
       repository: { nameWithOwner: "Powered-By-Array/pba-webapp" },
     };
-    const decision = {
-      eligible: true,
+    const deps = makeDeps({
+      searchReviewRequested: vi.fn().mockResolvedValue([prItem]),
+      normalizePr: vi.fn().mockReturnValue({
+        repositoryId: "pba-webapp",
+        githubOwnerRepo: "Powered-By-Array/pba-webapp",
+        prNumber: 42,
+        title: "Test",
+        url: "",
+        state: "OPEN",
+        isDraft: false,
+        authorLogin: "alice",
+        headSha: "abc",
+        baseSha: "def",
+        labels: [],
+        additions: 0,
+        deletions: 0,
+        createdAt: "",
+        updatedAt: "",
+        changedFiles: [],
+        unsafeFiles: [],
+        reviewRequests: [],
+        checks: [],
+        reviews: [],
+        comments: [],
+        explicitRequest: true,
+      } satisfies DiscoveredPr),
+      evaluatePolicy: vi.fn().mockReturnValue({
+        eligible: false,
+        eligibilityReasons: [],
+        exclusionReasons: [
+          { code: "inactive_repository", githubOwnerRepo: "Powered-By-Array/pba-webapp" },
+        ],
+        authorOnly: false,
+        priorityStatus: "p3" as const,
+        prioritySortOrdinal: 3,
+        priorityReasons: [],
+        allPriorityReasons: [],
+        selectedPriorityReason: null,
+        analysisMode: "on_demand" as const,
+        autoAnalyzeReasons: [],
+        selectedDomains: [],
+        allDomainReasons: [],
+      }),
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    await poller.poll();
+
+    expect(deps.upsertEligiblePr).not.toHaveBeenCalled();
+    expect(deps.enqueueEligible).not.toHaveBeenCalled();
+    expect(deps.retireReviewPr).toHaveBeenCalledWith("pba-webapp", 42);
+  });
+
+  it("defers retirements until poll succeeds and applies none when a later enrich throws", async () => {
+    const pr42 = { number: 42 };
+    const pr55 = { number: 55 };
+    const ineligibleDecision = {
+      eligible: false,
       eligibilityReasons: [],
-      exclusionReasons: [],
+      exclusionReasons: [
+        { code: "inactive_repository", githubOwnerRepo: "Powered-By-Array/pba-webapp" },
+      ],
       authorOnly: false,
       priorityStatus: "p3" as const,
       prioritySortOrdinal: 3,
@@ -247,15 +308,140 @@ describe("DiscoveryPoller", () => {
       selectedDomains: [],
       allDomainReasons: [],
     };
+    const enrichPr = vi
+      .fn()
+      .mockResolvedValueOnce({ number: 42, state: "OPEN" })
+      .mockRejectedValueOnce(new Error("ENOTFOUND api.github.com"));
+    const normalizePr = vi.fn().mockImplementation(
+      (raw: { number: number }, repositoryId: string, explicitRequest: boolean) =>
+        ({
+          repositoryId,
+          githubOwnerRepo: "Powered-By-Array/pba-webapp",
+          prNumber: raw.number,
+          title: "Test",
+          url: "",
+          state: "OPEN",
+          isDraft: false,
+          authorLogin: "alice",
+          headSha: "abc",
+          baseSha: "def",
+          labels: [],
+          additions: 0,
+          deletions: 0,
+          createdAt: "",
+          updatedAt: "",
+          changedFiles: [],
+          unsafeFiles: [],
+          reviewRequests: [],
+          checks: [],
+          reviews: [],
+          comments: [],
+          explicitRequest,
+        }) satisfies DiscoveredPr,
+    );
     const deps = makeDeps({
-      searchReviewRequested: vi.fn().mockResolvedValue([prItem]),
-      evaluatePolicy: vi.fn().mockReturnValue(decision),
-      persistDecision: vi.fn(),
+      searchReviewRequested: vi.fn().mockResolvedValue([]),
+      listRepoPrs: vi.fn().mockResolvedValue([pr42, pr55]),
+      enrichPr,
+      normalizePr,
+      evaluatePolicy: vi.fn().mockImplementation((pr: DiscoveredPr) =>
+        pr.prNumber === 42
+          ? ineligibleDecision
+          : {
+              eligible: true,
+              eligibilityReasons: [],
+              exclusionReasons: [],
+              authorOnly: false,
+              priorityStatus: "p1" as const,
+              prioritySortOrdinal: 1,
+              priorityReasons: [],
+              allPriorityReasons: [],
+              selectedPriorityReason: null,
+              analysisMode: "auto" as const,
+              autoAnalyzeReasons: [],
+              selectedDomains: [],
+              allDomainReasons: [],
+            },
+      ),
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    await expect(poller.poll()).rejects.toThrow("ENOTFOUND");
+
+    expect(deps.retireReviewPr).not.toHaveBeenCalled();
+    expect(deps.checkpoint.setLastPollTime).not.toHaveBeenCalled();
+  });
+
+  it("reconciles persisted cache rows after successful poll before checkpoint", async () => {
+    const persisted = {
+      repositoryId: "pba-webapp",
+      github: "Powered-By-Array/pba-webapp",
+      prNumber: 99,
+    };
+    const listPersistedReviewPrs = vi.fn().mockReturnValue([persisted]);
+    const enrichPr = vi.fn().mockResolvedValue({ number: 99, state: "OPEN" });
+    const deps = makeDeps({
+      listRepoPrs: vi.fn().mockResolvedValue([]),
+      searchReviewRequested: vi.fn().mockResolvedValue([]),
+      listPersistedReviewPrs,
+      enrichPr,
+      normalizePr: vi.fn().mockImplementation((_raw, repositoryId, explicitRequest) => ({
+        repositoryId,
+        githubOwnerRepo: "Powered-By-Array/pba-webapp",
+        prNumber: explicitRequest ? 42 : 99,
+        title: "Test",
+        url: "",
+        state: "OPEN",
+        isDraft: false,
+        authorLogin: "alice",
+        headSha: "abc",
+        baseSha: "def",
+        labels: [],
+        additions: 0,
+        deletions: 0,
+        createdAt: "",
+        updatedAt: "",
+        changedFiles: [],
+        unsafeFiles: [],
+        reviewRequests: [],
+        checks: [],
+        reviews: [],
+        comments: [],
+        explicitRequest,
+      } satisfies DiscoveredPr)),
     });
     const poller = new DiscoveryPoller(deps);
 
     await poller.poll();
 
-    expect(deps.persistDecision).toHaveBeenCalledWith(1, expect.any(Object), decision);
+    expect(listPersistedReviewPrs).toHaveBeenCalledOnce();
+    expect(enrichPr).toHaveBeenCalledWith("Powered-By-Array/pba-webapp", 99);
+    expect(deps.upsertEligiblePr).toHaveBeenCalledWith(
+      expect.objectContaining({ prNumber: 99 }),
+      expect.objectContaining({ eligible: true }),
+    );
+    expect(deps.checkpoint.setLastPollTime).toHaveBeenCalledWith("github.com");
+    expect(deps.checkpoint.setLastPollTime).toHaveBeenCalledAfter(
+      listPersistedReviewPrs as ReturnType<typeof vi.fn>,
+    );
+  });
+
+  it("does not reconcile persisted cache rows when poll is skipped", async () => {
+    const deps = makeDeps({
+      verifyIdentity: vi.fn().mockResolvedValue(unhealthyHost()),
+      listPersistedReviewPrs: vi.fn().mockReturnValue([
+        {
+          repositoryId: "pba-webapp",
+          github: "Powered-By-Array/pba-webapp",
+          prNumber: 99,
+        },
+      ]),
+    });
+    const poller = new DiscoveryPoller(deps);
+
+    await poller.poll();
+
+    expect(deps.listPersistedReviewPrs).not.toHaveBeenCalled();
+    expect(deps.checkpoint.setLastPollTime).not.toHaveBeenCalled();
   });
 });

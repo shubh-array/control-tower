@@ -38,7 +38,6 @@ export const api = {
 
   getQueue() {
     return request<{
-      allTracked: TrackedQueueRow[];
       focusQueue: { now: FocusQueueRow[]; next: FocusQueueRow[]; monitor: FocusQueueRow[] };
     }>("/api/queue");
   },
@@ -81,7 +80,6 @@ export const api = {
   async requestAnalyze(input: {
     repositoryKey: string;
     prNumber: number;
-    sourceMode?: "registered-source" | "remote-evidence-only";
   }) {
     const actionToken = await this.createActionToken();
     return request<{ jobId: string }>("/api/jobs/analyze", {
@@ -92,42 +90,8 @@ export const api = {
 
   async requestRetry(jobId: string) {
     const actionToken = await this.createActionToken();
-    return request<{ runId: string }>(
+    return request<{ jobId: string }>(
       `/api/jobs/${encodeURIComponent(jobId)}/retry`,
-      {
-        method: "POST",
-        body: JSON.stringify({ actionToken }),
-      },
-    );
-  },
-
-  getSignals(limit = 50) {
-    return request<LearningSignalSummary[]>(`/api/signals?limit=${limit}`);
-  },
-
-  async startProposal(signalRunIds: string[]) {
-    const actionToken = await this.createActionToken();
-    return request<ProposalDetail>("/api/proposals/start", {
-      method: "POST",
-      body: JSON.stringify({ signalRunIds, actionToken }),
-    });
-  },
-
-  async validateProposal(proposalId: string) {
-    const actionToken = await this.createActionToken();
-    return request<ProposalValidationResult>(
-      `/api/proposals/${encodeURIComponent(proposalId)}/validate`,
-      {
-        method: "POST",
-        body: JSON.stringify({ actionToken }),
-      },
-    );
-  },
-
-  async adoptProposal(proposalId: string) {
-    const actionToken = await this.createActionToken();
-    return request<ProposalAdoptionResult>(
-      `/api/proposals/${encodeURIComponent(proposalId)}/adopt`,
       {
         method: "POST",
         body: JSON.stringify({ actionToken }),
@@ -144,7 +108,7 @@ export interface QueueOrder {
   prNumber: number;
 }
 
-export interface TrackedQueueRow {
+export interface ReviewQueueRow {
   jobId: string | null;
   repositoryKey: string;
   repository: string;
@@ -154,19 +118,15 @@ export interface TrackedQueueRow {
   author: string;
   headSha: string;
   eligibilityReasons: EligibilityReason[];
-  exclusionReasons: ExclusionReason[];
-  priority: string;
+  priority: "p0" | "p1" | "p2" | "p3";
   priorityReasons: PriorityReason[];
   queueOrder: QueueOrder;
   domains: string[];
-  attentionState: string;
   jobState: string | null;
-  advisorResult: AdvisorResult | null;
-  discoveredAt: string;
   updatedAt: string;
 }
 
-export type FocusQueueRow = TrackedQueueRow;
+export type FocusQueueRow = ReviewQueueRow;
 
 export interface EligibilityReason {
   code: string;
@@ -183,16 +143,6 @@ export interface PriorityReason {
   code: string;
   tier?: string;
   [key: string]: unknown;
-}
-
-export interface AdvisorResult {
-  relevance: string;
-  risk: string;
-  explanation: string;
-  recommendedAction: string;
-  confidence: string;
-  unknowns: string[];
-  stale: boolean;
 }
 
 export interface JobDetail {
@@ -289,48 +239,4 @@ export interface AuditEntry {
   timestamp: string;
   event: string;
   details: Record<string, unknown>;
-}
-
-export interface LearningSignalSummary {
-  type: string;
-  jobId: string;
-  runId: string;
-  timestamp: string;
-  modelRole: string;
-}
-
-export interface ProposalDetail {
-  id: string;
-  status: string;
-  targets: Array<{
-    path: string;
-    rationale: string;
-    proposedContent: string;
-    baseContentHash: string;
-  }>;
-}
-
-export interface ProposalValidationResult {
-  valid: boolean;
-  errors: string[];
-  previews?: ProposalPreview[];
-}
-
-export interface ProposalPreviewLine {
-  type: "unchanged" | "added" | "removed";
-  lineNumber: number;
-  content: string;
-}
-
-export interface ProposalPreview {
-  proposalId: string;
-  targetPath: string;
-  baseHash: string;
-  proposedHash: string;
-  lines: ProposalPreviewLine[];
-}
-
-export interface ProposalAdoptionResult {
-  adopted: boolean;
-  errors: string[];
 }

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import type { TrackedQueueRow } from "../../client/src/lib/api.js";
+import type { ReviewQueueRow } from "../../client/src/lib/api.js";
 import { buildInboxContext } from "../../client/src/lib/inbox-context.js";
 
-function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
+function row(overrides: Partial<ReviewQueueRow> = {}): ReviewQueueRow {
   return {
     jobId: null,
     repositoryKey: "pba-webapp",
@@ -13,7 +13,6 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
-    exclusionReasons: [],
     priority: "p1",
     priorityReasons: [],
     queueOrder: {
@@ -24,17 +23,14 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
       prNumber: 42,
     },
     domains: [],
-    attentionState: "ready_for_analysis",
     jobState: null,
-    advisorResult: null,
-    discoveredAt: "2026-07-10T12:00:00.000Z",
     updatedAt: "2026-07-10T12:00:00.000Z",
     ...overrides,
   };
 }
 
 describe("buildInboxContext", () => {
-  it("returns labeled priority and attention reason", () => {
+  it("returns labeled priority and review reason", () => {
     expect(
       buildInboxContext(
         row({
@@ -43,7 +39,7 @@ describe("buildInboxContext", () => {
       ),
     ).toEqual([
       { label: "Priority", value: "P1" },
-      { label: "Attention reason", value: "Explicit review request" },
+      { label: "Review reason", value: "Explicit review request" },
     ]);
   });
 });

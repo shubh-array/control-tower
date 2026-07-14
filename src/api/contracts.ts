@@ -20,17 +20,7 @@ export interface PriorityReason {
   [key: string]: unknown;
 }
 
-export interface AdvisorResult {
-  relevance: string;
-  risk: string;
-  explanation: string;
-  recommendedAction: string;
-  confidence: string;
-  unknowns: string[];
-  stale: boolean;
-}
-
-/** Client queue row — flat projection of AllTrackedItem + DB enrichment. */
+/** Client queue row — flat projection of ReviewQueueItem + DB enrichment. */
 export interface QueueOrder {
   prioritySortOrdinal: number;
   explicitRequestSort: 0 | 1;
@@ -39,7 +29,7 @@ export interface QueueOrder {
   prNumber: number;
 }
 
-export interface TrackedQueueRow {
+export interface ReviewQueueRow {
   jobId: string | null;
   repositoryKey: string;
   repository: string;
@@ -49,19 +39,15 @@ export interface TrackedQueueRow {
   author: string;
   headSha: string;
   eligibilityReasons: EligibilityReason[];
-  exclusionReasons: ExclusionReason[];
-  priority: string;
+  priority: "p0" | "p1" | "p2" | "p3";
   priorityReasons: PriorityReason[];
   queueOrder: QueueOrder;
   domains: string[];
-  attentionState: string;
   jobState: string | null;
-  advisorResult: AdvisorResult | null;
-  discoveredAt: string;
   updatedAt: string;
 }
 
-export type FocusQueueRow = TrackedQueueRow;
+export type FocusQueueRow = ReviewQueueRow;
 
 export interface RunSummary {
   runId: string;

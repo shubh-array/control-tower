@@ -5,8 +5,6 @@ import type { PolicyDecision } from "../policy/evaluate.js";
 import { canonicalJsonSerialize } from "../util/canonical-json.js";
 import { sha256OfCanonicalJson } from "../util/hash.js";
 
-const MAX_LABELS = 50;
-
 type ResourceClass = "light" | "medium" | "heavy";
 
 interface RepositoryUpsertInput {
@@ -17,14 +15,7 @@ interface RepositoryUpsertInput {
   resourceClass: ResourceClass;
 }
 
-interface UnsafeFileRecord {
-  raw: string;
-  diagnostic: string;
-}
-
-type ReviewRecord = DiscoveredPr["reviews"][number];
 type CommentRecord = DiscoveredPr["comments"][number];
-type ReviewRequestRecord = DiscoveredPr["reviewRequests"][number];
 
 export function upsertRepository(
   db: Database.Database,
@@ -60,89 +51,73 @@ export function upsertRepository(
   );
 }
 
-export function upsertPr(db: Database.Database, pr: DiscoveredPr): number {
-  const row = db
-    .prepare(
-      `
-        INSERT INTO prs (
-          repository_id, pr_number, title, body, url, state, draft,
-          author_login, head_sha, base_sha, head_ref, base_ref,
-          additions, deletions, github_created, github_updated,
-          explicit_request, explicit_request_at, labels_json, fetched_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-        ON CONFLICT(repository_id, pr_number) DO UPDATE SET
-          title = excluded.title,
-          body = excluded.body,
-          url = excluded.url,
-          state = excluded.state,
-          draft = excluded.draft,
-          author_login = excluded.author_login,
-          head_sha = excluded.head_sha,
-          base_sha = excluded.base_sha,
-          head_ref = excluded.head_ref,
-          base_ref = excluded.base_ref,
-          additions = excluded.additions,
-          deletions = excluded.deletions,
-          github_created = excluded.github_created,
-          github_updated = excluded.github_updated,
-          explicit_request = MAX(prs.explicit_request, excluded.explicit_request),
-          explicit_request_at = COALESCE(prs.explicit_request_at, excluded.explicit_request_at),
-          labels_json = excluded.labels_json,
-          fetched_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-        RETURNING id
-      `,
-    )
-    .get(
-      pr.repositoryId,
-      pr.prNumber,
-      pr.title,
-      pr.body ?? null,
-      pr.url,
-      pr.state.toLowerCase(),
-      pr.isDraft ? 1 : 0,
-      normalizeLogin(pr.authorLogin),
-      pr.headSha,
-      pr.baseSha,
-      pr.headRef ?? null,
-      pr.baseRef ?? null,
-      pr.additions,
-      pr.deletions,
-      pr.createdAt,
-      pr.updatedAt,
-      pr.explicitRequest ? 1 : 0,
-      pr.explicitRequestTimestamp ?? null,
-      JSON.stringify(pr.labels.slice(0, MAX_LABELS)),
-    ) as { id: number };
-
-  return row.id;
-}
-
-export function upsertPrFiles(
+export function upsertEligiblePr(
   db: Database.Database,
-  prId: number,
-  canonicalPaths: string[],
-  unsafeFiles: UnsafeFileRecord[],
-): void {
-  db.prepare("DELETE FROM pr_files WHERE pr_id = ?").run(prId);
+  pr: DiscoveredPr,
+  decision: PolicyDecision,
+): number {
+  const policyJson = canonicalJsonSerialize(decision);
+  const policyHash = sha256OfCanonicalJson(decision);
 
-  const insertFile = db.prepare(
-    `
-      INSERT INTO pr_files (pr_id, path, is_unsafe, unsafe_diagnostic)
-      VALUES (?, ?, ?, ?)
-    `,
-  );
+  const transaction = db.transaction(() => {
+    const row = db
+      .prepare(
+        `
+          INSERT INTO prs (
+            repository_id, pr_number, head_sha, base_sha, title, url,
+            author_login, explicit_request, explicit_request_at, github_updated,
+            policy_json, policy_hash, fetched_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+          ON CONFLICT(repository_id, pr_number) DO UPDATE SET
+            head_sha = excluded.head_sha,
+            base_sha = excluded.base_sha,
+            title = excluded.title,
+            url = excluded.url,
+            author_login = excluded.author_login,
+            explicit_request = MAX(prs.explicit_request, excluded.explicit_request),
+            explicit_request_at = COALESCE(prs.explicit_request_at, excluded.explicit_request_at),
+            github_updated = excluded.github_updated,
+            policy_json = excluded.policy_json,
+            policy_hash = excluded.policy_hash,
+            fetched_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          RETURNING id
+        `,
+      )
+      .get(
+        pr.repositoryId,
+        pr.prNumber,
+        pr.headSha,
+        pr.baseSha,
+        pr.title,
+        pr.url,
+        normalizeLogin(pr.authorLogin),
+        pr.explicitRequest ? 1 : 0,
+        pr.explicitRequestTimestamp ?? null,
+        pr.updatedAt,
+        policyJson,
+        policyHash,
+      ) as { id: number };
 
-  for (const path of canonicalPaths) {
-    insertFile.run(prId, path, 0, null);
-  }
+    upsertPrChecks(db, row.id, pr.checks);
+    upsertPrComments(db, row.id, pr.comments);
+    return row.id;
+  });
 
-  for (const unsafeFile of unsafeFiles) {
-    insertFile.run(prId, unsafeFile.raw, 1, unsafeFile.diagnostic);
-  }
+  return transaction();
 }
 
-export function upsertPrChecks(
+export function deleteReviewPr(
+  db: Database.Database,
+  repositoryId: string,
+  prNumber: number,
+): void {
+  db.prepare(
+    "DELETE FROM prs WHERE repository_id = ? AND pr_number = ?",
+  ).run(repositoryId, prNumber);
+}
+
+function upsertPrChecks(
   db: Database.Database,
   prId: number,
   checks: GhCheckRun[],
@@ -174,32 +149,7 @@ export function upsertPrChecks(
   }
 }
 
-export function upsertPrReviews(
-  db: Database.Database,
-  prId: number,
-  reviews: ReviewRecord[],
-): void {
-  db.prepare("DELETE FROM pr_reviews WHERE pr_id = ?").run(prId);
-
-  const insertReview = db.prepare(
-    `
-      INSERT INTO pr_reviews (pr_id, author_login, state, body, submitted_at)
-      VALUES (?, ?, ?, ?, ?)
-    `,
-  );
-
-  for (const review of reviews) {
-    insertReview.run(
-      prId,
-      normalizeLogin(review.authorLogin),
-      review.state,
-      review.body,
-      review.submittedAt,
-    );
-  }
-}
-
-export function upsertPrComments(
+function upsertPrComments(
   db: Database.Database,
   prId: number,
   comments: CommentRecord[],
@@ -222,121 +172,6 @@ export function upsertPrComments(
       comment.url,
     );
   }
-}
-
-export function upsertReviewRequests(
-  db: Database.Database,
-  prId: number,
-  requests: ReviewRequestRecord[],
-): void {
-  db.prepare("DELETE FROM review_requests WHERE pr_id = ?").run(prId);
-
-  const insertRequest = db.prepare(
-    `
-      INSERT INTO review_requests (pr_id, requested_login, requested_at)
-      VALUES (?, ?, ?)
-    `,
-  );
-
-  const seen = new Set<string>();
-  for (const request of requests) {
-    const login = normalizeLogin(request.login);
-    if (!login || seen.has(login)) continue;
-    seen.add(login);
-    insertRequest.run(prId, login, request.requestedAt ?? null);
-  }
-}
-
-export function upsertDiscoveredPr(
-  db: Database.Database,
-  pr: DiscoveredPr,
-): number {
-  const transaction = db.transaction(() => {
-    const prId = upsertPr(db, pr);
-    upsertPrFiles(db, prId, pr.changedFiles, pr.unsafeFiles);
-    upsertPrChecks(db, prId, pr.checks);
-    upsertPrReviews(db, prId, pr.reviews);
-    upsertPrComments(db, prId, pr.comments);
-    upsertReviewRequests(db, prId, pr.reviewRequests);
-    return prId;
-  });
-
-  return transaction();
-}
-
-export function upsertAttentionItem(
-  db: Database.Database,
-  _prId: number,
-  pr: DiscoveredPr,
-  decision: PolicyDecision,
-  repositoryKey: string,
-  sourceMode: "registered-source" | "remote-evidence-only",
-): void {
-  const policyJson = canonicalJsonSerialize(decision);
-  const policyHash = sha256OfCanonicalJson(decision);
-  const attentionId = `${repositoryKey}#${pr.prNumber}`;
-
-  db.prepare(
-    `
-      INSERT INTO attention_items (
-        id, repository_id, repository_key, pr_number, state,
-        priority_tier, priority_sort_ordinal,
-        eligibility_reasons, exclusion_reasons,
-        analysis_mode, auto_analyze, source_mode,
-        policy_json, policy_hash, updated_at
-      )
-      VALUES (
-        ?, ?, ?, ?, 'monitoring',
-        ?, ?,
-        ?, ?,
-        ?, ?, ?,
-        ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-      )
-      ON CONFLICT(repository_key, pr_number) DO UPDATE SET
-        repository_id = excluded.repository_id,
-        priority_tier = excluded.priority_tier,
-        priority_sort_ordinal = excluded.priority_sort_ordinal,
-        eligibility_reasons = excluded.eligibility_reasons,
-        exclusion_reasons = excluded.exclusion_reasons,
-        analysis_mode = excluded.analysis_mode,
-        auto_analyze = excluded.auto_analyze,
-        source_mode = excluded.source_mode,
-        policy_json = excluded.policy_json,
-        policy_hash = excluded.policy_hash,
-        updated_at = excluded.updated_at
-    `,
-  ).run(
-    attentionId,
-    pr.repositoryId,
-    repositoryKey,
-    pr.prNumber,
-    decision.priorityStatus,
-    decision.prioritySortOrdinal,
-    JSON.stringify(decision.eligibilityReasons),
-    JSON.stringify(decision.exclusionReasons),
-    decision.analysisMode,
-    decision.analysisMode === "auto" ? 1 : 0,
-    sourceMode,
-    policyJson,
-    policyHash,
-  );
-}
-
-export function createPersistDecision(
-  db: Database.Database,
-  resolveRepositoryKey: (pr: DiscoveredPr) => string,
-  resolveSourceMode: (pr: DiscoveredPr) => "registered-source" | "remote-evidence-only",
-): (prId: number, pr: DiscoveredPr, decision: PolicyDecision) => void {
-  return (prId, pr, decision) => {
-    upsertAttentionItem(
-      db,
-      prId,
-      pr,
-      decision,
-      resolveRepositoryKey(pr),
-      resolveSourceMode(pr),
-    );
-  };
 }
 
 function splitGithubRepo(github: string): { owner: string; name: string } {

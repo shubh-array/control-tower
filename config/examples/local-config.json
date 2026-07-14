@@ -7,9 +7,6 @@
   "cursor": {
     "binary": "agent",
     "modelRoles": {
-      "attention": {
-        "modelId": "composer-2.5-fast"
-      },
       "primaryReview": {
         "modelId": "composer-2.5-fast"
       }

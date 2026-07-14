@@ -7,25 +7,18 @@ import {
   type RuntimeDeps,
   type RuntimeHandle,
 } from '../../src/daemon/runtime.js';
-import type { AllTrackedItem } from '../../src/policy/evaluate.js';
+import type { ReviewQueueItem } from '../../src/policy/evaluate.js';
 
-function makeTrackedItemFixture(): AllTrackedItem {
+function makeQueueItemFixture(): ReviewQueueItem {
   return {
     repositoryKey: 'pba-webapp',
     prNumber: 42,
     headSha: 'a'.repeat(40),
-    baseSha: 'b'.repeat(40),
     title: 'Fix bug',
     url: 'https://github.com/pba-webapp/pull/42',
     author: 'dev',
-    draft: false,
-    labels: [],
-    additions: 1,
-    deletions: 0,
-    changedFiles: ['src/a.ts'],
-    reviewRequested: true,
-    checkSummary: [],
     updatedAt: '2026-07-10T12:00:00.000Z',
+    explicitRequest: true,
     explicitRequestTimestamp: null,
     policy: {
       eligible: true,
@@ -60,20 +53,18 @@ function makeTrackedItemFixture(): AllTrackedItem {
       ],
       allDomainReasons: [],
     },
-    sourceMode: 'registered-source',
-    bodyTruncated: '',
   };
 }
 
 function makeFakeRuntimeDeps(options?: {
-  tracked?: AllTrackedItem[];
+  queueItems?: ReviewQueueItem[];
 }): RuntimeDeps & {
   migrateCalled: boolean;
   recoveryCalled: boolean;
   pollerStarted: boolean;
   schedulerTicks: number;
 } {
-  const tracked = options?.tracked ?? [];
+  const queueItems = options?.queueItems ?? [];
   return {
     migrateCalled: false,
     recoveryCalled: false,
@@ -97,8 +88,7 @@ function makeFakeRuntimeDeps(options?: {
     },
     createFacade() {
       return {
-        getAllTracked: () => tracked,
-        getFocusQueue: () => ({ now: tracked, next: [], monitor: [] }),
+        getFocusQueue: () => ({ now: queueItems, next: [], monitor: [] }),
         getJob: () => null,
         getDraft: () => null,
         getHealthStatus: () => ({
@@ -110,7 +100,7 @@ function makeFakeRuntimeDeps(options?: {
         }),
         getAuditTrail: () => [],
         requestAnalyze: () => 'job-1',
-        requestRetry: () => 'run-1',
+        requestRetry: () => 'job-1',
       };
     },
   };
@@ -158,11 +148,12 @@ describe('startRuntime', () => {
     expect(deps.pollerStarted).toBe(true);
   });
 
-  it('exposes facade', async () => {
+  it('exposes facade without getAllTracked', async () => {
     const deps = makeFakeRuntimeDeps();
     handle = await startRuntime(DEFAULT_CONFIG, deps);
     expect(handle.facade).toBeDefined();
-    expect(handle.facade.getAllTracked()).toEqual([]);
+    expect(handle.facade).not.toHaveProperty('getAllTracked');
+    expect(handle.facade.getFocusQueue()).toEqual({ now: [], next: [], monitor: [] });
   });
 
   it('stopRuntime cleans up poller', async () => {
@@ -173,9 +164,29 @@ describe('startRuntime', () => {
     handle = null;
   });
 
-  it('maps facade tracked items to /api/queue with repositoryKey and queueOrder', async () => {
-    const trackedItem = makeTrackedItemFixture();
-    const deps = makeFakeRuntimeDeps({ tracked: [trackedItem] });
+  it('does not expose removed signal or proposal API routes', async () => {
+    const deps = makeFakeRuntimeDeps();
+    handle = await startRuntime(
+      { ...DEFAULT_CONFIG, port: 19121, apiServerEnabled: true },
+      deps,
+    );
+
+    const sessionRes = await fetch(`${handle.url}/`, { redirect: 'manual' });
+    const setCookie = sessionRes.headers.get('set-cookie');
+    expect(setCookie).toBeTruthy();
+    const cookie = setCookie!.split(';')[0]!;
+
+    for (const path of ['/api/signals', '/api/proposals/start']) {
+      const response = await fetch(`${handle.url}${path}`, {
+        headers: { cookie },
+      });
+      expect(response.status).toBe(404);
+    }
+  });
+
+  it('maps facade focus queue to /api/queue with repositoryKey and queueOrder', async () => {
+    const queueItem = makeQueueItemFixture();
+    const deps = makeFakeRuntimeDeps({ queueItems: [queueItem] });
     handle = await startRuntime(
       { ...DEFAULT_CONFIG, port: 19120, apiServerEnabled: true },
       deps,
@@ -191,11 +202,13 @@ describe('startRuntime', () => {
     });
     expect(queueRes.status).toBe(200);
     const body = await queueRes.json() as {
-      allTracked: Array<{ repositoryKey: string; queueOrder: unknown }>;
+      focusQueue: { now: Array<{ repositoryKey: string; queueOrder: unknown }> };
+      allTracked?: unknown;
     };
-    expect(body.allTracked).toHaveLength(1);
-    expect(body.allTracked[0]!.repositoryKey).toBe('pba-webapp');
-    expect(body.allTracked[0]!.queueOrder).toEqual({
+    expect(body).not.toHaveProperty('allTracked');
+    expect(body.focusQueue.now).toHaveLength(1);
+    expect(body.focusQueue.now[0]!.repositoryKey).toBe('pba-webapp');
+    expect(body.focusQueue.now[0]!.queueOrder).toEqual({
       prioritySortOrdinal: 1,
       explicitRequestSort: 0,
       queueTimestamp: '2026-07-10T12:00:00.000Z',

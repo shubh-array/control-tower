@@ -7,7 +7,6 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "../src/components/AppShell.js";
-import { FilterBar } from "../src/components/FilterBar.js";
 import { Tabs } from "../src/components/Tabs.js";
 
 function renderUi(element: Parameters<Root["render"]>[0]) {
@@ -69,40 +68,6 @@ describe("Tabs keyboard interaction", () => {
   });
 });
 
-describe("FilterBar keyboard interaction", () => {
-  it("changes filter selection through native radio inputs", () => {
-    const onChange = vi.fn();
-    const { container } = renderUi(
-      createElement(FilterBar, {
-        options: [
-          { value: "eligible", label: "Eligible" },
-          { value: "ineligible", label: "Ineligible" },
-          { value: "all", label: "All" },
-        ],
-        value: "eligible",
-        onChange,
-        searchValue: "",
-        onSearchChange: () => {},
-        searchLabel: "Search coverage",
-        searchPlaceholder: "Search",
-        groupName: "coverage-filter",
-      }),
-    );
-
-    const radios = Array.from(
-      container.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
-    );
-    expect(radios.every((radio) => radio.name === "coverage-filter")).toBe(true);
-    expect(radios[0]?.checked).toBe(true);
-
-    act(() => {
-      radios[1]?.click();
-    });
-
-    expect(onChange).toHaveBeenCalledWith("ineligible");
-  });
-});
-
 describe("AppShell interaction", () => {
   const baseProps = {
     connection: { state: "connected" as const, label: "Connected" },
@@ -113,7 +78,7 @@ describe("AppShell interaction", () => {
     children: createElement("p", null, "Body"),
   };
 
-  it("marks the active route and navigates when another primary nav item is clicked", () => {
+  it("marks inbox as the only primary nav item", () => {
     const onNavigate = vi.fn();
     const { container } = renderUi(
       createElement(AppShell, {
@@ -124,19 +89,15 @@ describe("AppShell interaction", () => {
       }),
     );
 
-    const inbox = container.querySelector<HTMLButtonElement>(
-      'button.primary-nav__link[aria-current="page"]',
-    );
-    expect(inbox?.textContent).toBe("Inbox");
-
-    const coverage = Array.from(
+    const navLinks = Array.from(
       container.querySelectorAll<HTMLButtonElement>("button.primary-nav__link"),
-    ).find((button) => button.textContent === "Coverage");
-    act(() => {
-      coverage?.click();
-    });
-
-    expect(onNavigate).toHaveBeenCalledWith("coverage");
+    );
+    expect(navLinks.map((button) => button.textContent)).toEqual(["Inbox"]);
+    expect(
+      container.querySelector('button.primary-nav__link[aria-current="page"]')
+        ?.textContent,
+    ).toBe("Inbox");
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
   it("invokes manual refresh and retry handlers from shell controls", () => {
@@ -146,7 +107,7 @@ describe("AppShell interaction", () => {
     const { container } = renderUi(
       createElement(AppShell, {
         ...baseProps,
-        active: "coverage",
+        active: "inbox",
         onNavigate: vi.fn(),
         onRefresh,
         onRetryConnection,

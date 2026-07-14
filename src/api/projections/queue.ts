@@ -1,19 +1,7 @@
 import type Database from "better-sqlite3";
-import type { AllTrackedItem } from "../../policy/evaluate.js";
+import type { ReviewQueueItem } from "../../policy/evaluate.js";
 import { toQueueTuple } from "../../policy/queue-order.js";
-import type {
-  AdvisorResult,
-  FocusQueueRow,
-  TrackedQueueRow,
-} from "../contracts.js";
-
-interface AttentionEnrichment {
-  state: string;
-  advisor_relevance: string | null;
-  advisor_risk: string | null;
-  advisor_status: string | null;
-  created_at: string;
-}
+import type { FocusQueueRow, ReviewQueueRow } from "../contracts.js";
 
 interface JobEnrichment {
   id: string;
@@ -47,39 +35,10 @@ function resolveRepositoryDisplay(
   return repositoryKey;
 }
 
-function buildAdvisorResult(row: AttentionEnrichment | undefined): AdvisorResult | null {
-  if (!row?.advisor_relevance || !row.advisor_risk) {
-    return null;
-  }
-  return {
-    relevance: row.advisor_relevance,
-    risk: row.advisor_risk,
-    explanation: "",
-    recommendedAction: "monitor",
-    confidence: "medium",
-    unknowns: [],
-    stale: row.advisor_status === "stale",
-  };
-}
-
 export function loadQueueEnrichment(db: Database.Database): {
-  attention: Map<string, AttentionEnrichment>;
   jobs: Map<string, JobEnrichment>;
   repositoryDisplay: Map<string, string>;
 } {
-  const attention = new Map<string, AttentionEnrichment>();
-  for (const row of db
-    .prepare(
-      `SELECT repository_key, pr_number, state, advisor_relevance, advisor_risk,
-              advisor_status, created_at
-       FROM attention_items`,
-    )
-    .all() as Array<
-      AttentionEnrichment & { repository_key: string; pr_number: number }
-    >) {
-    attention.set(prKey(row.repository_key, row.pr_number), row);
-  }
-
   const jobs = new Map<string, JobEnrichment>();
   for (const row of db
     .prepare(
@@ -104,15 +63,14 @@ export function loadQueueEnrichment(db: Database.Database): {
     repositoryDisplay.set(row.id, resolveRepositoryDisplay(db, row.id));
   }
 
-  return { attention, jobs, repositoryDisplay };
+  return { jobs, repositoryDisplay };
 }
 
-export function projectTrackedItem(
-  item: AllTrackedItem,
+export function projectReviewQueueItem(
+  item: ReviewQueueItem,
   enrichment: ReturnType<typeof loadQueueEnrichment>,
-): TrackedQueueRow {
+): ReviewQueueRow {
   const key = prKey(item.repositoryKey, item.prNumber);
-  const att = enrichment.attention.get(key);
   const job = enrichment.jobs.get(key);
   const repo =
     enrichment.repositoryDisplay.get(item.repositoryKey) ?? item.repositoryKey;
@@ -121,9 +79,9 @@ export function projectTrackedItem(
     prNumber: item.prNumber,
     normalizedRepositoryIdentity: item.repositoryKey,
     prioritySortOrdinal: item.policy.prioritySortOrdinal,
-    explicitRequest: item.reviewRequested,
+    explicitRequest: item.explicitRequest,
     explicitRequestTimestamp: item.explicitRequestTimestamp ?? undefined,
-    updatedAt: item.updatedAt ?? "unknown",
+    updatedAt: item.updatedAt || "unknown",
     eligible: item.policy.eligible,
   });
   const queueOrder = {
@@ -140,42 +98,22 @@ export function projectTrackedItem(
     url: item.url,
     author: item.author,
     headSha: item.headSha,
-    eligibilityReasons: item.policy.eligibilityReasons as unknown as TrackedQueueRow["eligibilityReasons"],
-    exclusionReasons: item.policy.exclusionReasons as unknown as TrackedQueueRow["exclusionReasons"],
-    priority: item.policy.priorityStatus,
-    priorityReasons: item.policy.priorityReasons as unknown as TrackedQueueRow["priorityReasons"],
+    eligibilityReasons: item.policy.eligibilityReasons as unknown as ReviewQueueRow["eligibilityReasons"],
+    priority: item.policy.priorityStatus as ReviewQueueRow["priority"],
+    priorityReasons: item.policy.priorityReasons as unknown as ReviewQueueRow["priorityReasons"],
     queueOrder,
     domains: item.policy.selectedDomains.map((d) => d.domain),
-    attentionState: att?.state ?? "monitoring",
     jobState: job?.state ?? null,
-    advisorResult: buildAdvisorResult(att),
-    discoveredAt: att?.created_at ?? item.updatedAt ?? new Date().toISOString(),
-    updatedAt: item.updatedAt ?? new Date().toISOString(),
+    updatedAt: item.updatedAt || new Date().toISOString(),
   };
-}
-
-export function projectAllTracked(
-  db: Database.Database,
-  items: AllTrackedItem[],
-): TrackedQueueRow[] {
-  const enrichment = loadQueueEnrichment(db);
-  for (const item of items) {
-    if (!enrichment.repositoryDisplay.has(item.repositoryKey)) {
-      enrichment.repositoryDisplay.set(
-        item.repositoryKey,
-        resolveRepositoryDisplay(db, item.repositoryKey),
-      );
-    }
-  }
-  return items.map((item) => projectTrackedItem(item, enrichment));
 }
 
 export function projectFocusQueue(
   db: Database.Database,
   focus: {
-    now: AllTrackedItem[];
-    next: AllTrackedItem[];
-    monitor: AllTrackedItem[];
+    now: ReviewQueueItem[];
+    next: ReviewQueueItem[];
+    monitor: ReviewQueueItem[];
   },
 ): { now: FocusQueueRow[]; next: FocusQueueRow[]; monitor: FocusQueueRow[] } {
   const enrichment = loadQueueEnrichment(db);
@@ -188,8 +126,8 @@ export function projectFocusQueue(
     }
   }
   return {
-    now: focus.now.map((i) => projectTrackedItem(i, enrichment)),
-    next: focus.next.map((i) => projectTrackedItem(i, enrichment)),
-    monitor: focus.monitor.map((i) => projectTrackedItem(i, enrichment)),
+    now: focus.now.map((i) => projectReviewQueueItem(i, enrichment)),
+    next: focus.next.map((i) => projectReviewQueueItem(i, enrichment)),
+    monitor: focus.monitor.map((i) => projectReviewQueueItem(i, enrichment)),
   };
 }

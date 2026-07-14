@@ -1,14 +1,12 @@
 import { describe, it, expect } from "vitest";
-import type { TrackedQueueRow } from "../../client/src/lib/api.js";
+import type { ReviewQueueRow } from "../../client/src/lib/api.js";
 import {
-  isEligible,
   deriveInboxPresentation,
   sortInboxRows,
   summarizeReasons,
-  filterCoverageRows,
 } from "../../client/src/lib/queue-display.js";
 
-function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
+function row(overrides: Partial<ReviewQueueRow> = {}): ReviewQueueRow {
   return {
     jobId: null,
     repositoryKey: "pba-webapp",
@@ -19,7 +17,6 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
-    exclusionReasons: [],
     priority: "p1",
     priorityReasons: [],
     queueOrder: {
@@ -30,29 +27,11 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
       prNumber: 42,
     },
     domains: [],
-    attentionState: "ready_for_analysis",
     jobState: null,
-    advisorResult: null,
-    discoveredAt: "2026-07-10T12:00:00.000Z",
     updatedAt: "2026-07-10T12:00:00.000Z",
     ...overrides,
   };
 }
-
-describe("isEligible", () => {
-  it("returns true when ranked and not excluded", () => {
-    expect(isEligible(row())).toBe(true);
-  });
-
-  it("returns false when unranked or excluded", () => {
-    expect(isEligible(row({ priority: "unranked" }))).toBe(false);
-    expect(
-      isEligible(
-        row({ exclusionReasons: [{ code: "no_eligible_path_or_author_match" }] }),
-      ),
-    ).toBe(false);
-  });
-});
 
 describe("deriveInboxPresentation", () => {
   it("eligible row with no job => needs-analysis / analyze", () => {
@@ -78,24 +57,6 @@ describe("deriveInboxPresentation", () => {
     expect(
       deriveInboxPresentation(row({ jobId: "job-1", jobState: "failed" })),
     ).toEqual({ chip: "failed", primaryAction: "retry" });
-  });
-
-  it("unranked or excluded => waiting / no action", () => {
-    const unranked = row({ priority: "unranked" });
-    expect(deriveInboxPresentation(unranked)).toEqual({
-      chip: "waiting",
-      primaryAction: null,
-    });
-    expect(isEligible(unranked)).toBe(false);
-
-    const excluded = row({
-      exclusionReasons: [{ code: "no_eligible_path_or_author_match" }],
-    });
-    expect(deriveInboxPresentation(excluded)).toEqual({
-      chip: "waiting",
-      primaryAction: null,
-    });
-    expect(isEligible(excluded)).toBe(false);
   });
 });
 
@@ -177,46 +138,5 @@ describe("summarizeReasons", () => {
         row({ eligibilityReasons: [{ code: "eligible_path" }] }),
       ),
     ).toBe("eligible path · matched path");
-  });
-});
-
-describe("filterCoverageRows", () => {
-  const items = [
-    row({ prNumber: 1, priority: "p1", title: "Auth fix", author: "alice" }),
-    row({
-      prNumber: 2,
-      priority: "unranked",
-      exclusionReasons: [{ code: "no_eligible_path_or_author_match" }],
-      title: "Docs tweak",
-      author: "bob",
-    }),
-    row({ prNumber: 3, priority: "p2", title: "SDK update", author: "carol" }),
-  ];
-
-  it("defaults to eligible-only filter", () => {
-    expect(filterCoverageRows(items, "eligible", "")).toHaveLength(2);
-  });
-
-  it("filters ineligible and all modes", () => {
-    expect(filterCoverageRows(items, "ineligible", "").map((i) => i.prNumber)).toEqual([
-      2,
-    ]);
-    expect(filterCoverageRows(items, "all", "").map((i) => i.prNumber)).toEqual([
-      1, 2, 3,
-    ]);
-  });
-
-  it("searches repository#pr, title, and author case-insensitively", () => {
-    expect(
-      filterCoverageRows(items, "all", " org/pba-webapp#3 ").map((i) => i.prNumber),
-    ).toEqual([3]);
-    expect(filterCoverageRows(items, "all", "SDK").map((i) => i.prNumber)).toEqual([3]);
-    expect(filterCoverageRows(items, "all", "ALICE").map((i) => i.prNumber)).toEqual([1]);
-  });
-
-  it("does not mutate the source array", () => {
-    const source = [...items];
-    filterCoverageRows(items, "all", "sdk");
-    expect(items).toEqual(source);
   });
 });

@@ -214,7 +214,6 @@ function buildHarnessManifestForJob(input: ContextBuildInput): HarnessManifest {
   const prMetadata = buildPrMetadata(input);
 
   return buildHarnessManifest({
-    role: "primaryReview",
     safetyContract,
     outputContract,
     policySnapshot,

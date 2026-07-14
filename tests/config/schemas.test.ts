@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   organizationSchema,
   localConfigSchema,
@@ -16,11 +18,6 @@ describe("organizationSchema", () => {
       },
       security: {
         protectedPaths: [],
-      },
-      reviewDefaults: {
-        jobTimeoutSeconds: 3600,
-        retentionDays: 30,
-        maxStorageBytes: 1_073_741_824,
       },
       repositories: [
         {
@@ -67,6 +64,39 @@ describe("localConfigSchema", () => {
     const parsed = localConfigSchema.parse(minimalValidWithoutDaemon);
 
     expect(parsed.daemon.port).toBe(9120);
+  });
+
+  it("rejects removed model roles such as attention", () => {
+    const result = localConfigSchema.safeParse({
+      schemaVersion: 1,
+      profileDirectory: "/profiles",
+      dataDirectory: "/data",
+      workspaceRoots: [],
+      repositoryPaths: {},
+      cursor: {
+        binary: "agent",
+        modelRoles: {
+          primaryReview: { modelId: "composer-2.5-fast" },
+          attention: { modelId: "composer-2.5-fast" },
+        },
+        maxConcurrentAgents: 1,
+      },
+      worktrees: { maxMaterialized: 4 },
+      publication: { mode: "shadow" },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts the committed local-config example", () => {
+    const example = JSON.parse(
+      readFileSync(
+        join(process.cwd(), "config/examples/local-config.json"),
+        "utf-8",
+      ),
+    );
+
+    expect(localConfigSchema.safeParse(example).success).toBe(true);
   });
 });
 

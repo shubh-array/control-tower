@@ -9,12 +9,10 @@ describe("navigation", () => {
     expect(DEFAULT_PAGE).toBe("inbox");
   });
 
-  it("exposes primary nav without review", () => {
-    expect(PRIMARY_NAV.map((item) => item.id)).toEqual([
-      "inbox",
-      "coverage",
-      "propose",
-    ]);
+  it("exposes inbox-only primary nav", () => {
+    expect(PRIMARY_NAV.map((item) => item.id)).toEqual(["inbox"]);
     expect(PRIMARY_NAV.map((item) => item.id)).not.toContain("review");
+    expect(PRIMARY_NAV.map((item) => item.id)).not.toContain("coverage");
+    expect(PRIMARY_NAV.map((item) => item.id)).not.toContain("propose");
   });
 });

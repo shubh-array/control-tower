@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TrackedQueueRow } from "../../client/src/lib/api.js";
+import type { ReviewQueueRow } from "../../client/src/lib/api.js";
 import {
   QUEUE_ACTIVE_POLL_MS,
   QUEUE_IDLE_POLL_MS,
@@ -8,7 +8,7 @@ import {
   resolveQueueRefetchInterval,
 } from "../../client/src/lib/queue-polling.js";
 
-function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
+function row(overrides: Partial<ReviewQueueRow> = {}): ReviewQueueRow {
   return {
     jobId: null,
     repositoryKey: "repo",
@@ -19,7 +19,6 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
-    exclusionReasons: [],
     priority: "p1",
     priorityReasons: [],
     queueOrder: {
@@ -30,10 +29,7 @@ function row(overrides: Partial<TrackedQueueRow> = {}): TrackedQueueRow {
       prNumber: 42,
     },
     domains: [],
-    attentionState: "ready_for_analysis",
     jobState: null,
-    advisorResult: null,
-    discoveredAt: "2026-07-10T12:00:00.000Z",
     updatedAt: "2026-07-10T12:00:00.000Z",
     ...overrides,
   };

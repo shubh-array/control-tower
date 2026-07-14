@@ -1,11 +1,8 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { createApiServer, type ServerDeps } from "../../src/api/server.js";
-import { SignalRecorder } from "../../src/learning/record.js";
-import { FilesystemProposalStore } from "../../src/proposals/store.js";
 
 const LOOPBACK_HOST = "127.0.0.1:9120";
 
@@ -22,32 +19,17 @@ function createTestDist(): string {
 }
 
 function createDeps(clientDistPath: string): ServerDeps {
-  const db = new Database(":memory:");
-  const signalRecorder = new SignalRecorder(db);
-  signalRecorder.initialize();
-
   return {
     getHealthStatus: () => ({ healthy: true, issues: [] }),
-    getAllTracked: () => [],
     getFocusQueue: () => ({ now: [], next: [], monitor: [] }),
     getJob: () => null,
     getDraft: () => null,
     getAuditTrail: () => [],
     requestAnalyze: () => "job-1",
-    requestRetry: () => "run-1",
+    requestRetry: () => "job-1",
     getGuardInput: () => null,
     executePublish: async () => ({ status: "completed" }),
     clientDistPath,
-    signalRecorder,
-    proposalRoutes: {
-      store: new FilesystemProposalStore(join(clientDistPath, "proposals")),
-      profileDir: join(clientDistPath, "profile"),
-      dataDirectory: join(clientDistPath, "data"),
-      getCurrentFiles: () => ({}),
-      startProposal: async () => {
-        throw new Error("not configured");
-      },
-    },
   };
 }
 
@@ -97,6 +79,25 @@ describe("createApiServer SPA fallback", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ healthy: true, issues: [] });
+  });
+
+  it("does not expose removed signal or proposal API routes", async () => {
+    const distPath = createTestDist();
+    const { app } = createApiServer(createDeps(distPath));
+
+    const bootstrap = await app.request("/index.html", {
+      headers: loopbackHeaders(),
+    });
+    const setCookie = bootstrap.headers.get("set-cookie");
+    expect(setCookie).toBeTruthy();
+    const cookie = setCookie!.split(";")[0]!;
+
+    for (const path of ["/api/signals", "/api/proposals/start"]) {
+      const response = await app.request(path, {
+        headers: loopbackHeaders({ Cookie: cookie }),
+      });
+      expect(response.status).toBe(404);
+    }
   });
 
   it("serves built static assets unchanged", async () => {
@@ -154,6 +155,19 @@ describe("createApiServer SPA fallback", () => {
     expect(unknownApi.status).toBe(404);
     expect(await unknownApi.text()).not.toContain('id="root"');
     expect(unknownApi.headers.get("content-type")).not.toContain("text/html");
+  });
+
+  it("returns 404 for removed client routes such as /propose", async () => {
+    const distPath = createTestDist();
+    const { app } = createApiServer(createDeps(distPath));
+
+    const response = await app.request("/propose", {
+      headers: loopbackHeaders(),
+    });
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain('id="root"');
+    expect(response.headers.get("content-type")).not.toContain("text/html");
   });
 
   it("serves SPA fallback for HEAD /review/:jobId without a body", async () => {

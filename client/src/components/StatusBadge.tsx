@@ -4,7 +4,6 @@ const LABELS: Record<InboxChip, string> = {
   "needs-analysis": "Needs analysis",
   analyzing: "Analyzing",
   ready: "Ready",
-  waiting: "Waiting",
   failed: "Failed",
 };
 

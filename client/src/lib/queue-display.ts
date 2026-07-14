@@ -1,15 +1,12 @@
-import type { TrackedQueueRow } from "./api.js";
+import type { ReviewQueueRow } from "./api.js";
 
 export type InboxChip =
   | "needs-analysis"
   | "analyzing"
   | "ready"
-  | "waiting"
   | "failed";
 
 export type InboxAction = "analyze" | "open-review" | "retry" | null;
-
-export type CoverageFilter = "eligible" | "ineligible" | "all";
 
 const ACTIVE_JOB_STATES = new Set([
   "queued",
@@ -25,11 +22,7 @@ const REVIEWABLE_JOB_STATES = new Set([
   "publishing",
 ]);
 
-export function isEligible(item: TrackedQueueRow): boolean {
-  return item.priority !== "unranked" && item.exclusionReasons.length === 0;
-}
-
-export function deriveInboxPresentation(item: TrackedQueueRow): {
+export function deriveInboxPresentation(item: ReviewQueueRow): {
   chip: InboxChip;
   primaryAction: InboxAction;
 } {
@@ -45,14 +38,10 @@ export function deriveInboxPresentation(item: TrackedQueueRow): {
     return { chip: "analyzing", primaryAction: null };
   }
 
-  if (isEligible(item)) {
-    return { chip: "needs-analysis", primaryAction: "analyze" };
-  }
-
-  return { chip: "waiting", primaryAction: null };
+  return { chip: "needs-analysis", primaryAction: "analyze" };
 }
 
-function compareQueueOrder(a: TrackedQueueRow, b: TrackedQueueRow): number {
+function compareQueueOrder(a: ReviewQueueRow, b: ReviewQueueRow): number {
   const ao = a.queueOrder;
   const bo = b.queueOrder;
 
@@ -73,7 +62,7 @@ function compareQueueOrder(a: TrackedQueueRow, b: TrackedQueueRow): number {
   return ao.prNumber - bo.prNumber;
 }
 
-export function sortInboxRows(items: TrackedQueueRow[]): TrackedQueueRow[] {
+export function sortInboxRows(items: ReviewQueueRow[]): ReviewQueueRow[] {
   return [...items].sort(compareQueueOrder);
 }
 
@@ -81,11 +70,8 @@ function formatReasonCode(code: string): string {
   return code.replaceAll("_", " ");
 }
 
-export function summarizeReasons(item: TrackedQueueRow): string {
-  const reasons =
-    item.eligibilityReasons.length > 0
-      ? item.eligibilityReasons
-      : item.exclusionReasons;
+export function summarizeReasons(item: ReviewQueueRow): string {
+  const reasons = item.eligibilityReasons;
 
   if (reasons.length === 0) {
     return "No eligibility reason recorded";
@@ -107,29 +93,4 @@ export function summarizeReasons(item: TrackedQueueRow): string {
   }
 
   return formatReasonCode(first.code);
-}
-
-export function filterCoverageRows(
-  items: TrackedQueueRow[],
-  filter: CoverageFilter,
-  query: string,
-): TrackedQueueRow[] {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  return items.filter((item) => {
-    if (filter === "eligible" && !isEligible(item)) return false;
-    if (filter === "ineligible" && isEligible(item)) return false;
-
-    if (normalizedQuery.length === 0) return true;
-
-    const haystack = [
-      `${item.repository}#${item.prNumber}`,
-      item.title,
-      item.author,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(normalizedQuery);
-  });
 }

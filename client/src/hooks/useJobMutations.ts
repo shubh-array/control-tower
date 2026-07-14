@@ -12,7 +12,6 @@ export function useAnalyzeMutation() {
     mutationFn: (input: {
       repositoryKey: string;
       prNumber: number;
-      sourceMode?: "registered-source" | "remote-evidence-only";
     }) => api.requestAnalyze(input),
     onSuccess: async () => {
       await invalidateAfterAnalyze(queryClient);

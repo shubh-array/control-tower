@@ -22,13 +22,6 @@ import {
 } from "../cursor/adapter.js";
 import { extractJsonFromResult } from "../cursor/ndjson.js";
 import { sealRun as sealRunDir } from "../context/seal.js";
-import type { SignalRecorder } from "../learning/record.js";
-import { createSignalHooks } from "../learning/signal-hooks.js";
-import {
-  computeQueueWaitMs,
-  createPipelineTimingMetrics,
-  loadPrimaryReviewRunMeta,
-} from "../learning/pipeline-signals.js";
 import {
   buildFullProvenanceCatalog,
   computeRunContext,
@@ -58,7 +51,6 @@ export type CursorAdapterFn = (
 
 export interface PipelineRunnerContext {
   dataDirectory: string;
-  signalRecorder?: SignalRecorder;
   modelSpecHash?: string;
   appRoot?: string;
   profileDirectory?: string;
@@ -151,9 +143,6 @@ export function buildPipelineDeps(
 ): PipelineDeps {
   const transitions: PipelineDeps["transitions"] = [];
   const runTransitions: PipelineDeps["runTransitions"] = [];
-  const pipelineStartedAt = Date.now();
-  const timing = createPipelineTimingMetrics();
-  timing.queueWaitMs = computeQueueWaitMs(db, jobId, pipelineStartedAt);
   const modelSpecHash = ctx.modelSpecHash ?? "primary-review-default";
   const appRoot = ctx.appRoot ?? defaultAppRoot;
   const activeRunId = { value: "" };
@@ -161,19 +150,6 @@ export function buildPipelineDeps(
     state: null as PreparedRunState | null,
     job: null as PipelineJob | null,
   };
-
-  const signalHooks = ctx.signalRecorder
-    ? createSignalHooks({
-        recorder: ctx.signalRecorder,
-        getRunMeta: () =>
-          loadPrimaryReviewRunMeta(
-            db,
-            jobId,
-            activeRunId.value || "pending",
-            modelSpecHash,
-          ),
-      })
-    : undefined;
 
   function buildProvenanceDeps(): ContextBuildInput["provenanceDeps"] {
     return {
@@ -299,8 +275,6 @@ export function buildPipelineDeps(
   return {
     transitions,
     runTransitions,
-    signalHooks,
-    getTimingMetrics: () => timing,
     transitionJob(jobId, from, to) {
       const row = db
         .prepare(`SELECT state, version FROM jobs WHERE id = ?`)
@@ -387,7 +361,6 @@ export function buildPipelineDeps(
       return { runId, version: 1 };
     },
     async prepareContext(jobId, runId) {
-      const contextStart = Date.now();
       const job = prepared.job ?? loadPipelineJob(db, jobId);
       if (!job) throw new Error(`job not found: ${jobId}`);
       if (!prepared.state) {
@@ -457,7 +430,6 @@ export function buildPipelineDeps(
         );
       }
 
-      timing.contextPrepMs += Date.now() - contextStart;
       return {
         runDir: built.runDir,
         manifest: built.manifest as unknown as Record<string, unknown>,
@@ -541,10 +513,9 @@ export function buildPipelineDeps(
         return await Promise.resolve(ctx.runAgent(runId, runDir));
       }
 
-      const agentStart = Date.now();
-      const layout = computeRunDirectoryLayout(ctx.dataDirectory, jobId, runId);
       const prompt = resolveReviewPrompt(appRoot);
       const adapter = ctx.cursorAdapter ?? runCursorAgent;
+      const layout = computeRunDirectoryLayout(ctx.dataDirectory, jobId, runId);
       const binary =
         ctx.cursorBinary ??
         process.env.CONTROL_TOWER_CURSOR_BINARY ??
@@ -565,12 +536,6 @@ export function buildPipelineDeps(
         transcriptPath: layout.transcriptPath,
         stderrPath: layout.stderrPath,
       });
-
-      timing.agentDurationMs += Date.now() - agentStart;
-      timing.cursorUsage = {
-        inputTokens: result.usage?.inputTokens ?? 0,
-        outputTokens: result.usage?.outputTokens ?? 0,
-      };
 
       if (!result.success || !result.resultText) {
         throw new Error(result.failureReason ?? "agent_failed");

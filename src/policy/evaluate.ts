@@ -48,32 +48,17 @@ export interface PolicyDecision {
   allDomainReasons: DomainMatchReason[];
 }
 
-export interface CheckSummaryEntry {
-  name: string;
-  status: string;
-  conclusion: string | null;
-}
-
-export interface AllTrackedItem {
+export interface ReviewQueueItem {
   repositoryKey: string;
   prNumber: number;
   headSha: string;
-  baseSha: string;
   title: string;
   url: string;
   author: string;
-  draft: boolean;
-  labels: string[];
-  additions: number;
-  deletions: number;
-  changedFiles: string[];
-  reviewRequested: boolean;
-  checkSummary: CheckSummaryEntry[];
-  updatedAt: string | null;
+  updatedAt: string;
+  explicitRequest: boolean;
   explicitRequestTimestamp: string | null;
   policy: PolicyDecision;
-  sourceMode: "registered-source" | "remote-evidence-only";
-  bodyTruncated: string;
 }
 
 export function evaluatePolicy(input: PolicyInput): PolicyDecision {

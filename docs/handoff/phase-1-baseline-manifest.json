@@ -15,11 +15,9 @@
   },
   "evaluation": {
     "corpusHashes": {
-      "attention": "b4ba5b4b40bdc1d47d1dccdd231087bd5a97faa3f604b0d5733020d572f7b4ab",
       "primaryReview": "24c1afaba800008e6c8c3d0379fac208a7315a361c550f74d1da0fe5fc39081f"
     },
     "corpusResultsHashes": {
-      "attention": "56c4f771ccc5eb8375c9214a0d20dea54cb04534ac467c238f07888d9870f4d8",
       "primaryReview": "f1b993cec729534b4012757821e119f324bc80ffda3240fd614ca3b45116bcb2"
     },
     "metricDefinitionHash": "df6fc353a5c476bcc80ddcdce21cc0a076a633009c6d4bb6a0d63bc6dd758662",

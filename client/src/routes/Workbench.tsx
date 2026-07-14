@@ -70,12 +70,8 @@ function ReviewChrome({
         </h2>
         <p className="row-meta">
           <SafeText text={item.author} />
-          {item.priority !== "unranked" && (
-            <>
-              {" · "}
-              <PriorityIndicator priority={item.priority} />
-            </>
-          )}
+          {" · "}
+          <PriorityIndicator priority={item.priority} />
         </p>
       </div>
     </header>
@@ -138,9 +134,8 @@ export function Workbench({ item, onBack }: WorkbenchProps) {
     if (jobId === null) return;
     setRetrying(true);
     try {
-      const { runId } = await retryMutation.mutateAsync(jobId);
+      await retryMutation.mutateAsync(jobId);
       setResults((prev) => [...prev, { status: "completed", error: undefined }]);
-      console.log(`Retry started: runId=${runId}`);
     } catch (err) {
       setResults((prev) => [
         ...prev,

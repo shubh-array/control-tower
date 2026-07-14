@@ -29,7 +29,6 @@ describe("loadOrganizationConfig", () => {
         schemaVersion: 1,
         github: { host: "github.com", organizations: ["test"], pollIntervalSeconds: 300 },
         security: { protectedPaths: [] },
-        reviewDefaults: { jobTimeoutSeconds: 1200, retentionDays: 30, maxStorageBytes: 10737418240 },
         repositories: [{ id: "r1", github: "org/repo", defaultBranch: "main", resourceClass: "medium" }],
         unknownField: true,
       }),

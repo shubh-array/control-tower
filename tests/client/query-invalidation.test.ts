@@ -2,13 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../../client/src/lib/query-keys.js";
 import {
   type InvalidatableQueryClient,
-  invalidateAfterAdoptProposal,
   invalidateAfterAnalyze,
   invalidateAfterApprove,
   invalidateAfterPublish,
   invalidateAfterRetry,
-  invalidateAfterStartProposal,
-  invalidateAfterValidateProposal,
 } from "../../client/src/lib/query-invalidation.js";
 
 function createMockClient() {
@@ -71,35 +68,6 @@ describe("query invalidation mapping", () => {
       expect.arrayContaining([
         { queryKey: queryKeys.queue },
         { queryKey: queryKeys.draft("job-3") },
-      ]),
-    );
-  });
-
-  it("invalidates signals after proposal start", async () => {
-    const { client, calls } = createMockClient();
-
-    await invalidateAfterStartProposal(client, 50);
-
-    expect(calls).toEqual([{ queryKey: queryKeys.signals(50) }]);
-  });
-
-  it("does not invalidate shared caches after proposal validate", async () => {
-    const { client, calls } = createMockClient();
-
-    await invalidateAfterValidateProposal(client);
-
-    expect(calls).toEqual([]);
-  });
-
-  it("invalidates signals and queue after proposal adopt", async () => {
-    const { client, calls } = createMockClient();
-
-    await invalidateAfterAdoptProposal(client, 50);
-
-    expect(calls).toEqual(
-      expect.arrayContaining([
-        { queryKey: queryKeys.signals(50) },
-        { queryKey: queryKeys.queue },
       ]),
     );
   });

@@ -76,9 +76,17 @@ describe("loadDraftBundle", () => {
     ).run("a".repeat(40));
 
     db.prepare(
-      `INSERT INTO prs (repository_id, pr_number, head_sha, base_sha, title, author_login, state, github_updated, fetched_at)
-       VALUES ('pba-webapp', 42, ?, ?, 'Test PR', 'author', 'open', ?, ?)`,
-    ).run("a".repeat(40), "b".repeat(40), new Date().toISOString(), new Date().toISOString());
+      `INSERT INTO prs (
+        repository_id, pr_number, head_sha, base_sha, title, url, author_login,
+        explicit_request, github_updated, policy_json, policy_hash
+      ) VALUES ('pba-webapp', 42, ?, ?, 'Test PR', 'https://example.com/pr/42', 'author', 0, ?, ?, ?)`,
+    ).run(
+      "a".repeat(40),
+      "b".repeat(40),
+      new Date().toISOString(),
+      "{}",
+      "policy-hash",
+    );
 
     db.prepare(
       `INSERT INTO runs (id, job_id, attempt_number, run_input_hash, state, version)

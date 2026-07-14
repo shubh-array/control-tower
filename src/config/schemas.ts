@@ -10,11 +10,6 @@ export const organizationSchema = z.object({
   security: z.object({
     protectedPaths: z.array(z.string().min(1)),
   }).strict(),
-  reviewDefaults: z.object({
-    jobTimeoutSeconds: z.number().int().positive(),
-    retentionDays: z.number().int().positive(),
-    maxStorageBytes: z.number().int().positive(),
-  }).strict(),
   repositories: z.array(z.object({
     id: z.string().min(1),
     github: z.string().regex(/^[^/]+\/[^/]+$/),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FocusQueueRow } from "../../client/src/lib/api.js";
 import {
+  collectQueueRows,
   findReviewQueueItem,
   resolveReviewNavigationItem,
   resolveReviewRoute,
@@ -17,7 +18,6 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     author: "dev",
     headSha: "a".repeat(40),
     eligibilityReasons: [],
-    exclusionReasons: [],
     priority: "p1",
     priorityReasons: [],
     queueOrder: {
@@ -28,10 +28,7 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
       prNumber: 42,
     },
     domains: ["sdk"],
-    attentionState: "ready_for_analysis",
     jobState: "ready",
-    advisorResult: null,
-    discoveredAt: "2026-07-13T09:00:00.000Z",
     updatedAt: "2026-07-13T10:00:00.000Z",
     ...overrides,
   };
@@ -70,6 +67,22 @@ describe("review route resolution", () => {
         queueRows: rows,
       }),
     ).toEqual({ kind: "queue", item: queueItem });
+  });
+
+  it("collectQueueRows flattens only focus lanes", () => {
+    const queue = {
+      focusQueue: {
+        now: [row({ jobId: "job-now" })],
+        next: [row({ jobId: "job-next" })],
+        monitor: [row({ jobId: "job-monitor" })],
+      },
+    };
+
+    expect(collectQueueRows(queue).map((item) => item.jobId)).toEqual([
+      "job-now",
+      "job-next",
+      "job-monitor",
+    ]);
   });
 
   it("reports missing context when queue data does not contain the job", () => {

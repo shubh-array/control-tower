@@ -10,7 +10,7 @@ import {
   loadPolicyConfig,
 } from "../config/load.js";
 import { normalizeLogin } from "../config/author-login.js";
-import type { LocalConfig, OrganizationConfig, PolicyConfig, ProfileConfig } from "../config/types.js";
+import type { LocalConfig, OrganizationConfig, PolicyConfig } from "../config/types.js";
 import { evaluatePolicy } from "../policy/evaluate.js";
 import { computePolicyDecisionHash } from "../orchestrator/job-identity.js";
 import { computeJobIdentity } from "../orchestrator/job-identity.js";
@@ -26,8 +26,8 @@ import { execGhJson, execGhText } from "../github/gh-process.js";
 import { verifyOperatorIdentity } from "../github/operator-identity.js";
 import { RateLimitTracker } from "../github/rate-limit.js";
 import {
-  createPersistDecision,
-  upsertDiscoveredPr,
+  deleteReviewPr,
+  upsertEligiblePr,
   upsertRepository,
 } from "../normalize/upsert.js";
 import type { DiscoveredPr } from "../github/types.js";
@@ -37,29 +37,14 @@ import { createGhPublishAdapter } from "../github/gh-publish-adapter.js";
 import { registerDraftOperations } from "../publisher/register-draft.js";
 import { loadDraftBundle } from "../orchestrator/draft-loader.js";
 import { loadJobDetail } from "../api/projections/job.js";
-import {
-  projectAllTracked,
-  projectFocusQueue,
-} from "../api/projections/queue.js";
+import { projectFocusQueue } from "../api/projections/queue.js";
+import { PrNotEligibleForReviewError } from "../orchestrator/analyze-errors.js";
+import type { PolicyDecision } from "../policy/evaluate.js";
 import { createRetryAttempt } from "../orchestrator/retry.js";
 import { runPipelineForJob } from "../orchestrator/pipeline-runner.js";
 import type { RuntimeDeps, RuntimeConfig } from "./runtime.js";
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { SignalRecorder } from "../learning/record.js";
-import { FilesystemProposalStore } from "../proposals/store.js";
-import { sha256Hex } from "../util/hash.js";
-import {
-  createPrimaryReviewSignalHooks,
-  mapOperationTypeToDisposition,
-} from "../learning/pipeline-signals.js";
-import { startProposalFromSignals } from "../proposals/start.js";
-import {
-  defaultProposalEvaluator,
-  loadCorpusCases,
-  loadProfileFiles,
-} from "../proposals/profile-files.js";
-import type { CursorRunAdapter } from "../proposals/run.js";
+import { existsSync } from "node:fs";
 
 const MATCHER_VERSION = 1;
 const startTime = Date.now();
@@ -72,8 +57,6 @@ export interface BootstrapContext {
   configuredOperator: string;
   authenticatedLogin: string;
   clientDistPath: string;
-  signalRecorder: SignalRecorder;
-  proposalStore: FilesystemProposalStore;
   profileDirectory: string;
   dataDirectory: string;
   appRoot: string;
@@ -126,7 +109,7 @@ function buildEnqueueDeps(db: Database.Database) {
           `SELECT id, head_sha, policy_hash, source_mode, state, version
            FROM jobs
            WHERE repository_key = ? AND pr_number = ?
-             AND state NOT IN ('superseded', 'cancelled', 'published')`,
+             AND state NOT IN ('superseded', 'cancelled', 'published', 'failed')`,
         )
         .all(repositoryKey, prNumber) as Array<{
           id: string;
@@ -190,10 +173,8 @@ function buildFacadeDeps(
   db: Database.Database,
   workGraph: WorkGraph,
   enqueueDeps: ReturnType<typeof buildEnqueueDeps>,
-  policy: PolicyConfig,
-  profile: ProfileConfig,
   org: OrganizationConfig,
-  _local: LocalConfig,
+  local: LocalConfig,
   context: BootstrapContext,
   dataDirectory: string,
 ): FacadeDeps {
@@ -222,7 +203,6 @@ function buildFacadeDeps(
   };
 
   return {
-    getAllTracked: () => workGraph.getAllTracked(),
     getFocusQueue: () => workGraph.getFocusQueue(),
     getJob: (id: string) => loadJobDetail(db, id),
     getDraft: (jobId: string) => {
@@ -249,67 +229,54 @@ function buildFacadeDeps(
         repositoryKey: input.repositoryKey,
         prNumber: input.prNumber,
       });
+
       const prRow = db
         .prepare(
-          `SELECT p.head_sha, p.repository_id
-           FROM prs p
-           JOIN attention_items ai ON ai.repository_key = ? AND ai.pr_number = ?
-           WHERE p.repository_id = ai.repository_id AND p.pr_number = ai.pr_number`,
+          `SELECT head_sha, repository_id, policy_json, explicit_request
+           FROM prs
+           WHERE repository_id = ? AND pr_number = ?`,
         )
         .get(input.repositoryKey, input.prNumber) as
-        | { head_sha: string; repository_id: string }
+        | {
+            head_sha: string;
+            repository_id: string;
+            policy_json: string;
+            explicit_request: number;
+          }
         | undefined;
 
-      const headSha = prRow?.head_sha ?? "0".repeat(40);
-      const sourceMode =
-        (input.sourceMode as "registered-source" | "remote-evidence-only" | undefined) ??
-        "registered-source";
-      const repoPolicy = policy.repositories[input.repositoryKey] ?? null;
-      const stubPr: DiscoveredPr = {
-        repositoryId: prRow?.repository_id ?? input.repositoryKey,
+      if (!prRow) {
+        throw new PrNotEligibleForReviewError();
+      }
+
+      const policy = JSON.parse(prRow.policy_json) as PolicyDecision;
+      if (!policy.eligible) {
+        throw new PrNotEligibleForReviewError();
+      }
+
+      const headSha = prRow.head_sha;
+      const sourceMode = resolveSourceMode(local, {
+        repositoryId: prRow.repository_id,
         githubOwnerRepo: input.repositoryKey,
         prNumber: input.prNumber,
-        title: "",
-        url: "",
-        state: "OPEN",
-        isDraft: false,
-        authorLogin: profile.githubLogin,
-        headSha,
-        baseSha: headSha,
-        labels: [],
-        additions: 0,
-        deletions: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        changedFiles: [],
-        unsafeFiles: [],
-        reviewRequests: [],
-        checks: [],
-        reviews: [],
-        comments: [],
-        explicitRequest: true,
-        explicitRequestTimestamp: new Date().toISOString(),
-      };
-
-      const decision = evaluatePolicy({
-        pr: stubPr,
-        activeRepositoryIds: profile.activeRepositoryIds,
-        repositoryPolicy: repoPolicy,
-        autoAnalyzeConfig: policy.autoAnalyze,
-        operatorLogin: profile.githubLogin,
-      });
+      } as DiscoveredPr);
 
       const result = enqueueFromPolicyDecision(enqueueDeps, {
         repositoryKey: input.repositoryKey,
         prNumber: input.prNumber,
         headSha,
         sourceMode,
-        policy: { ...decision, analysisMode: "on_demand" },
+        policy,
         normalizedRepositoryIdentity: input.repositoryKey,
-        explicitRequest: true,
+        explicitRequest: prRow.explicit_request === 1,
+        manualRequest: true,
       });
 
-      return result.jobId ?? randomUUID();
+      if (!result.jobId) {
+        throw new PrNotEligibleForReviewError();
+      }
+
+      return result.jobId;
     },
     enqueueRetry: (jobId: string) => createRetryAttempt(db, jobId),
     getHealthStatus: () => {
@@ -387,9 +354,6 @@ export function createBootstrap(input: BootstrapInput): {
     "../../client/dist",
   );
 
-  const signalRecorder = new SignalRecorder(db);
-  const proposalStore = new FilesystemProposalStore(local.dataDirectory);
-
   const context: BootstrapContext = {
     db,
     guardStore,
@@ -398,8 +362,6 @@ export function createBootstrap(input: BootstrapInput): {
     configuredOperator: operatorLogin,
     authenticatedLogin,
     clientDistPath,
-    signalRecorder,
-    proposalStore,
     profileDirectory: local.profileDirectory,
     dataDirectory: local.dataDirectory,
     appRoot: input.appRoot,
@@ -426,18 +388,10 @@ export function createBootstrap(input: BootstrapInput): {
     db,
     workGraph,
     enqueueDeps,
-    policy,
-    profile,
     org,
     local,
     context,
     local.dataDirectory,
-  );
-
-  const persistDecision = createPersistDecision(
-    db,
-    (pr) => resolveRepositoryKey(org, pr),
-    (pr) => resolveSourceMode(local, pr),
   );
 
   const pollConfig = {
@@ -459,7 +413,6 @@ export function createBootstrap(input: BootstrapInput): {
   const deps: RuntimeDeps = {
     migrate() {
       runMigrations(db);
-      signalRecorder.initialize();
     },
     recoverOrphanedStates() {
       return recoverOrphanedStates(db);
@@ -505,33 +458,18 @@ export function createBootstrap(input: BootstrapInput): {
             resourceClass: catalog?.resourceClass ?? "medium",
           });
         },
-        upsertPr: (raw, repositoryId, explicitRequest) => {
-          if (
-            typeof raw === "object" &&
-            raw !== null &&
-            "prNumber" in raw &&
-            "headSha" in raw
-          ) {
-            return upsertDiscoveredPr(db, raw as DiscoveredPr);
+        upsertEligiblePr: (pr, decision) => upsertEligiblePr(db, pr, decision),
+        retireReviewPr: (repositoryId, prNumber) => {
+          const repositoryKey =
+            org.repositories.find((r) => r.id === repositoryId)?.id ?? repositoryId;
+          for (const job of enqueueDeps.findActiveJobsByPr(repositoryKey, prNumber)) {
+            enqueueDeps.supersede(job.id, job.version);
           }
-          return upsertDiscoveredPr(db, {
-            ...(raw as object),
-            repositoryId,
-            explicitRequest,
-          } as DiscoveredPr);
+          deleteReviewPr(db, repositoryId, prNumber);
         },
-        evaluateAndEnqueue: (_prId, raw, explicitRequest) => {
-          const pr = raw as DiscoveredPr;
+        enqueueEligible: (_prId, pr, decision) => {
           const repositoryKey = resolveRepositoryKey(org, pr);
           const sourceMode = resolveSourceMode(local, pr);
-          const repoPolicy = policy.repositories[repositoryKey] ?? null;
-          const decision = evaluatePolicy({
-            pr,
-            activeRepositoryIds: profile.activeRepositoryIds,
-            repositoryPolicy: repoPolicy,
-            autoAnalyzeConfig: policy.autoAnalyze,
-            operatorLogin,
-          });
           enqueueFromPolicyDecision(enqueueDeps, {
             repositoryKey,
             prNumber: pr.prNumber,
@@ -539,7 +477,8 @@ export function createBootstrap(input: BootstrapInput): {
             sourceMode,
             policy: decision,
             normalizedRepositoryIdentity: repositoryKey,
-            explicitRequest,
+            explicitRequest: pr.explicitRequest,
+            manualRequest: false,
           });
         },
         evaluatePolicy: (pr) => {
@@ -553,7 +492,20 @@ export function createBootstrap(input: BootstrapInput): {
             operatorLogin,
           });
         },
-        persistDecision,
+        listPersistedReviewPrs: () =>
+          db
+            .prepare(
+              `SELECT p.repository_id AS repositoryId,
+                      r.github_owner || '/' || r.github_repo AS github,
+                      p.pr_number AS prNumber
+               FROM prs p
+               JOIN repositories r ON r.id = p.repository_id`,
+            )
+            .all() as Array<{
+              repositoryId: string;
+              github: string;
+              prNumber: number;
+            }>,
         countKnownPrs: () =>
           (db.prepare(`SELECT COUNT(*) as cnt FROM prs`).get() as { cnt: number }).cnt,
         getFreshnessAt: (h) => checkpoints.getLastPollTime(h),
@@ -588,11 +540,6 @@ export function createBootstrap(input: BootstrapInput): {
           db,
           {
             dataDirectory: currentLocal.dataDirectory,
-            signalRecorder: context.signalRecorder,
-            modelSpecHash: sha256Hex(
-              currentLocal.cursor.modelRoles.primaryReview?.modelId ??
-                "primary-review-default",
-            ),
             appRoot: context.appRoot,
             profileDirectory: context.profileDirectory,
             repositoryPaths: currentLocal.repositoryPaths,
@@ -626,103 +573,10 @@ export function createBootstrap(input: BootstrapInput): {
       publicationMode: context.publicationMode,
       configuredOperator: context.configuredOperator,
       authenticatedLogin: context.authenticatedLogin,
-      signalRecorder: context.signalRecorder,
-      proposalStore: context.proposalStore,
-      profileDirectory: context.profileDirectory,
-      dataDirectory: context.dataDirectory,
-      getProfileFiles: () => loadProfileFiles(context.profileDirectory),
-      startProposal: (signalRunIds) => {
-        const modelSpec =
-          local.cursor.modelRoles.primaryReview?.modelId ?? "primary-review-default";
-        const cursorAdapter: CursorRunAdapter = {
-          async run(prompt) {
-            const parsed = JSON.parse(prompt) as {
-              signals?: Array<{ type: string; modelRole: string }>;
-            };
-            const attentionSignals =
-              parsed.signals?.filter((s) => s.modelRole === "attention").length ?? 0;
-            const personaPath = join(context.profileDirectory, "persona.md");
-            const personaContent = existsSync(personaPath)
-              ? readFileSync(personaPath, "utf-8")
-              : "# Persona\n";
-            const annotation =
-              attentionSignals > 0
-                ? `\n\n<!-- proposal: ${attentionSignals} attention signal(s) -->\n`
-                : "\n";
-            return {
-              exitCode: 0,
-              output: {
-                targets: [
-                  {
-                    path: "persona.md",
-                    proposedContent: personaContent.endsWith("\n")
-                      ? `${personaContent.trimEnd()}${annotation}`
-                      : `${personaContent}${annotation}`,
-                    rationale: `Informed by ${parsed.signals?.length ?? 0} learning signal(s)`,
-                    expectedEffect: "Calibrate review attention based on historical outcomes",
-                    risks: ["Requires validation against current profile hashes"],
-                    replayCases: [],
-                  },
-                ],
-              },
-            };
-          },
-        };
-        const currentFiles = loadProfileFiles(context.profileDirectory);
-        return startProposalFromSignals({
-          signalRunIds,
-          recorder: context.signalRecorder,
-          currentFiles,
-          profileDir: context.profileDirectory,
-          corpusCases: loadCorpusCases(context.appRoot, "primaryReview"),
-          modelSpec,
-          evaluator: defaultProposalEvaluator(),
-          cursorAdapter,
-        });
-      },
-      getAllTrackedRows: () =>
-        projectAllTracked(db, workGraph.getAllTracked()),
       getFocusQueueRows: () =>
         projectFocusQueue(db, workGraph.getFocusQueue()),
       getJobDetail: (id) => loadJobDetail(db, id),
       getDraftDetail: (jobId) => facadeDeps.getDraft(jobId),
-      recordPublishedDisposition: (operationHash) => {
-        const guardCtx = context.guardStore.getContext(operationHash);
-        if (!guardCtx) return;
-        const jobRow = db
-          .prepare(
-            `SELECT j.id, j.policy_hash, j.source_mode, r.id as run_id, r.run_input_hash
-             FROM jobs j
-             JOIN runs r ON r.id = j.accepted_run_id
-             WHERE j.id = (
-               SELECT job_id FROM runs WHERE id = ?
-             )`,
-          )
-          .get(guardCtx.approvedRunId) as
-          | {
-              id: string;
-              policy_hash: string;
-              source_mode: "registered-source" | "remote-evidence-only";
-              run_id: string;
-              run_input_hash: string;
-            }
-          | undefined;
-        if (!jobRow) return;
-
-        const hooks = createPrimaryReviewSignalHooks(
-          db,
-          context.signalRecorder,
-          jobRow.id,
-          jobRow.run_id,
-          sha256Hex(
-            lastValidLocal.cursor.modelRoles.primaryReview?.modelId ??
-              "primary-review-default",
-          ),
-        );
-        hooks.onDisposition(
-          mapOperationTypeToDisposition(guardCtx.operationType),
-        );
-      },
     },
   };
 

@@ -35,12 +35,7 @@ describe('adapter argv fixtures', () => {
     expect(argv[addDirIdx + 1]).toBe('/data/worktrees/j1/source');
   });
 
-  it('CRITICAL: omits --add-dir for attention runs', () => {
-    const argv = buildCursorArgv(baseInput);
-    expect(argv).not.toContain('--add-dir');
-  });
-
-  it('CRITICAL: omits --add-dir for remote-evidence-only', () => {
+  it('omits --add-dir for remote-evidence-only', () => {
     const argv = buildCursorArgv({
       ...baseInput,
       sourceViewPath: undefined,
@@ -50,12 +45,12 @@ describe('adapter argv fixtures', () => {
 });
 
 describe('adapter timeout configuration', () => {
-  it('returns 90 seconds for attention role', () => {
-    expect(getTimeoutForRole('attention')).toBe(90_000);
-  });
-
   it('returns 20 minutes for primaryReview role', () => {
     expect(getTimeoutForRole('primaryReview')).toBe(20 * 60 * 1000);
+  });
+
+  it('honors explicit timeout overrides', () => {
+    expect(getTimeoutForRole('primaryReview', 30_000)).toBe(30_000);
   });
 });
 

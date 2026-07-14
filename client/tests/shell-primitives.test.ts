@@ -5,7 +5,6 @@ import { ActionButton } from "../src/components/ActionButton.js";
 import { AppShell } from "../src/components/AppShell.js";
 import { ConnectionStatus } from "../src/components/ConnectionStatus.js";
 import { DataState } from "../src/components/DataState.js";
-import { FilterBar } from "../src/components/FilterBar.js";
 import { PageHeader } from "../src/components/PageHeader.js";
 import { PriorityIndicator } from "../src/components/PriorityIndicator.js";
 import { RefreshStatus } from "../src/components/RefreshStatus.js";
@@ -43,13 +42,13 @@ describe("shell primitives", () => {
     const html = renderToStaticMarkup(
       createElement(PageHeader, {
         title: "Inbox",
-        subtitle: "3 items need attention",
+        subtitle: "3 items ready for review",
       }),
     );
 
     expect(html).toContain("<h1");
     expect(html).toContain("Inbox");
-    expect(html).toContain("3 items need attention");
+    expect(html).toContain("3 items ready for review");
   });
 
   it("DataState renders a loading status message", () => {
@@ -137,29 +136,6 @@ describe("shell primitives", () => {
     expect(html).toMatch(/\sdisabled=""/);
   });
 
-  it("FilterBar uses native radio inputs for filter options", () => {
-    const html = renderToStaticMarkup(
-      createElement(FilterBar, {
-        options: [
-          { value: "eligible", label: "Eligible" },
-          { value: "all", label: "All" },
-        ],
-        value: "eligible",
-        onChange: () => {},
-        searchValue: "",
-        onSearchChange: () => {},
-        searchLabel: "Search coverage",
-        searchPlaceholder: "Search",
-        groupName: "coverage-filter",
-      }),
-    );
-
-    expect(html).toContain('type="radio"');
-    expect(html).toContain('name="coverage-filter"');
-    expect(html).toContain("Eligible");
-    expect(html).toContain('aria-label="Search coverage"');
-  });
-
   it("Tabs uses tablist semantics with aria-controls", () => {
     const html = renderToStaticMarkup(
       createElement(Tabs, {
@@ -199,8 +175,8 @@ describe("shell primitives", () => {
 
     expect(html).toContain("Control Tower");
     expect(html).toContain("Inbox");
-    expect(html).toContain("Coverage");
-    expect(html).toContain("Propose");
+    expect(html).not.toContain("Propose");
+    expect(html).not.toContain("Coverage");
     expect(html).not.toContain("Review");
     expect(html).toContain("Connected");
     expect(html).toContain("Refresh");

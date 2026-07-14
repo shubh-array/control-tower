@@ -5,6 +5,12 @@ import type {
   GhPrListItem,
 } from "../github/types.js";
 import type { PolicyDecision } from "../policy/evaluate.js";
+import {
+  reconcileReviewCache,
+  reviewPrIdentityKey,
+  createRetirementCollector,
+  type PersistedReviewPrIdentity,
+} from "./reconcile-review-cache.js";
 
 export interface DiscoveryDeps {
   verifyIdentity: () => Promise<HostHealth>;
@@ -26,13 +32,18 @@ export interface DiscoveryDeps {
     defaultBranch?: string;
     resourceClass?: string;
   }) => void;
-  upsertPr: (pr: DiscoveredPr) => number;
-  evaluatePolicy: (pr: DiscoveredPr) => PolicyDecision;
-  persistDecision?: (
+  upsertEligiblePr: (pr: DiscoveredPr, decision: PolicyDecision) => number;
+  retireReviewPr: (
+    repositoryId: string,
+    prNumber: number,
+  ) => void | Promise<void>;
+  enqueueEligible: (
     prId: number,
     pr: DiscoveredPr,
     decision: PolicyDecision,
   ) => void;
+  evaluatePolicy: (pr: DiscoveredPr) => PolicyDecision;
+  listPersistedReviewPrs: () => Array<PersistedReviewPrIdentity>;
   checkpoint: {
     getLastPollTime: (host: string) => string | null;
     setLastPollTime: (host: string) => void;
@@ -146,6 +157,8 @@ export class DiscoveryPoller {
     }
 
     const decisions: Array<{ prId: number; decision: PolicyDecision }> = [];
+    const currentEligibleKeys = new Set<string>();
+    const retirements = createRetirementCollector();
 
     for (const [, entry] of seen) {
       this.deps.upsertRepository({
@@ -166,13 +179,39 @@ export class DiscoveryPoller {
         entry.explicitRequest,
       );
 
-      const prId = this.deps.upsertPr(discovered);
       const decision = this.deps.evaluatePolicy(discovered);
-      decisions.push({ prId, decision });
 
-      if (this.deps.persistDecision) {
-        this.deps.persistDecision(prId, discovered, decision);
+      if (!decision.eligible) {
+        retirements.queue(discovered.repositoryId, discovered.prNumber);
+        continue;
       }
+
+      const prId = this.deps.upsertEligiblePr(discovered, decision);
+      this.deps.enqueueEligible(prId, discovered, decision);
+      currentEligibleKeys.add(
+        reviewPrIdentityKey({ github: entry.github, prNumber: entry.prNumber }),
+      );
+      decisions.push({ prId, decision });
+    }
+
+    await reconcileReviewCache(
+      {
+        listPersistedReviewPrs: this.deps.listPersistedReviewPrs,
+        enrichPr: this.deps.enrichPr,
+        normalizePr: this.deps.normalizePr,
+        evaluatePolicy: this.deps.evaluatePolicy,
+        upsertEligiblePr: this.deps.upsertEligiblePr,
+        enqueueEligible: this.deps.enqueueEligible,
+        queueRetirement: retirements.queue,
+      },
+      currentEligibleKeys,
+    );
+
+    for (const candidate of retirements.list()) {
+      await this.deps.retireReviewPr(
+        candidate.repositoryId,
+        candidate.prNumber,
+      );
     }
 
     this.deps.checkpoint.setLastPollTime(this.deps.config.host);

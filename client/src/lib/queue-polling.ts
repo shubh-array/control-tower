@@ -1,4 +1,4 @@
-import type { TrackedQueueRow } from "./api.js";
+import type { ReviewQueueRow } from "./api.js";
 
 export const QUEUE_ACTIVE_POLL_MS = 3_000;
 export const QUEUE_IDLE_POLL_MS = 30_000;
@@ -13,7 +13,7 @@ const ACTIVE_JOB_STATES = new Set([
   "publishing",
 ]);
 
-export function queueHasActiveJob(rows: TrackedQueueRow[]): boolean {
+export function queueHasActiveJob(rows: ReviewQueueRow[]): boolean {
   return rows.some(
     (row) => row.jobState !== null && ACTIVE_JOB_STATES.has(row.jobState),
   );
