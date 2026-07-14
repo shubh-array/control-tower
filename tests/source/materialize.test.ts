@@ -42,11 +42,15 @@ describe('buildMaterializeEnvironment', () => {
 });
 
 describe('buildAdminWorktreeArgs', () => {
-  it('uses --detach --no-checkout', () => {
-    const args = buildAdminWorktreeArgs('/data/worktrees/job-123/admin');
-    expect(args).toContain('--detach');
-    expect(args).toContain('--no-checkout');
-    expect(args).not.toContain('checkout');
+  it('creates a detached worktree at the PR head SHA', () => {
+    const args = buildAdminWorktreeArgs('/data/worktrees/job-123/admin', 'abc123');
+    expect(args).toEqual([
+      'worktree',
+      'add',
+      '--detach',
+      '/data/worktrees/job-123/admin',
+      'abc123',
+    ]);
   });
 });
 

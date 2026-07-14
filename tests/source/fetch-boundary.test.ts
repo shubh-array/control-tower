@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildFetchEnvironment,
+  buildFetchGitArgs,
   buildVerifyEnvironment,
   buildMirrorPath,
   type FetchBoundaryConfig,
@@ -55,6 +56,14 @@ describe('buildVerifyEnvironment', () => {
     const env = buildVerifyEnvironment(BASE_CONFIG);
     expect(env).not.toHaveProperty('SSH_AUTH_SOCK');
     expect(env).not.toHaveProperty('GH_TOKEN');
+  });
+});
+
+describe('buildFetchGitArgs', () => {
+  it('allows SSH transport (does not set protocol.allow=never)', () => {
+    const args = buildFetchGitArgs();
+    expect(args).not.toContain('protocol.allow=never');
+    expect(args).toContain('core.hooksPath=/dev/null');
   });
 });
 

@@ -31,6 +31,14 @@ export function buildVerifyEnvironment(config: FetchBoundaryConfig): Record<stri
   return buildGitLocalEnv(hostFromConfig(config));
 }
 
+export function buildFetchGitArgs(): string[] {
+  return [
+    '-c', 'core.hooksPath=/dev/null',
+    '-c', 'credential.helper=',
+    '-c', 'submodule.recurse=false',
+  ];
+}
+
 export function buildFetchArgs(config: FetchBoundaryConfig, _mirrorPath: string): string[] {
   return [
     'fetch',

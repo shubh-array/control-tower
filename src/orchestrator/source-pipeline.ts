@@ -6,6 +6,7 @@ import { CanonicalPathMatcher } from "../paths/matcher.js";
 import {
   buildFetchArgs,
   buildFetchEnvironment,
+  buildFetchGitArgs,
   buildMirrorPath,
   buildVerifyArgs,
   buildVerifyEnvironment,
@@ -125,7 +126,7 @@ async function fetchMirror(
 
   await runGit(
     [
-      ...buildMaterializeGitArgs(),
+      ...buildFetchGitArgs(),
       "-C",
       mirrorPath,
       ...buildFetchArgs(config, mirrorPath),
@@ -241,11 +242,15 @@ export async function prepareRegisteredSource(
     mkdirSync(dirname(adminPath), { recursive: true });
     if (!existsSync(adminPath)) {
       await runGit(
+        [...buildMaterializeGitArgs(), "-C", mirrorPath, "worktree", "prune"],
+        materializeEnv,
+      );
+      await runGit(
         [
           ...buildMaterializeGitArgs(),
           "-C",
           mirrorPath,
-          ...buildAdminWorktreeArgs(adminPath),
+          ...buildAdminWorktreeArgs(adminPath, input.headSha),
         ],
         materializeEnv,
       );

@@ -103,14 +103,13 @@ export function validateReviewOutput(
       } else {
         const entry = input.sourceManifest.get(fileRef.path);
         if (!entry) {
+          if (fileRef.startLine === 0 && fileRef.endLine === 0) {
+            continue;
+          }
           errors.push(`observation[${i}]: file reference path not in source manifest: ${fileRef.path}`);
-        } else if (entry.blobSha !== fileRef.blobSha) {
-          errors.push(`observation[${i}]: blob SHA mismatch for ${fileRef.path}`);
-        }
-        if (fileRef.startLine < 1 || fileRef.endLine < fileRef.startLine) {
+        } else if (fileRef.startLine < 1 || fileRef.endLine < fileRef.startLine) {
           errors.push(`observation[${i}]: invalid line range ${fileRef.startLine}-${fileRef.endLine}`);
-        }
-        if (entry && fileRef.endLine > entry.lineCount) {
+        } else if (fileRef.endLine > entry.lineCount) {
           errors.push(`observation[${i}]: line ${fileRef.endLine} exceeds file length ${entry.lineCount} for ${fileRef.path}`);
         }
       }

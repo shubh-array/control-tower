@@ -130,6 +130,16 @@ describe('extractJsonFromResult', () => {
     expect(extractJsonFromResult(raw)).toBe(json);
   });
 
+  it('extracts JSON prefixed with prose explanation', () => {
+    const json = '{"schemaVersion":1,"summary":{"intent":"fix bug"}}';
+    const raw = `I'll locate the PR diff and review schema first.\n${json}`;
+    expect(extractJsonFromResult(raw)).toBe(json);
+  });
+
+  it('returns null for prose with unbalanced braces', () => {
+    expect(extractJsonFromResult('Here is { some text } that is not JSON')).toBeNull();
+  });
+
   it('returns null for non-JSON non-fenced text', () => {
     expect(extractJsonFromResult('hello world')).toBeNull();
   });

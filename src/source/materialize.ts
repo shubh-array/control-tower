@@ -53,8 +53,8 @@ export function buildMaterializeGitArgs(): string[] {
   ];
 }
 
-export function buildAdminWorktreeArgs(adminPath: string): string[] {
-  return ['worktree', 'add', '--detach', '--no-checkout', adminPath];
+export function buildAdminWorktreeArgs(adminPath: string, headSha: string): string[] {
+  return ['worktree', 'add', '--detach', adminPath, headSha];
 }
 
 export function filterTreeEntry(entry: TreeEntry, protectedMatcher: PathMatcher): FilterResult {

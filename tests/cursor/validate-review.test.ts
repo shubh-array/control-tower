@@ -188,6 +188,61 @@ describe('validateReviewOutput', () => {
   });
 });
 
+describe('validateReviewOutput deleted-file references', () => {
+  it('accepts file reference with 0-0 line range for path not in manifest (deleted file)', () => {
+    const catalog = new Map();
+    const commitRecord = createCommitRecord({ repositoryId: 'repo', commitSha: 'abc' });
+    catalog.set(commitRecord.id, commitRecord);
+
+    const output: ReviewOutput = {
+      schemaVersion: 1,
+      coverage: { mode: 'registered-source', sourceTreeInspected: true, diffFiltered: true, omittedProtectedPaths: [], omittedSourceEntries: [], missingCoverage: [] },
+      summary: { intent: 'test', implementation: 'test' },
+      observations: [{
+        type: 'observation',
+        statement: 'file was deleted',
+        provenanceRefs: [commitRecord.id],
+        fileReferences: [{ repositoryId: 'repo', blobSha: 'x', path: 'src/deleted.ts', startLine: 0, endLine: 0 }],
+      }],
+      checks: [],
+      findings: [],
+      unknowns: [],
+      recommendedDisposition: 'comment',
+      draftSummary: { body: 'Summary', observationIndexes: [0], provenanceRefs: [commitRecord.id] },
+    };
+
+    const result = validateReviewOutput(output, { coverage: output.coverage, catalog, sourceManifest: new Map(), sourceMode: 'registered-source' });
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects non-manifest path with non-zero line range', () => {
+    const catalog = new Map();
+    const commitRecord = createCommitRecord({ repositoryId: 'repo', commitSha: 'abc' });
+    catalog.set(commitRecord.id, commitRecord);
+
+    const output: ReviewOutput = {
+      schemaVersion: 1,
+      coverage: { mode: 'registered-source', sourceTreeInspected: true, diffFiltered: true, omittedProtectedPaths: [], omittedSourceEntries: [], missingCoverage: [] },
+      summary: { intent: 'test', implementation: 'test' },
+      observations: [{
+        type: 'observation',
+        statement: 'hallucinated reference',
+        provenanceRefs: [commitRecord.id],
+        fileReferences: [{ repositoryId: 'repo', blobSha: 'x', path: 'src/nonexistent.ts', startLine: 1, endLine: 10 }],
+      }],
+      checks: [],
+      findings: [],
+      unknowns: [],
+      recommendedDisposition: 'comment',
+      draftSummary: { body: 'Summary', observationIndexes: [0], provenanceRefs: [commitRecord.id] },
+    };
+
+    const result = validateReviewOutput(output, { coverage: output.coverage, catalog, sourceManifest: new Map(), sourceMode: 'registered-source' });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(expect.stringContaining('not in source manifest'));
+  });
+});
+
 describe('validateReviewOutput lineCount enforcement', () => {
   it('rejects file reference where endLine exceeds real lineCount', () => {
     const catalog = new Map();

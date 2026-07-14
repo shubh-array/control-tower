@@ -140,6 +140,18 @@ export function extractJsonFromResult(text: string): string | null {
         JSON.parse(inner);
         return inner;
       } catch {
+        // fall through
+      }
+    }
+    // Agent may prefix JSON with prose explanation
+    const braceStart = trimmed.indexOf("{");
+    const braceEnd = trimmed.lastIndexOf("}");
+    if (braceStart >= 0 && braceEnd > braceStart) {
+      const candidate = trimmed.slice(braceStart, braceEnd + 1);
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
         return null;
       }
     }
