@@ -5,7 +5,8 @@ import type { ApprovalStore } from "../publisher/approvals.js";
 import type { OrchestratorFacade } from "../orchestrator/facade.js";
 import { GuardInputStore } from "../publisher/guard-store.js";
 import { PublisherService } from "../publisher/publisher-service.js";
-import type { FocusQueueRow, ReviewQueueRow } from "../api/contracts.js";
+import type { FocusQueueResponse, ReviewQueueRow } from "../api/contracts.js";
+import { projectInboxSummary } from "../api/projections/inbox-summary.js";
 import type { ReviewQueueItem } from "../policy/evaluate.js";
 import { toQueueTuple } from "../policy/queue-order.js";
 
@@ -24,11 +25,7 @@ export interface RuntimePublishContext {
   publicationMode: "shadow" | "gated";
   configuredOperator: string;
   authenticatedLogin: string;
-  getFocusQueueRows: () => {
-    now: FocusQueueRow[];
-    next: FocusQueueRow[];
-    monitor: FocusQueueRow[];
-  };
+  getFocusQueueRows: () => FocusQueueResponse;
   getJobDetail: (id: string) => import("../api/contracts.js").JobDetail | null;
   getDraftDetail: (jobId: string) => import("../api/contracts.js").DraftDetail | null;
 }
@@ -88,12 +85,14 @@ function stubReviewQueueRow(item: ReviewQueueItem): ReviewQueueRow {
     url: item.url,
     author: item.author,
     headSha: item.headSha,
+    explicitRequest: item.explicitRequest,
     eligibilityReasons: item.policy.eligibilityReasons as unknown as ReviewQueueRow["eligibilityReasons"],
     priority: item.policy.priorityStatus as ReviewQueueRow["priority"],
     priorityReasons: item.policy.priorityReasons as unknown as ReviewQueueRow["priorityReasons"],
     queueOrder: stubQueueOrder(item),
     domains: item.policy.selectedDomains.map((d) => d.domain),
     jobState: null,
+    stale: false,
     updatedAt: item.updatedAt || new Date().toISOString(),
   };
 }
@@ -176,7 +175,18 @@ export async function startRuntime(
     getFocusQueueRows: () => {
       const q = facade.getFocusQueue();
       const map = (items: typeof q.now) => items.map(stubReviewQueueRow);
-      return { now: map(q.now), next: map(q.next), monitor: map(q.monitor) };
+      const now = map(q.now);
+      const next = map(q.next);
+      const monitor = map(q.monitor);
+      return {
+        now,
+        next,
+        monitor,
+        summary: projectInboxSummary(
+          [...now, ...next, ...monitor],
+          facade.getHealthStatus().lastPollTimestamp,
+        ),
+      };
     },
     getJobDetail: (id) => {
       const job = facade.getJob(id);

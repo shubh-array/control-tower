@@ -1,19 +1,21 @@
 import { Hono } from "hono";
-import type { FocusQueueRow } from "../contracts.js";
+import type { FocusQueueResponse } from "../contracts.js";
 
 export interface QueueDeps {
-  getFocusQueue: () => {
-    now: FocusQueueRow[];
-    next: FocusQueueRow[];
-    monitor: FocusQueueRow[];
-  };
+  getFocusQueue: () => FocusQueueResponse;
 }
 
 export function queueRoutes(deps: QueueDeps) {
   const app = new Hono();
   app.get("/api/queue", (c) => {
+    const queue = deps.getFocusQueue();
     return c.json({
-      focusQueue: deps.getFocusQueue(),
+      focusQueue: {
+        now: queue.now,
+        next: queue.next,
+        monitor: queue.monitor,
+      },
+      summary: queue.summary,
     });
   });
   return app;

@@ -203,9 +203,16 @@ describe('startRuntime', () => {
     expect(queueRes.status).toBe(200);
     const body = await queueRes.json() as {
       focusQueue: { now: Array<{ repositoryKey: string; queueOrder: unknown }> };
+      summary: {
+        readyToReview: number;
+        explicitRequests: number;
+        totalEligible: number;
+      };
       allTracked?: unknown;
     };
     expect(body).not.toHaveProperty('allTracked');
+    expect(body.summary.totalEligible).toBe(1);
+    expect(body.summary.explicitRequests).toBe(1);
     expect(body.focusQueue.now).toHaveLength(1);
     expect(body.focusQueue.now[0]!.repositoryKey).toBe('pba-webapp');
     expect(body.focusQueue.now[0]!.queueOrder).toEqual({

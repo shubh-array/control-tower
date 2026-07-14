@@ -574,7 +574,11 @@ export function createBootstrap(input: BootstrapInput): {
       configuredOperator: context.configuredOperator,
       authenticatedLogin: context.authenticatedLogin,
       getFocusQueueRows: () =>
-        projectFocusQueue(db, workGraph.getFocusQueue()),
+        projectFocusQueue(
+          db,
+          workGraph.getFocusQueue(),
+          checkpoints.getLastPollTime(host),
+        ),
       getJobDetail: (id) => loadJobDetail(db, id),
       getDraftDetail: (jobId) => facadeDeps.getDraft(jobId),
     },

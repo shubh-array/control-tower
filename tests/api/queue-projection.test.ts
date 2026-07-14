@@ -93,6 +93,8 @@ describe("queue projection", () => {
     });
     expect(row.priority).toBe("p1");
     expect(row.domains).toEqual(["backend"]);
+    expect(row.explicitRequest).toBe(true);
+    expect(row.stale).toBe(false);
     expect(row.eligibilityReasons[0]?.code).toBe("explicit_review_request");
     expect(row).not.toHaveProperty("attentionState");
     expect(row).not.toHaveProperty("advisorResult");

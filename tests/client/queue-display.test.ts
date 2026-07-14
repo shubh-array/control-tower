@@ -16,6 +16,7 @@ function row(overrides: Partial<ReviewQueueRow> = {}): ReviewQueueRow {
     url: "https://github.com/org/pba-webapp/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
+    explicitRequest: false,
     eligibilityReasons: [],
     priority: "p1",
     priorityReasons: [],
@@ -28,6 +29,7 @@ function row(overrides: Partial<ReviewQueueRow> = {}): ReviewQueueRow {
     },
     domains: [],
     jobState: null,
+    stale: false,
     updatedAt: "2026-07-10T12:00:00.000Z",
     ...overrides,
   };

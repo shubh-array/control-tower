@@ -17,6 +17,7 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     url: "https://github.com/org/repo/pull/42",
     author: "dev",
     headSha: "a".repeat(40),
+    explicitRequest: false,
     eligibilityReasons: [],
     priority: "p1",
     priorityReasons: [],
@@ -29,6 +30,7 @@ function row(overrides: Partial<FocusQueueRow> = {}): FocusQueueRow {
     },
     domains: ["sdk"],
     jobState: "ready",
+    stale: false,
     updatedAt: "2026-07-13T10:00:00.000Z",
     ...overrides,
   };

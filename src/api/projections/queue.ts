@@ -1,11 +1,14 @@
 import type Database from "better-sqlite3";
 import type { ReviewQueueItem } from "../../policy/evaluate.js";
+import { isDraftStale } from "../../policy/inbox-presentation.js";
 import { toQueueTuple } from "../../policy/queue-order.js";
-import type { FocusQueueRow, ReviewQueueRow } from "../contracts.js";
+import type { FocusQueueResponse, ReviewQueueRow } from "../contracts.js";
+import { projectInboxSummary } from "./inbox-summary.js";
 
 interface JobEnrichment {
   id: string;
   state: string;
+  headSha: string;
 }
 
 function prKey(repositoryKey: string, prNumber: number): string {
@@ -42,17 +45,21 @@ export function loadQueueEnrichment(db: Database.Database): {
   const jobs = new Map<string, JobEnrichment>();
   for (const row of db
     .prepare(
-      `SELECT id, repository_key, pr_number, state
+      `SELECT id, repository_key, pr_number, state, head_sha
        FROM jobs
        WHERE state NOT IN ('superseded', 'cancelled', 'published')
        ORDER BY updated_at DESC`,
     )
     .all() as Array<
-      JobEnrichment & { repository_key: string; pr_number: number }
+      JobEnrichment & { repository_key: string; pr_number: number; head_sha: string }
     >) {
     const key = prKey(row.repository_key, row.pr_number);
     if (!jobs.has(key)) {
-      jobs.set(key, { id: row.id, state: row.state });
+      jobs.set(key, {
+        id: row.id,
+        state: row.state,
+        headSha: row.head_sha,
+      });
     }
   }
 
@@ -89,6 +96,8 @@ export function projectReviewQueueItem(
     queueTimestamp: queueTimestampSort,
   };
 
+  const jobState = job?.state ?? null;
+
   return {
     jobId: job?.id ?? null,
     repositoryKey: item.repositoryKey,
@@ -98,12 +107,18 @@ export function projectReviewQueueItem(
     url: item.url,
     author: item.author,
     headSha: item.headSha,
+    explicitRequest: item.explicitRequest,
     eligibilityReasons: item.policy.eligibilityReasons as unknown as ReviewQueueRow["eligibilityReasons"],
     priority: item.policy.priorityStatus as ReviewQueueRow["priority"],
     priorityReasons: item.policy.priorityReasons as unknown as ReviewQueueRow["priorityReasons"],
     queueOrder,
     domains: item.policy.selectedDomains.map((d) => d.domain),
-    jobState: job?.state ?? null,
+    jobState,
+    stale: isDraftStale({
+      prHeadSha: item.headSha,
+      jobHeadSha: job?.headSha ?? null,
+      jobState,
+    }),
     updatedAt: item.updatedAt || new Date().toISOString(),
   };
 }
@@ -115,7 +130,8 @@ export function projectFocusQueue(
     next: ReviewQueueItem[];
     monitor: ReviewQueueItem[];
   },
-): { now: FocusQueueRow[]; next: FocusQueueRow[]; monitor: FocusQueueRow[] } {
+  lastPollTimestamp: string | null = null,
+): FocusQueueResponse {
   const enrichment = loadQueueEnrichment(db);
   for (const item of [...focus.now, ...focus.next, ...focus.monitor]) {
     if (!enrichment.repositoryDisplay.has(item.repositoryKey)) {
@@ -125,9 +141,15 @@ export function projectFocusQueue(
       );
     }
   }
+  const now = focus.now.map((i) => projectReviewQueueItem(i, enrichment));
+  const next = focus.next.map((i) => projectReviewQueueItem(i, enrichment));
+  const monitor = focus.monitor.map((i) => projectReviewQueueItem(i, enrichment));
+  const allRows = [...now, ...next, ...monitor];
+
   return {
-    now: focus.now.map((i) => projectReviewQueueItem(i, enrichment)),
-    next: focus.next.map((i) => projectReviewQueueItem(i, enrichment)),
-    monitor: focus.monitor.map((i) => projectReviewQueueItem(i, enrichment)),
+    now,
+    next,
+    monitor,
+    summary: projectInboxSummary(allRows, lastPollTimestamp),
   };
 }

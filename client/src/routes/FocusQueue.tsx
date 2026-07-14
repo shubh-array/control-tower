@@ -11,6 +11,7 @@ import { ActionButton } from "../components/ActionButton.js";
 import { DataState } from "../components/DataState.js";
 import { EmptyState } from "../components/EmptyState.js";
 import { PageHeader } from "../components/PageHeader.js";
+import { InboxSummaryStrip } from "../components/InboxSummaryStrip.js";
 import {
   INBOX_REFRESH_ERROR,
   inboxRowKey,
@@ -27,6 +28,7 @@ import { formatRepositoryPr } from "../lib/repository-display.js";
 import { queryKeys } from "../lib/query-keys.js";
 import { useAnalyzeMutation, useRetryMutation } from "../hooks/useJobMutations.js";
 import { useQueueQuery } from "../hooks/useQueueQuery.js";
+import { formatInboxSubtitle } from "../lib/inbox-summary-display.js";
 
 const DRAFT_UNAVAILABLE_MESSAGE =
   "Draft is not available yet. Retry analysis or refresh the Inbox.";
@@ -163,7 +165,7 @@ export function FocusQueue({
   onOpenReview: (item: FocusQueueRow) => void;
 }) {
   const queryClient = useQueryClient();
-  const { focusQueue, surface, refetch } = useQueueQuery();
+  const { focusQueue, summary, surface, refetch } = useQueueQuery();
   const analyzeMutation = useAnalyzeMutation();
   const retryMutation = useRetryMutation();
   const queue = focusQueue ?? { now: [], next: [], monitor: [] };
@@ -214,13 +216,10 @@ export function FocusQueue({
     [applyPatches, queue],
   );
 
-  const actionableCount = useMemo(
-    () =>
-      flatItems.filter(
-        (item) => deriveInboxPresentation(item).primaryAction !== null,
-      ).length,
-    [flatItems],
-  );
+  const pageSubtitle =
+    summary !== undefined
+      ? formatInboxSubtitle(summary)
+      : "Ordered by priority and queue tuple";
 
   const clearRowFeedback = useCallback((key: string) => {
     setMutationErrorByKey((prev) => {
@@ -338,8 +337,9 @@ export function FocusQueue({
     >
       <PageHeader
         title="Inbox"
-        subtitle={`${actionableCount} items ready for review · ordered by priority and queue tuple`}
+        subtitle={pageSubtitle}
       />
+      {summary !== undefined && <InboxSummaryStrip summary={summary} />}
       <label className="lane-toggle">
         <input
           type="checkbox"

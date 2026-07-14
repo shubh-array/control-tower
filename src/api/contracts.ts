@@ -38,13 +38,33 @@ export interface ReviewQueueRow {
   url: string;
   author: string;
   headSha: string;
+  explicitRequest: boolean;
   eligibilityReasons: EligibilityReason[];
   priority: "p0" | "p1" | "p2" | "p3";
   priorityReasons: PriorityReason[];
   queueOrder: QueueOrder;
   domains: string[];
   jobState: string | null;
+  stale: boolean;
   updatedAt: string;
+}
+
+export interface InboxSummary {
+  readyToReview: number;
+  explicitRequests: number;
+  totalEligible: number;
+  needsAnalysis: number;
+  analyzing: number;
+  failed: number;
+  stale: number;
+  lastPollTimestamp: string | null;
+}
+
+export interface FocusQueueResponse {
+  now: FocusQueueRow[];
+  next: FocusQueueRow[];
+  monitor: FocusQueueRow[];
+  summary: InboxSummary;
 }
 
 export type FocusQueueRow = ReviewQueueRow;

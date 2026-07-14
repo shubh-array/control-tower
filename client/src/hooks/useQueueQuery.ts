@@ -53,6 +53,7 @@ export function useQueueQuery() {
     ...query,
     surface,
     focusQueue: query.data?.focusQueue,
+    summary: query.data?.summary,
     retry: query.refetch,
   };
 }

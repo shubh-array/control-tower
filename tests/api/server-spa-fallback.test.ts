@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createApiServer, type ServerDeps } from "../../src/api/server.js";
+import { EMPTY_INBOX_SUMMARY } from "../../src/api/projections/inbox-summary.js";
 
 const LOOPBACK_HOST = "127.0.0.1:9120";
 
@@ -21,7 +22,12 @@ function createTestDist(): string {
 function createDeps(clientDistPath: string): ServerDeps {
   return {
     getHealthStatus: () => ({ healthy: true, issues: [] }),
-    getFocusQueue: () => ({ now: [], next: [], monitor: [] }),
+    getFocusQueue: () => ({
+      now: [],
+      next: [],
+      monitor: [],
+      summary: EMPTY_INBOX_SUMMARY,
+    }),
     getJob: () => null,
     getDraft: () => null,
     getAuditTrail: () => [],
