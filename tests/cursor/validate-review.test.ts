@@ -4,7 +4,7 @@ import {
   type ReviewOutput,
   type ReviewValidationInput,
 } from '../../src/cursor/validate-review.js';
-import { createDiffHunkRecord, type ProvenanceRecord } from '../../src/context/provenance.js';
+import { createDiffHunkRecord, createCommitRecord, type ProvenanceRecord } from '../../src/context/provenance.js';
 
 function makeCatalog(): Map<string, ProvenanceRecord> {
   const rec = createDiffHunkRecord({
@@ -185,5 +185,134 @@ describe('validateReviewOutput', () => {
       { coverage: REGISTERED_COVERAGE, catalog, sourceManifest: new Map(), sourceMode: 'registered-source' },
     );
     expect(result.valid).toBe(false);
+  });
+});
+
+describe('validateReviewOutput lineCount enforcement', () => {
+  it('rejects file reference where endLine exceeds real lineCount', () => {
+    const catalog = new Map();
+    const commitRecord = createCommitRecord({ repositoryId: 'repo', commitSha: 'abc' });
+    catalog.set(commitRecord.id, commitRecord);
+
+    const sourceManifest = new Map([
+      ['src/foo.ts', { blobSha: 'sha1', lineCount: 5 }],
+    ]);
+
+    const output: ReviewOutput = {
+      schemaVersion: 1,
+      coverage: {
+        mode: 'registered-source',
+        sourceTreeInspected: true,
+        diffFiltered: true,
+        omittedProtectedPaths: [],
+        omittedSourceEntries: [],
+        missingCoverage: [],
+      },
+      summary: { intent: 'test', implementation: 'test' },
+      observations: [{
+        type: 'observation',
+        statement: 'found issue',
+        provenanceRefs: [commitRecord.id],
+        fileReferences: [{
+          repositoryId: 'repo',
+          blobSha: 'sha1',
+          path: 'src/foo.ts',
+          startLine: 10,
+          endLine: 20,
+        }],
+      }],
+      checks: [],
+      findings: [{
+        severity: 'medium',
+        confidence: 'high',
+        title: 'Test finding',
+        rationale: 'test',
+        file: 'src/foo.ts',
+        location: { side: 'RIGHT', line: 10, startSide: null, startLine: null },
+        observationIndexes: [0],
+        draftComment: 'fix this',
+      }],
+      unknowns: [],
+      recommendedDisposition: 'comment',
+      draftSummary: {
+        body: 'Summary',
+        observationIndexes: [0],
+        provenanceRefs: [commitRecord.id],
+      },
+    };
+
+    const result = validateReviewOutput(output, {
+      coverage: output.coverage,
+      catalog,
+      sourceManifest,
+      sourceMode: 'registered-source',
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.stringContaining('exceeds file length 5'),
+    );
+  });
+
+  it('accepts file reference within real lineCount', () => {
+    const catalog = new Map();
+    const commitRecord = createCommitRecord({ repositoryId: 'repo', commitSha: 'abc' });
+    catalog.set(commitRecord.id, commitRecord);
+
+    const sourceManifest = new Map([
+      ['src/foo.ts', { blobSha: 'sha1', lineCount: 50 }],
+    ]);
+
+    const output: ReviewOutput = {
+      schemaVersion: 1,
+      coverage: {
+        mode: 'registered-source',
+        sourceTreeInspected: true,
+        diffFiltered: true,
+        omittedProtectedPaths: [],
+        omittedSourceEntries: [],
+        missingCoverage: [],
+      },
+      summary: { intent: 'test', implementation: 'test' },
+      observations: [{
+        type: 'observation',
+        statement: 'found issue',
+        provenanceRefs: [commitRecord.id],
+        fileReferences: [{
+          repositoryId: 'repo',
+          blobSha: 'sha1',
+          path: 'src/foo.ts',
+          startLine: 10,
+          endLine: 20,
+        }],
+      }],
+      checks: [],
+      findings: [{
+        severity: 'medium',
+        confidence: 'high',
+        title: 'Test finding',
+        rationale: 'test',
+        file: 'src/foo.ts',
+        location: { side: 'RIGHT', line: 10, startSide: null, startLine: null },
+        observationIndexes: [0],
+        draftComment: 'fix this',
+      }],
+      unknowns: [],
+      recommendedDisposition: 'comment',
+      draftSummary: {
+        body: 'Summary',
+        observationIndexes: [0],
+        provenanceRefs: [commitRecord.id],
+      },
+    };
+
+    const result = validateReviewOutput(output, {
+      coverage: output.coverage,
+      catalog,
+      sourceManifest,
+      sourceMode: 'registered-source',
+    });
+
+    expect(result.valid).toBe(true);
   });
 });
