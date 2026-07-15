@@ -55,14 +55,20 @@ describe("buildCommonEnv", () => {
 });
 
 describe("buildCursorEnv", () => {
-  it("uses common vars only", () => {
+  it("uses common vars only (plus optional CURSOR_API_KEY)", () => {
     const env = buildCursorEnv(hostEnv);
     expect(env.PATH).toBe("/usr/bin:/usr/local/bin");
     expect(env.HOME).toBe("/Users/test");
   });
 
-  it("removes CURSOR_API_KEY and CURSOR_AUTH_TOKEN", () => {
+  it("passes CURSOR_API_KEY when set for isolated-HOME headless auth", () => {
     const env = buildCursorEnv(hostEnv);
+    expect(env.CURSOR_API_KEY).toBe("secret-key");
+  });
+
+  it("omits CURSOR_API_KEY when unset and still removes CURSOR_AUTH_TOKEN", () => {
+    const { CURSOR_API_KEY: _k, ...withoutKey } = hostEnv;
+    const env = buildCursorEnv(withoutKey);
     expect(env).not.toHaveProperty("CURSOR_API_KEY");
     expect(env).not.toHaveProperty("CURSOR_AUTH_TOKEN");
   });

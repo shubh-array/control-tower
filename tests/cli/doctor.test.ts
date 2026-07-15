@@ -15,6 +15,7 @@ import {
   checkModelRoleRequirements,
   checkSchemaValidity,
   checkDockerAvailable,
+  checkPrReviewPlugin,
   parseAgentModelsOutput,
   runDoctor,
 } from "../../src/cli/doctor.js";
@@ -239,8 +240,13 @@ describe("checkSchemaValidity", () => {
   it("validates harness manifest materializability", () => {
     const r = checkSchemaValidity("harness-manifest", {
       id: "pr-review",
-      prompt: join(process.cwd(), "config/harnesses/pr-review/prompt.md"),
-      skills: [join(process.cwd(), "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],
+      prompt: join(process.cwd(), "config/plugins/control-tower-pr-review/prompt.md"),
+      skills: [
+        join(
+          process.cwd(),
+          "config/plugins/control-tower-pr-review/skills/control-tower-pr-review/SKILL.md",
+        ),
+      ],
     });
     expect(r.ok).toBe(true);
   });
@@ -249,7 +255,12 @@ describe("checkSchemaValidity", () => {
     const r = checkSchemaValidity("harness-manifest", {
       id: "pr-review",
       prompt: join(tmpdir(), "definitely-missing-control-tower-prompt.md"),
-      skills: [join(process.cwd(), "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],
+      skills: [
+        join(
+          process.cwd(),
+          "config/plugins/control-tower-pr-review/skills/control-tower-pr-review/SKILL.md",
+        ),
+      ],
     });
     expect(r.ok).toBe(false);
   });
@@ -257,7 +268,7 @@ describe("checkSchemaValidity", () => {
   it("fails harness manifests when a skill file is missing", () => {
     const r = checkSchemaValidity("harness-manifest", {
       id: "pr-review",
-      prompt: join(process.cwd(), "config/harnesses/pr-review/prompt.md"),
+      prompt: join(process.cwd(), "config/plugins/control-tower-pr-review/prompt.md"),
       skills: [join(tmpdir(), "definitely-missing-control-tower-skill.md")],
     });
     expect(r.ok).toBe(false);
@@ -342,6 +353,8 @@ describe("runDoctor (integration with fake deps)", () => {
     policyPath: null,
     harnessManifests: [],
     domainGlobs: [],
+    cursorHomePath: join(tmpdir(), "ct-cursor-home"),
+    appRoot: process.cwd(),
   };
 
   it("all checks pass with valid fake deps", async () => {
@@ -349,6 +362,17 @@ describe("runDoctor (integration with fake deps)", () => {
     const results = await runDoctor(baseConfig, deps);
     const failures = results.filter((r) => !r.ok);
     expect(failures).toHaveLength(0);
+    expect(results.some((r) => r.name === "PR review plugin" && r.ok)).toBe(true);
+  });
+
+  it("passes checkPrReviewPlugin for the shipped plugin pack", () => {
+    const r = checkPrReviewPlugin(process.cwd());
+    expect(r.ok).toBe(true);
+  });
+
+  it("fails checkPrReviewPlugin when plugin.json is missing", () => {
+    const r = checkPrReviewPlugin(join(tmpdir(), "no-such-app-root"));
+    expect(r.ok).toBe(false);
   });
 
   it("passes model smoke when each distinct configured model echoes back correctly", async () => {

@@ -59,6 +59,17 @@ describe("recoverOrphanedStates", () => {
     expect(result.failureReasons.get("j1")).toBe("daemon_restart");
   });
 
+  it("fails orphaned preparing_source and preparing_context jobs", () => {
+    insertJob(db, { id: "j-src", state: "preparing_source", version: 2 });
+    insertJob(db, { id: "j-ctx", state: "preparing_context", version: 1 });
+    const result = recoverOrphanedStates(db);
+    expect(result.failedJobs).toEqual(
+      expect.arrayContaining(["j-src", "j-ctx"]),
+    );
+    expect(result.failureReasons.get("j-src")).toBe("daemon_restart");
+    expect(result.failureReasons.get("j-ctx")).toBe("daemon_restart");
+  });
+
   it("fails orphaned running/validating runs", () => {
     insertRun(db, { id: "r1", state: "running", version: 2 });
     const result = recoverOrphanedStates(db);

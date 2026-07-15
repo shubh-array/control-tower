@@ -6,6 +6,7 @@ export interface CursorArgvInput {
   modelId: string;
   prompt: string;
   sourceViewPath?: string; // only for registered-source primaryReview
+  pluginDir?: string; // Control Tower feature plugin (e.g. control-tower-pr-review)
 }
 
 export function buildCursorArgv(input: CursorArgvInput): string[] {
@@ -20,6 +21,10 @@ export function buildCursorArgv(input: CursorArgvInput): string[] {
     '--model', input.modelId,
     '--output-format', 'stream-json',
   ];
+
+  if (input.pluginDir) {
+    args.push('--plugin-dir', input.pluginDir);
+  }
 
   if (input.sourceViewPath) {
     args.push('--add-dir', input.sourceViewPath);

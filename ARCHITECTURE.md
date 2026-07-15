@@ -35,9 +35,9 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 │       ├── hooks/               # TanStack Query data and mutation hooks
 │       ├── lib/                 # API, routes, polling, display, and query helpers
 │       └── routes/              # Inbox and Review route components
-├── config/                      # Committed org catalog + harnesses + examples
+├── config/                      # Committed org catalog + plugins + examples
 │   ├── organization.json        # Shared org/repo catalog (no secrets)
-│   ├── harnesses/               # pr-review prompts/skills/domains
+│   ├── plugins/                 # Cursor feature plugins (control-tower-pr-review)
 │   └── examples/                # Starter profile + local-config templates
 ├── docs/                        # Handoff manifest, architecture artifact, implementation plans
 ├── eval/                        # Primary-review eval corpus
@@ -53,7 +53,7 @@ For operator quick start, see [`README.md`](./README.md). For step-by-step local
 | Concern | Owner |
 |---------|--------|
 | Eligibility, auto-analysis, state, publication | Application code under `src/` |
-| Review judgment and drafting | Cursor agents via harnesses under `config/harnesses/pr-review/` |
+| Review judgment and drafting | Cursor agents via plugin under `config/plugins/control-tower-pr-review/` (`--plugin-dir`) |
 | Org/repos/defaults | `config/organization.json` |
 | Per-engineer policy/persona | `~/.control-tower/profile/` |
 | Machine paths, models, publication mode | `~/.control-tower/config.json` |
@@ -345,7 +345,7 @@ another daemon port.
 | **Registered-source** | Review path using a configured local repo to fetch the PR head into a daemon-owned admin worktree, materialize a protected-path-filtered source tree for Cursor, and generate a source manifest with allowed/omitted entries |
 | **Remote-evidence-only** | Review without admin worktree/source view (unregistered or explicit) |
 | **CanonicalPathMatcher** | Single app-owned path/glob contract for eligibility, domains, protection, materialization |
-| **Harness** | Feature-grouped prompt/skills/domain pack (`pr-review`) |
+| **Harness** | Feature-grouped review guidance; Phase 1 ships as Cursor plugin `control-tower-pr-review` |
 | **Nine-layer composition** | Fixed harness layering order with explicit policy snapshot (no deep-merge) |
 | **Control Tower** | This product — local PE desk for delegated, human-gated PR review |
 
@@ -360,7 +360,7 @@ Use this section as the practical companion to the module map above.
 1. **Org catalog** — add/edit repositories in `config/organization.json` (IDs are stable keys).
 2. **Active set** — choose `activeRepositoryIds` in profile.
 3. **Policy** — edit `eligiblePaths`, `eligibleAuthors`, `priorityRules`, `domainRules`, and `autoAnalyze` in profile `policy.json`.
-4. **Persona / harnesses** — tune `persona.md` and the primary-review files under `config/harnesses/pr-review/`.
+4. **Persona / review plugin** — tune `persona.md` and the primary-review pack under `config/plugins/control-tower-pr-review/`.
 5. **Models** — set `cursor.modelRoles.primaryReview` in local config; `pnpm ct doctor` checks model **availability** (`agent models`) and runs a separate **smoke** check per distinct configured model (no silent fallback).
 6. **Publication** — keep `shadow` until you validate draft quality; then `pnpm ct publication enable`, which runs `doctor` and requires confirmation.
 

@@ -75,14 +75,14 @@ export function buildHarnessManifest(input: ManifestBuildInput): HarnessManifest
   add(2, 'policy_snapshot', 'policy.snapshot.json', input.policySnapshot.hash, input.policySnapshot.bytes, null);
 
   if (input.orgFeaturePrompt) {
-    add(3, 'org_feature_guidance', `harnesses/${feature}/prompt.md`, input.orgFeaturePrompt.hash, input.orgFeaturePrompt.bytes, null);
+    add(3, 'org_feature_guidance', `plugins/control-tower-pr-review/prompt.md`, input.orgFeaturePrompt.hash, input.orgFeaturePrompt.bytes, null);
   }
   if (input.orgFeatureSkill) {
-    add(3, 'org_feature_guidance', `harnesses/${feature}/skills/skill/SKILL.md`, input.orgFeatureSkill.hash, input.orgFeatureSkill.bytes, null);
+    add(3, 'org_feature_guidance', `plugins/control-tower-pr-review/skills/control-tower-pr-review/SKILL.md`, input.orgFeatureSkill.hash, input.orgFeatureSkill.bytes, null);
   }
 
   for (const dg of input.orgDomainGuidance) {
-    add(4, 'org_domain_guidance', `harnesses/pr-review/domains/${dg.domain}.md`, dg.hash, dg.bytes, dg.domain);
+    add(4, 'org_domain_guidance', `plugins/control-tower-pr-review/rules/domain-${dg.domain}.mdc`, dg.hash, dg.bytes, dg.domain);
   }
 
   if (input.repositoryGuidance) {

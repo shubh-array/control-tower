@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -14,12 +13,20 @@ import type { RunState } from "./run-state.js";
 import { computeRunDirectoryLayout } from "../context/prepare.js";
 import type { CoverageObject, DiffFilterOutcome } from "../context/coverage.js";
 import type { HarnessManifest } from "../context/harness-manifest.js";
+import {
+  assertPrReviewPluginPresent,
+  resolvePrReviewPromptPath,
+} from "../app-safety/pr-review-plugin.js";
 import { validateReviewOutput } from "../cursor/validate-review.js";
 import {
   runCursorAgent,
   type AdapterRunInput,
   type AdapterRunResult,
 } from "../cursor/adapter.js";
+import {
+  ensureControlTowerCursorHome,
+  resolveControlTowerCursorHome,
+} from "../cursor/cursor-home.js";
 import { extractJsonFromResult } from "../cursor/ndjson.js";
 import { sealRun as sealRunDir } from "../context/seal.js";
 import {
@@ -119,21 +126,17 @@ export function loadPipelineJob(
 }
 
 function resolveCursorHome(ctx: PipelineRunnerContext): string {
-  return (
-    ctx.cursorHomePath ??
-    process.env.CONTROL_TOWER_CURSOR_HOME ??
-    process.env.HOME ??
-    homedir()
+  return ensureControlTowerCursorHome(
+    resolveControlTowerCursorHome(ctx.dataDirectory, {
+      cursorHomePath: ctx.cursorHomePath,
+    }),
   );
 }
 
 function resolveReviewPrompt(appRoot: string): string {
-  const promptPath = join(appRoot, "config/harnesses/pr-review/prompt.md");
-  try {
-    return readFileSync(promptPath, "utf-8");
-  } catch {
-    return "Review this pull request and return a single JSON object matching the output contract.";
-  }
+  assertPrReviewPluginPresent(appRoot);
+  const promptPath = resolvePrReviewPromptPath(appRoot);
+  return readFileSync(promptPath, "utf-8");
 }
 
 export function buildPipelineDeps(
@@ -513,6 +516,7 @@ export function buildPipelineDeps(
         return await Promise.resolve(ctx.runAgent(runId, runDir));
       }
 
+      const pluginDir = assertPrReviewPluginPresent(appRoot);
       const prompt = resolveReviewPrompt(appRoot);
       const adapter = ctx.cursorAdapter ?? runCursorAgent;
       const layout = computeRunDirectoryLayout(ctx.dataDirectory, jobId, runId);
@@ -531,6 +535,7 @@ export function buildPipelineDeps(
         runDirectory: runDir,
         modelId,
         prompt,
+        pluginDir,
         sourceViewPath: prepared.state?.sourceViewRoot ?? undefined,
         homePath: resolveCursorHome(ctx),
         transcriptPath: layout.transcriptPath,

@@ -1,6 +1,13 @@
+---
+description: When reviewing backend, API, service, database, or auth boundary changes
+alwaysApply: false
+---
+
 # Backend Domain Guidance
 
-When reviewing backend changes, pay special attention to:
+When reviewing backend changes, assess through source, diff, test code, and CI inspection only. Do NOT execute builds, tests, shells, or repository commands.
+
+Pay special attention to:
 - API contract changes (request/response shapes, status codes, headers)
 - Database migration safety (backward compatibility, data loss risk)
 - Authentication and authorization boundary changes

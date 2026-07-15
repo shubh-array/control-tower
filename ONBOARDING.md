@@ -256,7 +256,7 @@ Edit `~/.control-tower/profile/persona.md` for review tone. Example starter text
 ### Domain rules
 
 - Max **3** `domainRules` per repository (schema limit)
-- Prefer domain names that match files under `config/harnesses/pr-review/domains/` (for example `frontend`, `backend`, `infrastructure`) so guidance stays consistent with the shipped harness pack
+- Prefer domain names that match plugin domain rules under `config/plugins/control-tower-pr-review/rules/domain-*.mdc` (for example `frontend`, `backend`, `infrastructure`) so guidance stays consistent with the shipped review plugin
 
 If a repo is in `activeRepositoryIds` but missing from `policy.repositories`, eligibility uses empty path/author lists — so only **explicit review requests** make those PRs eligible.
 
@@ -297,8 +297,8 @@ Without touching application code:
 | Goal | Edit |
 |------|------|
 | Your voice / bar | `~/.control-tower/profile/persona.md` |
-| Primary review prompt/skills | `config/harnesses/pr-review/` |
-| Domain guidance | `config/harnesses/pr-review/domains/*.md` |
+| Primary review plugin | `config/plugins/control-tower-pr-review/` |
+| Domain guidance | `config/plugins/control-tower-pr-review/rules/domain-*.mdc` |
 
 ---
 
@@ -308,6 +308,21 @@ Without touching application code:
 pnpm ct doctor
 ```
 
+Cursor auth and model checks use an isolated HOME at `{dataDirectory}/cursor-home` (override with `CONTROL_TOWER_CURSOR_HOME`). Authenticate once with:
+
+```bash
+export CURSOR_API_KEY=…   # preferred for headless
+# or:
+HOME=~/.control-tower/data/cursor-home agent login
+```
+
+After upgrading to the CT review plugin, reset local analysis state if you have old jobs:
+
+```bash
+pnpm ct reset --yes
+```
+
+`doctor` fails closed if `config/plugins/control-tower-pr-review` is missing or misnamed.
 Fix every failing check, then re-run until you see `All checks passed.`
 
 Typical failures:

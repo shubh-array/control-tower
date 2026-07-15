@@ -81,7 +81,7 @@ pnpm ct reset --all --yes
 pnpm ct init
 ```
 
-`reset` attempts to stop a running daemon first. `--all` recursively deletes the configured **data** directory (SQLite `control-tower.sqlite`, sealed run artifacts, discovery checkpoints), **profile** directory, and **local config file**; repo harnesses under `config/harnesses/` are kept. No backward compatibility is preserved — legacy keys such as `cursor.modelRoles.attention` are removed and must be recreated by `init`. After `init`, start Control Tower again.
+`reset` attempts to stop a running daemon first. `--all` recursively deletes the configured **data** directory (SQLite `control-tower.sqlite`, sealed run artifacts, discovery checkpoints), **profile** directory, and **local config file**; repo plugins under `config/plugins/` are kept. No backward compatibility is preserved — legacy keys such as `cursor.modelRoles.attention` are removed and must be recreated by `init`. After `init`, start Control Tower again.
 
 ### Enable publishing (after operator validation)
 

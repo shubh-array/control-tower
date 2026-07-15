@@ -29,21 +29,14 @@ export function recoverOrphanedStates(db: Database.Database): RecoveryResult {
   db.transaction(() => {
     const now = new Date().toISOString();
 
-    const orphanedAgentJobs = db
-      .prepare("SELECT id, version FROM jobs WHERE state = 'running_agent'")
+    const orphanedInFlightJobs = db
+      .prepare(
+        `SELECT id, version FROM jobs WHERE state IN (
+          'preparing_context', 'preparing_source', 'running_agent', 'validating_output'
+        )`,
+      )
       .all() as Array<{ id: string; version: number }>;
-    for (const job of orphanedAgentJobs) {
-      db.prepare(
-        `UPDATE jobs SET state = 'failed', version = version + 1, failure_reason = 'daemon_restart', updated_at = ? WHERE id = ? AND version = ?`,
-      ).run(now, job.id, job.version);
-      result.failedJobs.push(job.id);
-      result.failureReasons.set(job.id, "daemon_restart");
-    }
-
-    const orphanedValidatingJobs = db
-      .prepare("SELECT id, version FROM jobs WHERE state = 'validating_output'")
-      .all() as Array<{ id: string; version: number }>;
-    for (const job of orphanedValidatingJobs) {
+    for (const job of orphanedInFlightJobs) {
       db.prepare(
         `UPDATE jobs SET state = 'failed', version = version + 1, failure_reason = 'daemon_restart', updated_at = ? WHERE id = ? AND version = ?`,
       ).run(now, job.id, job.version);

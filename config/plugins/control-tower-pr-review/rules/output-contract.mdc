@@ -1,0 +1,10 @@
+---
+description: Strict JSON output contract for Control Tower primaryReview
+alwaysApply: true
+---
+# Strict Output Contract
+
+Return exactly one JSON object matching the role-specific schema.
+No markdown wrapping. No additional text before or after the JSON.
+Every provenanceRef must be an application-created pv_ identifier.
+Every fileReference must include repositoryId, blobSha, path, startLine, endLine.

@@ -551,7 +551,8 @@ export function createBootstrap(input: BootstrapInput): {
             cursorBinary: currentLocal.cursor.binary,
             cursorModelId:
               currentLocal.cursor.modelRoles.primaryReview?.modelId,
-            cursorHomePath: process.env.HOME,
+            // Isolated under dataDirectory/cursor-home unless CONTROL_TOWER_CURSOR_HOME is set.
+            cursorHomePath: undefined,
             sshAuthSock: process.env.SSH_AUTH_SOCK,
             execGhText: (args, opts) => execGhText(args, opts),
             githubHost: org.github.host,

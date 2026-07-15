@@ -155,4 +155,27 @@ describe("loadLocalConfig", () => {
     }));
     expect(() => loadLocalConfig(file)).toThrow();
   });
+
+  it("expands ~ in profileDirectory and dataDirectory", () => {
+    const file = join(tmp, "config.json");
+    writeFileSync(file, JSON.stringify({
+      schemaVersion: 1,
+      profileDirectory: "~/.control-tower/profile",
+      dataDirectory: "~/.control-tower/data",
+      workspaceRoots: ["/tmp/workspace"],
+      repositoryPaths: {},
+      cursor: {
+        binary: "agent",
+        modelRoles: { primaryReview: { modelId: "composer-2.5-fast" } },
+        maxConcurrentAgents: 1,
+      },
+      worktrees: { maxMaterialized: 4 },
+      publication: { mode: "shadow" },
+    }));
+    const cfg = loadLocalConfig(file);
+    expect(cfg.profileDirectory.startsWith("~")).toBe(false);
+    expect(cfg.dataDirectory.startsWith("~")).toBe(false);
+    expect(cfg.profileDirectory.endsWith("/.control-tower/profile")).toBe(true);
+    expect(cfg.dataDirectory.endsWith("/.control-tower/data")).toBe(true);
+  });
 });

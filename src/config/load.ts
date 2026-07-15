@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import {
   organizationSchema,
   profileSchema,
@@ -11,6 +12,12 @@ import type {
   PolicyConfig,
   LocalConfig,
 } from "./types.js";
+
+function expandUserPath(path: string): string {
+  if (path === "~") return homedir();
+  if (path.startsWith("~/")) return `${homedir()}${path.slice(1)}`;
+  return path;
+}
 
 function readJson(path: string): unknown {
   let raw: string;
@@ -75,5 +82,9 @@ export function loadLocalConfig(path: string): LocalConfig {
       `Invalid local config "${path}":\n${formatZodError(result.error)}`,
     );
   }
-  return result.data;
+  return {
+    ...result.data,
+    profileDirectory: expandUserPath(result.data.profileDirectory),
+    dataDirectory: expandUserPath(result.data.dataDirectory),
+  };
 }

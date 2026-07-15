@@ -1,8 +1,10 @@
 import { existsSync, accessSync, constants, statSync } from "node:fs";
 import { join } from "node:path";
-import { buildGhEnv } from "../security/child-env.js";
+import { buildCursorEnv, buildGhEnv } from "../security/child-env.js";
 import { profileSchema, policySchema } from "../config/schemas.js";
 import { compileGlobs } from "../paths/compile.js";
+import { assertPrReviewPluginPresent } from "../app-safety/pr-review-plugin.js";
+import { ensureControlTowerCursorHome } from "../cursor/cursor-home.js";
 
 export type Severity = "pass" | "warn" | "fail" | "info";
 
@@ -253,6 +255,29 @@ export interface DoctorConfig {
   personaPath?: string | null;
   harnessManifests: Array<{ id: string; prompt: string; skills?: string[] }>;
   domainGlobs: string[];
+  /** Isolated HOME for Cursor CLI checks (auth/models). */
+  cursorHomePath: string;
+  /** App root used to validate the control-tower-pr-review plugin pack. */
+  appRoot: string;
+}
+
+export function checkPrReviewPlugin(appRoot: string): CheckResult {
+  try {
+    const pluginDir = assertPrReviewPluginPresent(appRoot);
+    return {
+      ok: true,
+      name: "PR review plugin",
+      severity: "pass",
+      message: `control-tower-pr-review present at ${pluginDir}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      name: "PR review plugin",
+      severity: "fail",
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 export async function runDoctor(
@@ -260,6 +285,11 @@ export async function runDoctor(
   deps: DoctorDeps,
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
+  const cursorHome = ensureControlTowerCursorHome(config.cursorHomePath);
+  const cursorEnv = buildCursorEnv({
+    ...(process.env as Record<string, string | undefined>),
+    HOME: cursorHome,
+  });
 
   try {
     const nodeV = deps.execCommand("node", ["--version"]);
@@ -290,24 +320,35 @@ export async function runDoctor(
   }
 
   try {
-    const cursorV = deps.execCommand(config.cursorBinary, ["--version"]);
+    const cursorV = deps.execCommand(config.cursorBinary, ["--version"], cursorEnv);
     results.push(checkCursorVersion(cursorV, config.cursorVersionFloor));
   } catch {
     results.push({ ok: false, name: "Cursor CLI", message: "Cannot execute agent --version", severity: "fail" });
   }
 
   try {
-    const statusOut = deps.execCommand(config.cursorBinary, ["status", "--format", "json"]);
+    const statusOut = deps.execCommand(
+      config.cursorBinary,
+      ["status", "--format", "json"],
+      cursorEnv,
+    );
     const status = JSON.parse(statusOut);
     const authed = status.isAuthenticated === true;
     results.push({
       ok: authed,
       name: "Cursor auth",
       severity: authed ? "pass" : "fail",
-      message: authed ? "Authenticated" : "Not authenticated - run `agent login`",
+      message: authed
+        ? `Authenticated (HOME=${cursorHome})`
+        : `Not authenticated under ${cursorHome} — set CURSOR_API_KEY or run \`HOME=${cursorHome} agent login\``,
     });
   } catch {
-    results.push({ ok: false, name: "Cursor auth", message: "Cannot check Cursor auth status", severity: "fail" });
+    results.push({
+      ok: false,
+      name: "Cursor auth",
+      message: `Cannot check Cursor auth status under ${cursorHome}`,
+      severity: "fail",
+    });
   }
 
   let modelAvailability: CheckResult | null = null;
@@ -315,9 +356,13 @@ export async function runDoctor(
     let modelsOut: string;
     try {
       // Prefer text listing — current agent CLIs reject `models --format json`.
-      modelsOut = deps.execCommand(config.cursorBinary, ["models"]);
+      modelsOut = deps.execCommand(config.cursorBinary, ["models"], cursorEnv);
     } catch {
-      modelsOut = deps.execCommand(config.cursorBinary, ["models", "--format", "json"]);
+      modelsOut = deps.execCommand(
+        config.cursorBinary,
+        ["models", "--format", "json"],
+        cursorEnv,
+      );
     }
     const available = parseAgentModelsOutput(modelsOut);
     if (available.length === 0) {
@@ -368,6 +413,8 @@ export async function runDoctor(
       },
     );
   }
+
+  results.push(checkPrReviewPlugin(config.appRoot));
 
   try {
     const ghEnv = buildGhEnv(process.env as Record<string, string>, { host: config.githubHost });

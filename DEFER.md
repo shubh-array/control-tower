@@ -52,36 +52,43 @@ Same PR and head SHA; operator edits policy so priority tier changes.
 
 ### Problem
 
-Harness composition (prompts, skills, persona, contracts) is read and hashed into `harness-manifest.json`, but the file contents are not written under `layout.harnessDir`. Cursor `--workspace` is the run directory; the CLI prompt string is only the org `config/harnesses/pr-review/prompt.md` text.
+Harness composition (prompts, skills, persona, contracts) is read and hashed into `harness-manifest.json`, but the file contents are not written under `layout.harnessDir`.
+
+### Partially addressed (Cursor discovery)
+
+Primary review guidance is now loaded by Cursor via `--plugin-dir config/plugins/control-tower-pr-review` (rules + skill), with a thin CLI prompt from that plugin’s `prompt.md`. Sessions use an isolated Cursor HOME under `{dataDirectory}/cursor-home` so operator `~/.cursor` plugins/skills do not leak. This closes the “agent only sees a prompt string” gap for org review guidance without materializing files under `runDir/harness/`.
+
+### Still deferred
+
+Persona and engineer profile overlays remain identity-hashed only (not written under `harnessDir`). Audit-friendly copies of every manifest layer under the sealed run directory are still not written.
 
 ### Current behavior (code)
 
-- `buildHarnessManifestForJob` in `src/orchestrator/context-build.ts` hashes inlined safety/output contracts plus org/profile artifacts loaded via `readArtifact` (prompt, skill, persona, domain markdown).
+- `buildHarnessManifestForJob` in `src/orchestrator/context-build.ts` hashes inlined safety/output contracts plus plugin/profile artifacts loaded via `readArtifact` (plugin prompt, skill, persona, domain `.mdc` rules).
 - `materializeRunContext` writes `harness-manifest.json` and other JSON metadata; it does **not** write files under `harnessDir`.
-- `computeRunDirectoryLayout` (`src/context/prepare.ts`) defines `harnessDir: join(runDir, 'harness')`.
-- `buildCursorArgv` (`src/cursor/argv.ts`) sets `--workspace` to `runDirectory`.
-- `resolveReviewPrompt` in `src/orchestrator/pipeline-runner.ts` loads only `config/harnesses/pr-review/prompt.md` for the CLI prompt argument.
+- `buildCursorArgv` (`src/cursor/argv.ts`) sets `--workspace` to `runDirectory` and `--plugin-dir` to the CT plugin root.
+- `resolveReviewPrompt` in `src/orchestrator/pipeline-runner.ts` loads `config/plugins/control-tower-pr-review/prompt.md`.
 
-### Why defer
+### Why defer remainder
 
-Reviews still run with the org prompt string. Persona/skills improve quality and product differentiation but are not required for “agent can see code + diff + evidence” (URGENT).
+Persona materialization under the run dir is still useful for audit and for Cursor to read engineer tone without profile path access, but plugin discovery already supplies org review process.
 
-### Files to change
+### Files to change (remainder)
 
-- `src/orchestrator/context-build.ts` — `materializeRunContext` writes harness entry contents to paths reflected in the manifest
+- `src/orchestrator/context-build.ts` — `materializeRunContext` writes remaining harness entry contents (especially persona) to paths reflected in the manifest
 - Tests: after `preparing_context`, harness files exist under the run directory and hashes match manifest entries
 
-### Acceptance criteria
+### Acceptance criteria (remainder)
 
-- [ ] `materializeRunContext` writes harness contents (prompt, skill, persona, contracts, domain guidance as applicable) under the run directory paths listed/implied by `harness-manifest.json`.
+- [ ] `materializeRunContext` writes remaining harness contents (persona, and any non-plugin overlays) under the run directory paths listed/implied by `harness-manifest.json`.
 - [ ] Manifest hashes match the materialized file bytes.
-- [ ] Cursor workspace can read those files from the run directory.
+- [x] Cursor can load org review rules/skills via `--plugin-dir` (done).
 
 ### Example
 
 Engineer `persona.md` says “prefer strict API contracts.”  
-**Today:** persona is hashed in the manifest only.  
-**Expected:** `persona.md` (or equivalent path) exists under the run workspace for Cursor to read.
+**Today:** persona is hashed in the manifest only; org skill/rules load via plugin.  
+**Expected (remainder):** `persona.md` (or equivalent path) exists under the run workspace for Cursor to read.
 
 ---
 

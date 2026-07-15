@@ -5,6 +5,9 @@ import {
   existsSync,
   rmSync,
   chmodSync,
+  symlinkSync,
+  readFileSync,
+  statSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -112,5 +115,60 @@ describe("runReset", () => {
     expect(existsSync(configPath)).toBe(false);
     expect(existsSync(profileDir)).toBe(false);
     expect(existsSync(dataDir)).toBe(true);
+  });
+
+  it("does not chmod through symlinks outside the data tree", async () => {
+    const outside = join(tmp, "outside-keychain-dir");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "secret"), "keep");
+    chmodSync(outside, 0o700);
+
+    const linkParent = join(dataDir, "cursor-home", "Library");
+    mkdirSync(linkParent, { recursive: true });
+    symlinkSync(outside, join(linkParent, "Keychains"));
+
+    await runReset({
+      configPath,
+      yes: true,
+      stopDaemon: async () => "Daemon is not running",
+    });
+
+    expect(existsSync(outside)).toBe(true);
+    expect(readFileSync(join(outside, "secret"), "utf-8")).toBe("keep");
+    // Target mode must remain 0700 (chmod on macOS follows symlinks).
+    expect(statSync(outside).mode & 0o777).toBe(0o700);
+  });
+
+  it("does not chmod or wipe through a symlinked dataDirectory root", async () => {
+    const outside = join(tmp, "real-data-target");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "keep-me"), "preserve");
+    chmodSync(outside, 0o700);
+
+    const linkPath = join(tmp, "data-link");
+    rmSync(dataDir, { recursive: true, force: true });
+    symlinkSync(outside, linkPath);
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        profileDirectory: profileDir,
+        dataDirectory: linkPath,
+      }),
+    );
+
+    await runReset({
+      configPath,
+      yes: true,
+      stopDaemon: async () => "Daemon is not running",
+    });
+
+    expect(existsSync(outside)).toBe(true);
+    expect(readFileSync(join(outside, "keep-me"), "utf-8")).toBe("preserve");
+    expect(statSync(outside).mode & 0o777).toBe(0o700);
+    // Symlink removed and replaced with a fresh real directory; target untouched.
+    expect(statSync(linkPath).isSymbolicLink()).toBe(false);
+    expect(statSync(linkPath).isDirectory()).toBe(true);
+    expect(existsSync(join(outside, "keep-me"))).toBe(true);
   });
 });

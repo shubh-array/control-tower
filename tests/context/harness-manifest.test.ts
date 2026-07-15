@@ -49,10 +49,14 @@ describe('buildHarnessManifest', () => {
     expect(layer2[0]!.logicalPath).toBe('policy.snapshot.json');
   });
 
-  it('uses pr-review feature paths throughout', () => {
+  it('uses pr-review feature and plugin logical paths', () => {
     const manifest = buildHarnessManifest(makeReviewInput());
     expect(manifest.entries.every((entry) => entry.feature === 'pr-review')).toBe(true);
-    expect(manifest.entries.some((entry) => entry.logicalPath.includes('pr-review'))).toBe(true);
+    expect(
+      manifest.entries.some((entry) =>
+        entry.logicalPath.includes('plugins/control-tower-pr-review'),
+      ),
+    ).toBe(true);
   });
 
   it('primary review layer 9 ends with provenance catalog', () => {

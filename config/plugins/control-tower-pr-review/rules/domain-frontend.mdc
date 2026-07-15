@@ -1,3 +1,8 @@
+---
+description: When reviewing frontend, UI, React, component, or client-side changes
+alwaysApply: false
+---
+
 # Frontend Domain Guidance
 
 When reviewing frontend changes, assess through source, diff, test code, and CI inspection only. Do NOT execute builds, tests, browsers, or repository commands.

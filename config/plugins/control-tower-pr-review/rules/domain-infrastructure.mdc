@@ -1,6 +1,13 @@
+---
+description: When reviewing infrastructure, IAM, networking, deploy, or cloud resource changes
+alwaysApply: false
+---
+
 # Infrastructure Domain Guidance
 
-When reviewing infrastructure changes, pay special attention to:
+When reviewing infrastructure changes, assess through source, diff, and CI inspection only. Do NOT execute builds, deploys, shells, or repository commands.
+
+Pay special attention to:
 - IAM policy and role changes (principle of least privilege)
 - Network configuration (security groups, VPC peering, DNS)
 - Secret and certificate management

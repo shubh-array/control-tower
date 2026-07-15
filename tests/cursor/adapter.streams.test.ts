@@ -33,7 +33,7 @@ describe('writeAdapterStreams', () => {
 });
 
 describe('buildCursorEnvironment', () => {
-  it('delegates to buildCursorEnv with HOME override', () => {
+  it('delegates to buildCursorEnv with HOME override and optional CURSOR_API_KEY', () => {
     const saved = {
       PATH: process.env.PATH,
       LANG: process.env.LANG,
@@ -55,7 +55,7 @@ describe('buildCursorEnvironment', () => {
       expect(env.LANG).toBe('en_US.UTF-8');
       expect(env.LC_ALL).toBe('en_US.UTF-8');
       expect(env.USER).toBe('tester');
-      expect(env).not.toHaveProperty('CURSOR_API_KEY');
+      expect(env.CURSOR_API_KEY).toBe('secret');
     } finally {
       for (const [key, value] of Object.entries(saved)) {
         if (value === undefined) delete process.env[key];

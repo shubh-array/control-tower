@@ -1,5 +1,6 @@
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -54,9 +55,14 @@ function readPaths(configPath: string): {
     if (!config.dataDirectory || !config.profileDirectory) {
       return null;
     }
+    const expand = (p: string): string => {
+      if (p === "~") return homedir();
+      if (p.startsWith("~/")) return `${homedir()}${p.slice(1)}`;
+      return p;
+    };
     return {
-      dataDirectory: config.dataDirectory,
-      profileDirectory: config.profileDirectory,
+      dataDirectory: expand(config.dataDirectory),
+      profileDirectory: expand(config.profileDirectory),
     };
   } catch {
     return null;
@@ -65,6 +71,17 @@ function readPaths(configPath: string): {
 
 function makeTreeWritable(root: string): void {
   if (!existsSync(root)) {
+    return;
+  }
+
+  // Never follow symlinks: chmod on macOS follows targets, and recursion
+  // into a link under data/ could mutate paths outside the data tree
+  // (e.g. a Keychains link into ~/Library/Keychains).
+  try {
+    if (lstatSync(root).isSymbolicLink()) {
+      return;
+    }
+  } catch {
     return;
   }
 
@@ -83,6 +100,9 @@ function makeTreeWritable(root: string): void {
 
   for (const entry of entries) {
     const full = join(root, entry.name);
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
     try {
       chmodSync(full, entry.isDirectory() ? 0o755 : 0o644);
     } catch {
@@ -97,6 +117,17 @@ function makeTreeWritable(root: string): void {
 function wipeDirectory(path: string): void {
   if (!existsSync(path)) {
     return;
+  }
+
+  // If the configured root is itself a symlink, only remove the link —
+  // do not chmod/recurse into the target.
+  try {
+    if (lstatSync(path).isSymbolicLink()) {
+      rmSync(path, { force: true });
+      return;
+    }
+  } catch {
+    // Fall through to best-effort wipe.
   }
 
   // Sealed run dirs are often mode 0555; unlock before recursive delete.

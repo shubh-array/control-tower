@@ -18,6 +18,7 @@ export interface AdapterRunInput {
   modelId: string;
   prompt: string;
   sourceViewPath?: string;
+  pluginDir?: string;
   homePath: string;
   timeoutMs?: number;
   transcriptPath: string;
@@ -53,6 +54,7 @@ export async function runCursorAgent(input: AdapterRunInput): Promise<AdapterRun
     modelId: input.modelId,
     prompt: input.prompt,
     sourceViewPath: input.sourceViewPath,
+    pluginDir: input.pluginDir,
   });
 
   const env = buildCursorEnvironment(input.homePath);

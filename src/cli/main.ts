@@ -16,6 +16,15 @@ import {
   loadPolicyConfig,
 } from "../config/load.js";
 import { normalizeLogin } from "../config/author-login.js";
+import {
+  resolvePrReviewPromptPath,
+  resolvePrReviewSkillPath,
+} from "../app-safety/pr-review-plugin.js";
+import {
+  ensureControlTowerCursorHome,
+  resolveControlTowerCursorHome,
+} from "../cursor/cursor-home.js";
+import { buildCursorEnv } from "../security/child-env.js";
 
 const appRoot = resolve(join(import.meta.dirname, "../.."));
 const CURSOR_VERSION_FLOOR = "2026.07.09-a3815c0";
@@ -26,8 +35,8 @@ function buildHarnessManifests() {
   return [
     {
       id: "pr-review",
-      prompt: join(appRoot, "config/harnesses/pr-review/prompt.md"),
-      skills: [join(appRoot, "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md")],
+      prompt: resolvePrReviewPromptPath(appRoot),
+      skills: [resolvePrReviewSkillPath(appRoot)],
     },
   ];
 }
@@ -71,6 +80,10 @@ function buildDoctorConfig(localConfigPath: string): DoctorConfig {
     }
   }
 
+  const cursorHomePath = ensureControlTowerCursorHome(
+    resolveControlTowerCursorHome(localConfig.dataDirectory),
+  );
+
   return {
     githubHost: orgConfig.github.host,
     configuredLogin: normalizedLogin,
@@ -86,15 +99,22 @@ function buildDoctorConfig(localConfigPath: string): DoctorConfig {
     personaPath: existsSync(personaPath) ? personaPath : null,
     harnessManifests: buildHarnessManifests(),
     domainGlobs,
+    cursorHomePath,
+    appRoot,
   };
 }
 
-function createDefaultDoctorDeps(cursorBinary: string) {
+function createDefaultDoctorDeps(cursorBinary: string, cursorHomePath: string) {
+  const cursorEnv = buildCursorEnv({
+    ...(process.env as Record<string, string | undefined>),
+    HOME: cursorHomePath,
+  });
+
   const execCommand = (cmd: string, args: string[], env?: Record<string, string>) => {
     return execFileSync(cmd, args, {
       encoding: "utf-8" as const,
       timeout: 30_000,
-      env: env ?? process.env as Record<string, string>,
+      env: env ?? (process.env as Record<string, string>),
     }).trim();
   };
 
@@ -105,9 +125,9 @@ function createDefaultDoctorDeps(cursorBinary: string) {
     smokeModel: (modelId: string) => {
       let modelsOut: string;
       try {
-        modelsOut = execCommand(cursorBinary, ["models"]);
+        modelsOut = execCommand(cursorBinary, ["models"], cursorEnv);
       } catch {
-        modelsOut = execCommand(cursorBinary, ["models", "--format", "json"]);
+        modelsOut = execCommand(cursorBinary, ["models", "--format", "json"], cursorEnv);
       }
       const available = parseAgentModelsOutput(modelsOut);
       const ok = available.includes(modelId);
@@ -121,7 +141,10 @@ function createDefaultDoctorDeps(cursorBinary: string) {
 
 async function runDoctorWorkflow(localConfigPath: string): Promise<boolean> {
   const doctorConfig = buildDoctorConfig(localConfigPath);
-  const defaultDeps = createDefaultDoctorDeps(doctorConfig.cursorBinary);
+  const defaultDeps = createDefaultDoctorDeps(
+    doctorConfig.cursorBinary,
+    doctorConfig.cursorHomePath,
+  );
   const results = await runDoctor(doctorConfig, defaultDeps);
 
   let hasFailure = false;

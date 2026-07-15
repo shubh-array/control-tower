@@ -14,7 +14,12 @@ export function buildCommonEnv(
 export function buildCursorEnv(
   host: Record<string, string | undefined>,
 ): Record<string, string> {
-  return buildCommonEnv(host);
+  const env = buildCommonEnv(host);
+  // Headless auth under an isolated Control Tower Cursor HOME.
+  if (host.CURSOR_API_KEY !== undefined && host.CURSOR_API_KEY !== "") {
+    env.CURSOR_API_KEY = host.CURSOR_API_KEY;
+  }
+  return env;
 }
 
 interface GhEnvOptions {

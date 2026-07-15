@@ -169,12 +169,12 @@ function buildHarnessManifestForJob(input: ContextBuildInput): HarnessManifest {
   };
 
   const orgPrompt = readArtifact(
-    join(input.appRoot, "config/harnesses/pr-review/prompt.md"),
+    join(input.appRoot, "config/plugins/control-tower-pr-review/prompt.md"),
   );
   const orgSkill = readArtifact(
     join(
       input.appRoot,
-      "config/harnesses/pr-review/skills/control-tower-pr-review/SKILL.md",
+      "config/plugins/control-tower-pr-review/skills/control-tower-pr-review/SKILL.md",
     ),
   );
 
@@ -197,14 +197,17 @@ function buildHarnessManifestForJob(input: ContextBuildInput): HarnessManifest {
     hash: string;
     bytes: number;
   }> = [];
-  const domainsDir = join(input.appRoot, "config/harnesses/pr-review/domains");
-  if (existsSync(domainsDir)) {
-    for (const file of readdirSync(domainsDir)) {
-      if (!file.endsWith(".md")) continue;
-      const artifact = readArtifact(join(domainsDir, file));
+  const rulesDir = join(
+    input.appRoot,
+    "config/plugins/control-tower-pr-review/rules",
+  );
+  if (existsSync(rulesDir)) {
+    for (const file of readdirSync(rulesDir)) {
+      if (!file.startsWith("domain-") || !file.endsWith(".mdc")) continue;
+      const artifact = readArtifact(join(rulesDir, file));
       if (artifact) {
         orgDomainGuidance.push({
-          domain: file.replace(/\.md$/, ""),
+          domain: file.replace(/^domain-/, "").replace(/\.mdc$/, ""),
           ...artifact,
         });
       }

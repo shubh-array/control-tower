@@ -1,0 +1,6 @@
+{
+  "name": "control-tower-pr-review",
+  "version": "0.1.0",
+  "description": "Evidence-backed PR review guidance for Control Tower primaryReview (ask-mode).",
+  "keywords": ["pr-review", "control-tower", "provenance", "ask-mode"]
+}

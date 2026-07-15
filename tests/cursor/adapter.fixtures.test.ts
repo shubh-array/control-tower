@@ -35,12 +35,32 @@ describe('adapter argv fixtures', () => {
     expect(argv[addDirIdx + 1]).toBe('/data/worktrees/j1/source');
   });
 
-  it('omits --add-dir for remote-evidence-only', () => {
+  it('adds --plugin-dir when provided', () => {
     const argv = buildCursorArgv({
       ...baseInput,
-      sourceViewPath: undefined,
+      pluginDir: '/app/config/plugins/control-tower-pr-review',
     });
-    expect(argv).not.toContain('--add-dir');
+    const idx = argv.indexOf('--plugin-dir');
+    expect(idx).toBeGreaterThan(-1);
+    expect(argv[idx + 1]).toBe('/app/config/plugins/control-tower-pr-review');
+  });
+
+  it('omits --plugin-dir when not provided', () => {
+    const argv = buildCursorArgv(baseInput);
+    expect(argv).not.toContain('--plugin-dir');
+  });
+
+  it('places --plugin-dir before --add-dir and prompt', () => {
+    const argv = buildCursorArgv({
+      ...baseInput,
+      pluginDir: '/plugin',
+      sourceViewPath: '/source',
+    });
+    const pluginIdx = argv.indexOf('--plugin-dir');
+    const addIdx = argv.indexOf('--add-dir');
+    expect(pluginIdx).toBeGreaterThan(-1);
+    expect(addIdx).toBeGreaterThan(pluginIdx);
+    expect(argv[argv.length - 1]).toBe('Review this PR');
   });
 });
 
